@@ -1,4 +1,5 @@
 import { Hero } from "@/components/hero/hero";
+import { Services } from "@/components/services/services";
 import { TrustBar } from "@/components/trust/trust-bar";
 
 export default function Homepage() {
@@ -6,6 +7,7 @@ export default function Homepage() {
     <>
       <Hero />
       <TrustBar />
+      <Services />
     </>
   );
 }
