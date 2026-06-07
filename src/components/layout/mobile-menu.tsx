@@ -39,22 +39,22 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
             exit={{ x: "100%" }}
             transition={{ type: "spring", stiffness: 320, damping: 32 }}
             className={cn(
-              "fixed top-0 right-0 bottom-0 w-[300px] z-50 lg:hidden",
-              "bg-[var(--cream)] flex flex-col",
+              "fixed top-0 right-0 bottom-0 w-75 z-50 lg:hidden",
+              "bg-(--cream) flex flex-col",
               "shadow-[-8px_0_40px_rgba(26,58,42,0.15)]",
             )}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--cream-dark)]">
-              <span className="font-serif text-[18px] font-semibold text-[var(--green-deep)]">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-(--cream-dark)">
+              <span className="font-serif text-[18px] font-semibold text-(--green-deep)">
                 Menu
               </span>
               <button
                 onClick={onClose}
-                className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[var(--cream-dark)] transition-colors"
+                className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-(--cream-dark) transition-colors"
                 aria-label="Close menu"
               >
-                <X size={18} className="text-[var(--text-body)]" />
+                <X size={18} className="text-(--text-body)" />
               </button>
             </div>
 
@@ -77,13 +77,13 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
                           "flex items-center justify-between px-4 py-3 rounded-xl",
                           "text-[15px] font-medium transition-all duration-200",
                           isActive
-                            ? "bg-[var(--green-deep)] text-white"
-                            : "text-[var(--text-body)] hover:bg-[var(--green-pale)]/40 hover:text-[var(--green-deep)]",
+                            ? "bg-(--green-deep) text-white"
+                            : "text-(--text-body) hover:bg-(--green-pale)/40 hover:text-(--green-deep)",
                         )}
                       >
                         {link.label}
                         {link.isNew && (
-                          <span className="text-[10px] bg-[var(--gold)] text-white px-2 py-0.5 rounded-full font-medium tracking-wide">
+                          <span className="text-[10px] bg-(--gold) text-white px-2 py-0.5 rounded-full font-medium tracking-wide">
                             New
                           </span>
                         )}
@@ -95,7 +95,7 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
             </nav>
 
             {/* CTA footer */}
-            <div className="px-6 py-6 border-t border-[var(--cream-dark)] space-y-3">
+            <div className="px-6 py-6 border-t border-(--cream-dark) space-y-3">
               <Button
                 variant="outline"
                 size="md"

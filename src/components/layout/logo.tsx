@@ -16,12 +16,12 @@ export function Logo({ light = false, className }: LogoProps) {
       {/* Icon mark */}
       <div
         className={cn(
-          "w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0",
+          "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
           "font-serif italic font-semibold text-[17px] transition-transform duration-300",
           "group-hover:scale-105",
           light
             ? "bg-white/15 text-white border border-white/20"
-            : "bg-[var(--green-deep)] text-white",
+            : "bg-(--green-deep) text-white",
         )}
       >
         Hx
@@ -32,7 +32,7 @@ export function Logo({ light = false, className }: LogoProps) {
         <span
           className={cn(
             "block font-serif font-semibold text-[22px] tracking-[0.01em]",
-            light ? "text-white" : "text-[var(--green-deep)]",
+            light ? "text-white" : "text-(--green-deep)",
           )}
         >
           HerbRx
@@ -40,7 +40,7 @@ export function Logo({ light = false, className }: LogoProps) {
         <span
           className={cn(
             "block font-sans font-normal text-[10px] tracking-[0.14em] uppercase mt-0.5",
-            light ? "text-white/40" : "text-[var(--text-muted)]",
+            light ? "text-white/40" : "text-(--text-muted)",
           )}
         >
           Natural Wellness
