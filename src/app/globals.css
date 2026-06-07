@@ -1,26 +1,77 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --cream: #F7F3EC;
+  --cream-dark: #EDE6D9;
+  --green-deep: #1A3A2A;
+  --green-mid: #2D5A3D;
+  --green-light: #4A7C59;
+  --green-pale: #C8DABB;
+  --gold: #B8832A;
+  --gold-light: #D4A85C;
+  --text-dark: #1A2412;
+  --text-body: #3A4A35;
+  --text-muted: #6B7C65;
+  --max-width: 1200px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+html { scroll-behavior: smooth; }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--cream);
+  color: var(--text-dark);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,h2,h3,h4,h5,h6 { line-height: 1.15; }
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--cream-dark); }
+::-webkit-scrollbar-thumb { background: var(--green-pale); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--green-light); }
+
+::selection { background: var(--green-pale); color: var(--green-deep); }
+
+:focus-visible {
+  outline: 2px solid var(--green-mid);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.embla { overflow: hidden; }
+.embla__container { display: flex; }
+.embla__slide { flex: 0 0 auto; min-width: 0; }
+
+.dot-pattern {
+  background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.12) 1px, transparent 0);
+  background-size: 28px 28px;
+}
+
+.animated-underline { position: relative; }
+.animated-underline::after {
+  content: "";
+  position: absolute;
+  bottom: -2px; left: 0;
+  width: 100%; height: 1.5px;
+  background: var(--gold);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s ease;
+}
+.animated-underline:hover::after { transform: scaleX(1); }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
 }
