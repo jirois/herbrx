@@ -97,6 +97,16 @@ export const testimonials: Testimonial[] = [
     avatarBg: '#C2DDD5',
     avatarColor: '#1A6B5A',
   },
+  {
+    id: 't4',
+    quote: "HerbRx stands out — it's clean, science-backed, and deeply Nigerian. I even shared their liver detox guide with my mum, and she has been feeling so much better.",
+    author: 'Francis Ademola',
+    location: 'Lagos',
+    role: 'Wellness Enthusiast',
+    initials: 'NE',
+    avatarBg: '#C2DDD5',
+    avatarColor: '#1A6B5A',
+  },
 ]
 
 export const stats: Stat[] = [
@@ -135,14 +145,13 @@ export const whyItems = [
     desc: 'We speak your language — English, Igbo, Yoruba, Hausa, and Pidgin.',
   },
   {
-    icon: VerifiedIcon,
+    icon: '✅',
     title: 'We Verify, Not Sell',
     desc: 'Our reviews are unbiased and driven purely by herbal science — never by sponsorships.',
   },
   {
-    icon: NigeriaIcon,
+    icon: '🇳🇬',
     title: 'Made for Nigerians',
     desc: 'Every guide, review, and service is tailored to local health needs and realities.',
   },
 ]
-

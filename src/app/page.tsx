@@ -1,4 +1,8 @@
 import { Hero } from "@/components/hero/hero";
+import { Footer } from "@/components/sections/footer";
+import { Newsletter } from "@/components/sections/newsletter";
+import { Testimonials } from "@/components/sections/testimonials";
+import { WhySection } from "@/components/sections/why-section";
 import { Services } from "@/components/services/services";
 import { Products } from "@/components/store/products";
 import { TrustBar } from "@/components/trust/trust-bar";
@@ -10,6 +14,10 @@ export default function Homepage() {
       <TrustBar />
       <Services />
       <Products />
+      <WhySection />
+      <Testimonials />
+      <Newsletter />
+      <Footer />
     </>
   );
 }
