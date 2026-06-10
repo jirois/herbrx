@@ -1,4 +1,5 @@
 import { Hero } from "@/components/hero/hero";
+import { BlogSection } from "@/components/sections/blog-section";
 import { Footer } from "@/components/sections/footer";
 import { Newsletter } from "@/components/sections/newsletter";
 import { Testimonials } from "@/components/sections/testimonials";
@@ -16,7 +17,9 @@ export default function Homepage() {
       <Products />
       <WhySection />
       <Testimonials />
+      <BlogSection />
       <Newsletter />
+
       <Footer />
     </>
   );
