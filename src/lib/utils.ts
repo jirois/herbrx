@@ -26,3 +26,8 @@ export function getInitials(name: string): string {
 export function staggerDelay(index: number, base = 0.08): number {
   return index * base
 }
+
+
+export function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max)
+}

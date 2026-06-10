@@ -12,32 +12,17 @@ import { cn } from "@/lib/utils";
 
 export function Products() {
   const [activeCategory, setActiveCategory] = useState("All Products");
-
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
     loop: false,
-    skipSnaps: false,
   });
-
   const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
   const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
 
   const filtered =
     activeCategory === "All Products"
       ? products
-      : products.filter((p) => {
-          const map: Record<string, string[]> = {
-            "Teas & Blends": ["Tea", "Blend", "Loose"],
-            Capsules: ["Capsule"],
-            Tinctures: ["Tincture"],
-            Topical: ["Topical", "Bar", "Balm", "Soap"],
-            Supplements: ["Supplement"],
-          };
-          const keywords = map[activeCategory] ?? [];
-          return keywords.some((kw) =>
-            p.type.toLowerCase().includes(kw.toLowerCase()),
-          );
-        });
+      : products.filter((p) => p.category === activeCategory);
 
   return (
     <section
@@ -45,7 +30,6 @@ export function Products() {
       id="store"
     >
       <div className="max-w-(--max-width) mx-auto px-6 lg:px-10">
-        {/* Header row */}
         <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
           <SectionTitle
             tag="HerbRx Store"
@@ -53,17 +37,11 @@ export function Products() {
             subtitle="Every product in our store has passed our rigorous safety review process."
             className="mb-0"
           />
-          <Button
-            variant="outline"
-            size="sm"
-            href="/store"
-            className="shrink-0"
-          >
+          <Button variant="outline" size="sm" href="/store">
             View All Products
           </Button>
         </div>
 
-        {/* Filter tabs */}
         <div className="flex flex-wrap gap-2 mb-10">
           {productCategories.map((cat) => (
             <button
@@ -88,10 +66,13 @@ export function Products() {
           ))}
         </div>
 
-        {/* Mobile embla carousel */}
+        {/* Mobile carousel */}
         <div className="md:hidden">
           <div className="embla" ref={emblaRef}>
-            <div className="embla__container gap-4" style={{ display: "flex" }}>
+            <div
+              className="embla__container"
+              style={{ display: "flex", gap: "16px" }}
+            >
               {filtered.map((product, i) => (
                 <div
                   key={product.id}
@@ -103,27 +84,24 @@ export function Products() {
               ))}
             </div>
           </div>
-
-          {/* Carousel controls */}
           <div className="flex justify-center gap-3 mt-6">
             <button
               onClick={scrollPrev}
-              className="w-10 h-10 rounded-full border border-(--cream-dark) flex items-center justify-center hover:bg-(--green-deep) hover:text-white hover:border-(--green-deep) transition-all"
-              aria-label="Previous products"
+              className="w-10 h-10 rounded-full border border-(--cream-dark) flex items-center justify-center hover:bg-(--green-deep) hover:text-white transition-all"
+              aria-label="Previous"
             >
               <ChevronLeft size={18} />
             </button>
             <button
               onClick={scrollNext}
-              className="w-10 h-10 rounded-full border border-(--cream-dark) flex items-center justify-center hover:bg-(--green-deep) hover:text-white hover:border-(--green-deep) transition-all"
-              aria-label="Next products"
+              className="w-10 h-10 rounded-full border border-(--cream-dark) flex items-center justify-center hover:bg-(--green-deep) hover:text-white transition-all"
+              aria-label="Next"
             >
               <ChevronRight size={18} />
             </button>
           </div>
         </div>
 
-        {/* CTA */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
