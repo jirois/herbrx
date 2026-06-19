@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, DM_Sans } from "next/font/google";
 import "./globals.css";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { SessionProviderWrapper } from "@/components/auth/session-provider";
 import { CartProvider } from "@/context/cart-context";
 import { ToastProvider } from "@/context/toast-context";
+import { LocaleProvider } from "@/context/locale-context";
 import { Navbar } from "@/components/layout/navbar";
 import { CartDrawer } from "@/components/cart/cart-drawer";
 import { CartToastBridge } from "@/components/cart/cart-toast-bridge";
@@ -59,22 +63,27 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await getServerSession(authOptions);
   return (
     <html lang="en" className={`${cormorant.variable} ${dmSans.variable}`}>
       <body className="font-sans antialiased">
-        <ToastProvider>
-          <CartProvider>
-            <Navbar />
-            <main>{children}</main>
-            <CartDrawer />
-            <CartToastBridge />
-          </CartProvider>
-        </ToastProvider>
+        <SessionProviderWrapper session={session}>
+          <LocaleProvider>
+            <ToastProvider>
+              <CartProvider>
+                <Navbar />
+                <CartDrawer />
+                <CartToastBridge />
+                <main>{children}</main>
+              </CartProvider>
+            </ToastProvider>
+          </LocaleProvider>
+        </SessionProviderWrapper>
       </body>
     </html>
   );
