@@ -17,6 +17,10 @@ const nextConfig: NextConfig = {
         hostname: 'assets.mysite.com',
         pathname: '/images/**', // Restricts to a specific folder
       },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+      },
     
     ],
   },
