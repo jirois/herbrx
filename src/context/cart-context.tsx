@@ -10,7 +10,7 @@ import {
 } from "react";
 import type { CartItem, Product } from "@/types";
 
-// ── State ────────────────────────────────────────────────────────────────
+// ── State ───────
 interface CartState {
   items: CartItem[];
   isOpen: boolean;
