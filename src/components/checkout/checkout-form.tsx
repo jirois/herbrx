@@ -175,17 +175,27 @@ export function CheckoutForm() {
 
   // Pre-fill form from auth session
   const [form, setForm] = useState<Partial<OrderCustomer>>({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
     address: "",
     city: "",
     state: "",
   });
-  const prefill = {
-    firstName: user?.firstName ?? "",
-    lastName: user?.lastName ?? "",
-    email: user?.email ?? "",
-    phone: user?.phone ?? "",
+
+  // Keep state sync updated if auth loading finishes late
+  const customer = {
+    firstName: form.firstName || user?.firstName || "",
+    lastName: form.lastName || user?.lastName || "",
+    email: form.email || user?.email || "",
+    phone: form.phone || user?.phone || "",
+    address: form.address,
+    city: form.city,
+    state: form.state,
   };
-  const customer = { ...prefill, ...form };
+
+  // const customer = { ...prefill, ...form };
 
   const [payment, setPayment] = useState<PaymentMethod>("card");
   const [errors, setErrors] = useState<FieldError>({});
@@ -403,7 +413,7 @@ export function CheckoutForm() {
               <Field
                 label="First Name"
                 id="firstName"
-                value={form.firstName ?? ""}
+                value={customer.firstName}
                 error={errors.firstName}
                 update={update}
               />
@@ -411,7 +421,7 @@ export function CheckoutForm() {
                 label="Last Name"
                 id="lastName"
                 placeholder="Okafor"
-                value={form.lastName ?? ""}
+                value={customer.lastName ?? ""}
                 error={errors.lastName}
                 update={update}
               />
@@ -421,7 +431,7 @@ export function CheckoutForm() {
                 id="email"
                 type="email"
                 placeholder="you@example.com"
-                value={form.email ?? ""}
+                value={customer.email ?? ""}
                 error={errors.email}
                 update={update}
               />
@@ -430,7 +440,7 @@ export function CheckoutForm() {
                 id="phone"
                 type="tel"
                 placeholder="08012345678"
-                value={form.phone ?? ""}
+                value={customer.phone ?? ""}
                 error={errors.phone}
                 update={update}
               />
@@ -447,7 +457,7 @@ export function CheckoutForm() {
                 label="Street Address"
                 id="address"
                 placeholder="12 Herbert Macaulay Way"
-                value={form.address ?? ""}
+                value={customer.address ?? ""}
                 error={errors.address}
                 update={update}
               />
@@ -456,21 +466,21 @@ export function CheckoutForm() {
                   label="City / Town"
                   id="city"
                   placeholder="Lagos"
-                  value={form.city ?? ""}
+                  value={customer.city ?? ""}
                   error={errors.city}
                   update={update}
                 />
                 <Field
                   label="State"
                   id="state"
-                  value={form.state ?? ""}
+                  value={customer.state ?? ""}
                   error={errors.state}
                   update={update}
                 >
                   <div className="relative">
                     <select
                       id="state"
-                      value={form.state}
+                      value={customer.state}
                       onChange={(e) => update("state", e.target.value)}
                       className={cn(
                         "w-full appearance-none px-4 py-3 pr-9 rounded-xl border text-[14px] bg-white text-(--text-dark) outline-none transition-all cursor-pointer",
@@ -564,7 +574,7 @@ export function CheckoutForm() {
               >
                 <strong>Bank transfer details:</strong>
                 <br />
-                Bank: First Bank Nigeria · Account: 1234567890
+                Bank: Opay Nigeria · Account: 8034906770
                 <br />
                 Name: HerbRx Ltd · Use your order ID as reference.
                 <br />

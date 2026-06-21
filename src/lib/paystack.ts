@@ -81,20 +81,50 @@ export async function verifyWebhookSignature(
   signature: string
 ): Promise<boolean> {
   const secret = process.env.PAYSTACK_SECRET_KEY
-  if (!secret) return false
+  if (!secret || !signature) return false
 
-  const encoder = new TextEncoder()
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-512' },
-    false,
-    ['sign']
-  )
-  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(rawBody))
-  const hash = Array.from(new Uint8Array(sig))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
+  try {
+    const encoder = new TextEncoder()
+    
+    // 1. Convert the incoming signature string directly into a byte buffer
+    const sigBytes = new Uint8Array(
+      signature.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)) || []
+    )
 
-  return hash === signature
+    // 2. Import the secret key
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(secret),
+      { name: 'HMAC', hash: 'SHA-512' },
+      false,
+      ['verify'] // Explicitly use verify instead of sign
+    )
+
+    // 3. Let Web Crypto handle the constant-time safe signature verification
+    return await crypto.subtle.verify(
+      'HMAC',
+      key,
+      sigBytes,
+      encoder.encode(rawBody)
+    )
+    
+  } catch (err) {
+    console.error('[Webhook Signature Verification Error]:', err)
+    return false
+  }
+
+  // const encoder = new TextEncoder()
+  // const key = await crypto.subtle.importKey(
+  //   'raw',
+  //   encoder.encode(secret),
+  //   { name: 'HMAC', hash: 'SHA-512' },
+  //   false,
+  //   ['sign']
+  // )
+  // const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(rawBody))
+  // const hash = Array.from(new Uint8Array(sig))
+  //   .map((b) => b.toString(16).padStart(2, '0'))
+  //   .join('')
+
+  // return hash === signature
 }
