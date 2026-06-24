@@ -1,37 +1,49 @@
 import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
-import {
-  getSeedOrders,
-  getDashboardStats,
-  getRevenueByDay,
-  getTopProducts,
-} from "@/lib/dashboard-data";
-import type { Metadata } from "next";
-import { DashboardOverview } from "@/components/dashboard/dashboard-overview";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Dashboard — HerbRx" };
+// Role-specific dashboard components
+// import { DashboardOverview } from "@/components/dashboard/dashboard-overview";
+import { CustomerDashboard } from "@/components/dashboard/customer/customer-dashboard";
+import { ProducerDashboard } from "@/components/dashboard/producer/producer-dashboard";
+import { AdminDashboard } from "@/components/dashboard/admin/admin-dashboard";
+import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+// import { generateSeedOrders } from "@/lib/dashboard-data";
+
+type DashboardUser = {
+  firstName: string;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+  role?: "ADMIN" | "PRODUCER" | "CUSTOMER";
+};
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
-  if (!session) redirect("/login?callbackUrl=/dashboard");
+  if (!session) redirect("/login");
 
-  const orders = getSeedOrders();
-  const stats = getDashboardStats(orders);
-  const revenue = getRevenueByDay(orders, 90);
-  const topProducts = getTopProducts(orders, 5);
-  const user = {
-    ...session.user,
-    email: session.user.email ?? "",
-  };
+  const user = session.user as DashboardUser;
+  const role = user.role ?? "CUSTOMER";
+
+  if (role === "ADMIN") {
+    return <AdminDashboard user={user} />;
+  }
+
+  if (role === "PRODUCER") {
+    return (
+      <DashboardShell>
+        <ProducerDashboard user={user} tier="UNVERIFIED" />
+      </DashboardShell>
+    );
+  }
+
+  // CUSTOMER (default) — keep legacy merchant overview for now or show new Safe-Health Hub
+  // Switch to CustomerDashboard once old merchant data is migrated
+  // const data = await generateSeedOrders();
 
   return (
-    <DashboardOverview
-      user={user}
-      orders={orders}
-      stats={stats}
-      revenue={revenue}
-      topProducts={topProducts}
-    />
+    <DashboardShell>
+      <CustomerDashboard user={user} />
+    </DashboardShell>
   );
 }

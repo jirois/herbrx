@@ -166,3 +166,87 @@ export interface AuthSession {
   user: User
   expires: string
 }
+
+// ── RBAC ──────────────────────────────────────────────────────────────────
+export type UserRole = 'CUSTOMER' | 'PRODUCER' | 'ADMIN'
+
+// ── Producer ──────────────────────────────────────────────────────────────
+export type ProducerTier = 'UNVERIFIED' | 'VERIFIED'
+export type ProductStatus = 'DRAFT' | 'PENDING_REVIEW' | 'APPROVED' | 'FLAGGED' | 'BANNED'
+export type BatchStatus = 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED'
+
+export interface ProducerProfile {
+  id: string
+  businessName: string
+  businessEmail?: string
+  rcNumber?: string
+  nafdacNumber?: string
+  tier: ProducerTier
+  verifiedAt?: string
+}
+
+export interface ProducerProduct {
+  id: string
+  name: string
+  description?: string
+  category?: string
+  status: ProductStatus
+  flagReason?: string
+  createdAt: string
+  batchSubmissions: BatchSubmission[]
+}
+
+export interface BatchSubmission {
+  id: string
+  batchNo: string
+  coaFileUrl: string
+  labName?: string
+  testedAt?: string
+  reviewStatus: BatchStatus
+  reviewNotes?: string
+  createdAt: string
+}
+
+// ── Customer ──────────────────────────────────────────────────────────────
+export interface SavedMedication {
+  id: string
+  name: string
+  dose?: string
+  frequency?: string
+}
+
+export type ConsultationType = 'HERBALIST' | 'NATUROPATH' | 'TOXICOLOGIST' | 'PHARMACIST'
+export type ConsultationStatus = 'REQUESTED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED'
+
+export interface Consultation {
+  id: string
+  type: ConsultationType
+  status: ConsultationStatus
+  scheduledAt?: string
+  notes?: string
+  meetingUrl?: string
+  createdAt: string
+}
+
+export type AlertSeverity = 'INFO' | 'WARNING' | 'DANGER'
+
+export interface SafetyAlert {
+  id: string
+  title: string
+  body: string
+  severity: AlertSeverity
+  productName?: string
+  batchNo?: string
+  status: 'ACTIVE' | 'RESOLVED'
+  publishedAt: string
+}
+
+// ── Admin ─────────────────────────────────────────────────────────────────
+export interface AdminAction {
+  id: string
+  action: string
+  targetType: string
+  targetId: string
+  reason?: string
+  createdAt: string
+}

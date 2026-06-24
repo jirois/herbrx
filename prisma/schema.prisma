@@ -24,20 +24,31 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  otpCodes OtpCode[]
-  orders   Order[]
-  sessions Session[]
+  otpCodes           OtpCode[]
+  orders             Order[]
+  sessions           Session[]
+  // Customer-specific
+  healthProfile      HealthProfile?
+  consultations      Consultation[]
+  savedMedications   SavedMedication[]
+  alertSubscriptions AlertSubscription[]
+
+  // Producer-specific
+  producerProfile ProducerProfile?
+  // Admin-specific 
+  adminActions    AdminAction[]
 
   @@index([email])
+  @@index([role])
 }
 
 enum UserRole {
   CUSTOMER
+  PRODUCER
   ADMIN
 }
 
 // OTP codes
-
 model OtpCode {
   id        String     @id @default(cuid())
   userId    String
@@ -147,4 +158,200 @@ enum OrderStatus {
   SHIPPED
   DELIVERED
   CANCELLED
+}
+
+// Customer: Health Profile
+model HealthProfile {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  conditions Json? // string[]
+  allergies  Json? // string[]
+  notes      String?  @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Customer: Saved Medications (for interaction Engine)
+model SavedMedication {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  dose      String?
+  frequency String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Customer: Telehealth Consultations
+
+model Consultation {
+  id             String             @id @default(cuid())
+  userId         String
+  practitionerId String?
+  type           ConsultationType
+  status         ConsultationStatus @default(REQUESTED)
+  scheduledAt    DateTime?
+  notes          String?            @db.Text
+  meetingUrl     String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+enum ConsultationType {
+  HERBALIST
+  NATUROPATH
+  TOXICOLOGIST
+  PHARMACIST
+}
+
+enum ConsultationStatus {
+  REQUESTED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+// Customer: Safety Alert Subscriptions
+model AlertSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  herbIds   Json? // string[] of herb IDs/names they want alerts for
+  channels  Json? // ["email", "sms"]
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+}
+
+// Safety Alerts (Admin-published)
+model SafetyAlert {
+  id          String        @id @default(cuid())
+  title       String
+  body        String        @db.Text
+  severity    AlertSeverity
+  productName String?
+  batchNo     String?
+  status      AlertStatus   @default(ACTIVE)
+  publishedAt DateTime      @default(now())
+  createdBy   String
+
+  @@index([severity])
+  @@index([status])
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  DANGER
+}
+
+enum AlertStatus {
+  ACTIVE
+  RESOLVED
+}
+
+// Producer Profile
+model ProducerProfile {
+  id            String       @id @default(cuid())
+  userId        String       @unique
+  businessName  String
+  businessEmail String?
+  businessPhone String?
+  rcNumber      String? // CAC reqistration
+  nafdacNumber  String?
+  tier          ProducerTier @default(UNVERIFIED)
+  verifiedAt    DateTime?
+  verifiedBy    String? // Admin user ID
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  products ProducerProduct[]
+}
+
+enum ProducerTier {
+  UNVERIFIED
+  VERIFIED
+}
+
+// Producer Products
+model ProducerProduct {
+  id                String        @id @default(cuid())
+  producerProfileId String
+  name              String
+  description       String?       @db.Text
+  category          String?
+  status            ProductStatus @default(DRAFT)
+  flaggedAt         DateTime?
+  flagReason        String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  producerProfile  ProducerProfile   @relation(fields: [producerProfileId], references: [id], onDelete: Cascade)
+  batchSubmissions BatchSubmission[]
+
+  @@index([producerProfileId])
+  @@index([status])
+}
+
+enum ProductStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  FLAGGED
+  BANNED
+}
+
+// Batch / COA Submissions
+model BatchSubmission {
+  id           String      @id @default(cuid())
+  productId    String
+  batchNo      String
+  coaFileUrl   String // URL to uploaded COA document
+  labName      String?
+  testedAt     DateTime?
+  reviewStatus BatchStatus @default(SUBMITTED)
+  reviewedBy   String?
+  reviewNotes  String?     @db.Text
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  product ProducerProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([reviewStatus])
+}
+
+enum BatchStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+// Admin Actions (Audit Log)
+model AdminAction {
+  id         String   @id @default(cuid())
+  adminId    String
+  action     String
+  targetType String // "Product" | "User" | "Batch" | "Alert"
+  targetId   String
+  reason     String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  admin User @relation(fields: [adminId], references: [id])
+
+  @@index([adminId])
+  @@index([targetType, targetId])
 }

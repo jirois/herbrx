@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -22,13 +21,22 @@ import {
   Sparkles,
   TrendingUp,
   ShoppingBag,
+  Shield,
+  FlaskConical,
+  HeartPulse,
+  Calendar,
+  Pill,
+  Activity,
+  BadgeCheck,
+  Store,
+  Flag,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
   href: string;
-  icon: LucideIcon;
+  icon: typeof LayoutDashboard;
   label: string;
   external?: boolean;
 }
@@ -38,34 +46,122 @@ interface NavSection {
   items: NavItem[];
 }
 
-const navSections: NavSection[] = [
+const customerNav: NavSection[] = [
   {
-    label: "Payments",
+    label: "My Health",
     items: [
       { href: "/dashboard", icon: LayoutDashboard, label: "Overview" },
+      {
+        href: "/dashboard/customer/alerts",
+        icon: Bell,
+        label: "Safety Alerts",
+      },
+      {
+        href: "/dashboard/customer/interactions",
+        icon: Pill,
+        label: "Interaction Check",
+      },
+      {
+        href: "/dashboard/customer/consultations",
+        icon: Calendar,
+        label: "Consultations",
+      },
+    ],
+  },
+  {
+    label: "Orders",
+    items: [
+      { href: "/account/orders", icon: ShoppingBag, label: "My Orders" },
+      { href: "/account", icon: HeartPulse, label: "My Profile" },
+    ],
+  },
+];
+
+const producerNav: NavSection[] = [
+  {
+    label: "Compliance",
+    items: [
+      { href: "/dashboard", icon: LayoutDashboard, label: "Overview" },
+      {
+        href: "/dashboard/producer/products",
+        icon: Package,
+        label: "My Products",
+      },
+      {
+        href: "/dashboard/producer/batches",
+        icon: FlaskConical,
+        label: "Batch / COA",
+      },
+      {
+        href: "/dashboard/producer/verification",
+        icon: BadgeCheck,
+        label: "Verification",
+      },
+    ],
+  },
+  {
+    label: "Sales",
+    items: [
+      {
+        href: "/dashboard/producer/orders",
+        icon: ShoppingBag,
+        label: "Orders",
+      },
+      {
+        href: "/dashboard/producer/analytics",
+        icon: TrendingUp,
+        label: "Analytics",
+      },
+      { href: "/store", icon: Store, label: "Storefront", external: true },
+    ],
+  },
+];
+
+const adminNav: NavSection[] = [
+  {
+    label: "Regulatory",
+    items: [
+      { href: "/dashboard", icon: LayoutDashboard, label: "Overview" },
+      { href: "/dashboard/admin/products", icon: Package, label: "Products" },
+      {
+        href: "/dashboard/admin/batches",
+        icon: FlaskConical,
+        label: "Batch Reviews",
+      },
+      {
+        href: "/dashboard/admin/alerts",
+        icon: AlertTriangle,
+        label: "Safety Alerts",
+      },
+      { href: "/dashboard/admin/flags", icon: Flag, label: "Flagged Items" },
+    ],
+  },
+  {
+    label: "Platform",
+    items: [
+      { href: "/dashboard/admin/users", icon: Users, label: "Users" },
       {
         href: "/dashboard/transactions",
         icon: CreditCard,
         label: "Transactions",
       },
-      { href: "/dashboard/customers", icon: Users, label: "Customers" },
+      { href: "/dashboard/customers", icon: Activity, label: "Customers" },
       { href: "/dashboard/settlements", icon: Banknote, label: "Settlements" },
-      { href: "/dashboard/disputes", icon: AlertTriangle, label: "Disputes" },
-    ],
-  },
-  {
-    label: "Products",
-    items: [
-      { href: "/dashboard/products", icon: Package, label: "Products" },
-      {
-        href: "/store",
-        icon: ShoppingBag,
-        label: "Storefront",
-        external: true,
-      },
+      { href: "/dashboard/disputes", icon: Shield, label: "Disputes" },
     ],
   },
 ];
+
+const roleLabel: Record<string, string> = {
+  CUSTOMER: "Customer",
+  PRODUCER: "Producer",
+  ADMIN: "Admin",
+};
+const roleBadgeColor: Record<string, string> = {
+  CUSTOMER: "bg-[var(--green-mid)]/30 text-[var(--green-pale)]",
+  PRODUCER: "bg-amber-500/20 text-amber-300",
+  ADMIN: "bg-red-500/20 text-red-300",
+};
 
 interface DashboardShellProps {
   children: React.ReactNode;
@@ -85,22 +181,30 @@ export function DashboardShell({
   const [notifOpen, setNotifOpen] = useState(false);
 
   useEffect(() => {
-    if (!sidebarOpen) {
-      return;
-    }
+    if (!sidebarOpen) return;
 
-    const timeoutId = window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       setSidebarOpen(false);
     }, 0);
 
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
+    return () => window.clearTimeout(timer);
   }, [pathname, sidebarOpen]);
 
-  const user = session?.user as
-    | { firstName?: string; lastName?: string }
-    | undefined;
+  type SessionUser = {
+    role?: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+  };
+  const user = session?.user as SessionUser | undefined;
+  const role = (user?.role ?? "CUSTOMER") as string;
+  const navSections =
+    role === "ADMIN"
+      ? adminNav
+      : role === "PRODUCER"
+        ? producerNav
+        : customerNav;
+
   const initials = user
     ? `${user.firstName?.[0] ?? ""}${user.lastName?.[0] ?? ""}`.toUpperCase()
     : "HX";
@@ -109,13 +213,11 @@ export function DashboardShell({
     <aside
       className={cn(
         "fixed top-0 left-0 h-full w-60 bg-[#161B27] border-r border-white/[0.07]",
-        "flex flex-col z-50",
-        "transition-transform duration-300 ease-in-out",
+        "flex flex-col z-50 transition-transform duration-300 ease-in-out",
         "lg:translate-x-0 lg:static lg:z-auto lg:shrink-0",
         sidebarOpen ? "translate-x-0" : "-translate-x-full",
       )}
     >
-      {/* Logo */}
       <div className="flex items-center justify-between px-5 h-16 border-b border-white/[0.07] shrink-0">
         <Link href="/dashboard" className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-full bg-(--green-mid) flex items-center justify-center font-serif italic font-semibold text-[14px] text-white">
@@ -125,8 +227,13 @@ export function DashboardShell({
             <span className="font-serif text-[16px] font-semibold text-white block leading-none">
               HerbRx
             </span>
-            <span className="text-[10px] text-white/35 tracking-wider uppercase block mt-0.5">
-              Merchant
+            <span
+              className={cn(
+                "text-[10px] tracking-wider uppercase block mt-0.5",
+                roleBadgeColor[role] ?? "text-white/35",
+              )}
+            >
+              {roleLabel[role]}
             </span>
           </div>
         </Link>
@@ -138,7 +245,6 @@ export function DashboardShell({
         </button>
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
         {navSections.map((section) => (
           <div key={section.label}>
@@ -177,23 +283,27 @@ export function DashboardShell({
         ))}
       </nav>
 
-      {/* Command Centre */}
       <div className="mx-3 mb-3 p-3.5 rounded-xl bg-linear-to-br from-(--green-deep) to-[#0D2419] border border-(--green-mid)/30">
         <div className="flex items-center gap-2 mb-2">
           <Sparkles size={14} className="text-(--gold-light)" />
           <span className="text-[12px] font-semibold text-white">
-            Command Centre
+            AI Command Centre
           </span>
         </div>
         <p className="text-[11px] text-white/50 leading-relaxed mb-2.5">
-          Ask anything about your business in plain language.
+          Ask anything about your{" "}
+          {role === "PRODUCER"
+            ? "products"
+            : role === "ADMIN"
+              ? "platform"
+              : "health"}{" "}
+          in plain language.
         </p>
         <button className="w-full text-[11px] bg-(--green-mid)/30 hover:bg-(--green-mid)/50 text-(--gold-light) py-1.5 rounded-lg transition-colors font-medium">
           Coming Soon
         </button>
       </div>
 
-      {/* User */}
       <div className="border-t border-white/[0.07] px-3 py-4 shrink-0">
         <div className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-white/4 transition-colors group">
           <div className="w-8 h-8 rounded-full bg-(--green-mid) flex items-center justify-center text-[12px] font-bold text-white shrink-0">
@@ -203,9 +313,7 @@ export function DashboardShell({
             <p className="text-[13px] font-medium text-white truncate">
               {user?.firstName} {user?.lastName}
             </p>
-            <p className="text-[11px] text-white/40 truncate">
-              {session?.user?.email}
-            </p>
+            <p className="text-[11px] text-white/40 truncate">{user?.email}</p>
           </div>
           <button
             onClick={() => signOut({ callbackUrl: "/" })}
@@ -221,7 +329,6 @@ export function DashboardShell({
 
   return (
     <div className="min-h-screen bg-[#0F1117] text-white flex dashboard-root">
-      {/* Mobile backdrop */}
       <AnimatePresence>
         {sidebarOpen && (
           <motion.div
@@ -237,10 +344,8 @@ export function DashboardShell({
 
       {Sidebar}
 
-      {/* Main */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Topbar */}
-        <header className="h-16border-b border-white/[0.07] bg-[#161B27] flex items-center gap-4 px-6 sticky top-0 z-20 shrink-0">
+        <header className="h-16 border-b border-white/[0.07] bg-[#161B27] flex items-center gap-4 px-6 sticky top-0 z-20 shrink-0">
           <button
             onClick={() => setSidebarOpen(true)}
             className="lg:hidden text-white/50 hover:text-white"
@@ -249,14 +354,13 @@ export function DashboardShell({
             <Menu size={20} />
           </button>
 
-          {/* Search trigger */}
           <div className="flex-1 max-w-90">
             <button
               onClick={() => setSearchOpen(true)}
               className="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-white/5 border border-white/[0.07] hover:border-white/15 text-white/40 hover:text-white/60 text-[13px] transition-all"
             >
               <Search size={14} />
-              <span>Search transactions, customers…</span>
+              <span>Search…</span>
               <kbd className="ml-auto text-[10px] bg-white/[0.07] px-1.5 py-0.5 rounded font-mono">
                 ⌘K
               </kbd>
@@ -264,14 +368,22 @@ export function DashboardShell({
           </div>
 
           <div className="flex items-center gap-2 ml-auto">
-            {/* Bell */}
+            <span
+              className={cn(
+                "hidden sm:inline text-[11px] font-semibold px-2.5 py-1 rounded-full",
+                roleBadgeColor[role] ?? "",
+              )}
+            >
+              {roleLabel[role]}
+            </span>
+
             <div className="relative">
               <button
                 onClick={() => setNotifOpen((v) => !v)}
                 className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/5 border border-white/[0.07] hover:border-white/15 text-white/50 hover:text-white transition-all relative"
               >
                 <Bell size={16} />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-(--gold)] rounded-full" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-(--gold) rounded-full" />
               </button>
               <AnimatePresence>
                 {notifOpen && (
@@ -281,7 +393,7 @@ export function DashboardShell({
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 6, scale: 0.97 }}
                     transition={{ duration: 0.14 }}
-                    className="absolute right-0 top-full mt-2 w-[320px] bg-[#1E2535] border border-white/1 rounded-2xl shadow-xl z-50 overflow-hidden"
+                    className="absolute right-0 top-full mt-2 w-[320px] bg-[#1E2535] border border-white/10 rounded-2xl shadow-xl z-50 overflow-hidden"
                   >
                     <div className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between">
                       <span className="text-[13px] font-semibold text-white">
@@ -296,30 +408,30 @@ export function DashboardShell({
                     </div>
                     {[
                       {
-                        icon: "💳",
-                        title: "Payment received",
-                        desc: "₦4,500 from Chioma Okafor",
+                        icon: "⚠️",
+                        title: "Safety Alert",
+                        desc: "Counterfeit Moringa flagged in Lagos",
                         time: "2 min ago",
                         unread: true,
                       },
                       {
-                        icon: "📦",
-                        title: "Order shipped",
-                        desc: "ORD-0042 dispatched",
+                        icon: "✅",
+                        title: "Batch Approved",
+                        desc: "COA for Batch #B2024-07 cleared",
                         time: "1 hr ago",
                         unread: true,
                       },
                       {
-                        icon: "⚠️",
-                        title: "Payment failed",
-                        desc: "ORD-0039 — card declined",
+                        icon: "📅",
+                        title: "Consultation",
+                        desc: "Session with Dr. Okonkwo confirmed",
                         time: "3 hr ago",
                         unread: false,
                       },
                       {
-                        icon: "🌿",
-                        title: "New review published",
-                        desc: "Moringa Gold Capsules",
+                        icon: "💳",
+                        title: "Payment",
+                        desc: "₦4,500 from Order #ORD-0042",
                         time: "Yesterday",
                         unread: false,
                       },
@@ -351,8 +463,8 @@ export function DashboardShell({
                       </div>
                     ))}
                     <div className="px-4 py-2.5 border-t border-white/[0.07] text-center">
-                      <button className="text-[12px] text-(--green-pale) hover:text-white transition-colors">
-                        View all notifications
+                      <button className="text-[12px] text(--green-pale) hover:text-white transition-colors">
+                        View all
                       </button>
                     </div>
                   </motion.div>
@@ -362,14 +474,13 @@ export function DashboardShell({
 
             <Link
               href="/dashboard/settings"
-              className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/5 border border-white/7 hover:border-white/15 text-white/50 hover:text-white transition-all"
+              className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/5 border border-white/[0.07] hover:border-white/15 text-white/50 hover:text-white transition-all"
             >
               <Settings size={16} />
             </Link>
           </div>
         </header>
 
-        {/* Content */}
         <main className="flex-1 overflow-y-auto p-6 lg:p-8">
           {(heading || subheading) && (
             <div className="mb-8">
@@ -389,7 +500,6 @@ export function DashboardShell({
         </main>
       </div>
 
-      {/* Search modal */}
       <AnimatePresence>
         {searchOpen && (
           <>
@@ -414,7 +524,7 @@ export function DashboardShell({
                 <input
                   autoFocus
                   type="text"
-                  placeholder="Search transactions, customers, products…"
+                  placeholder="Search products, orders, users…"
                   className="flex-1 bg-transparent text-[15px] text-white placeholder:text-white/30 outline-none"
                 />
                 <button
@@ -428,34 +538,20 @@ export function DashboardShell({
                 <p className="text-[11px] uppercase tracking-widest text-white/25 font-medium mb-3">
                   Quick Links
                 </p>
-                {[
-                  {
-                    icon: CreditCard,
-                    label: "Transactions",
-                    href: "/dashboard/transactions",
-                  },
-                  {
-                    icon: Users,
-                    label: "Customers",
-                    href: "/dashboard/customers",
-                  },
-                  {
-                    icon: Package,
-                    label: "Products",
-                    href: "/dashboard/products",
-                  },
-                  { icon: TrendingUp, label: "Analytics", href: "/dashboard" },
-                ].map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setSearchOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/6 text-white/60 hover:text-white transition-all"
-                  >
-                    <item.icon size={16} className="text-white/30" />
-                    <span className="text-[13px]">{item.label}</span>
-                  </Link>
-                ))}
+                {navSections
+                  .flatMap((s) => s.items)
+                  .slice(0, 5)
+                  .map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setSearchOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/6 text-white/60 hover:text-white transition-all"
+                    >
+                      <item.icon size={16} className="text-white/30" />
+                      <span className="text-[13px]">{item.label}</span>
+                    </Link>
+                  ))}
               </div>
             </motion.div>
           </>
