@@ -1,0 +1,146 @@
+/**
+ * useDashboard — lightweight SWR-style hooks for HerbRx dashboard API routes.
+ * Usage: const { data, loading, error, mutate } = useProducerProducts()
+ */
+
+import { useState, useEffect, useCallback } from 'react'
+
+type FetchState<T> = {
+  data:    T | null
+  loading: boolean
+  error:   string | null
+  mutate:  () => void
+}
+
+function useFetch<T>(url: string): FetchState<T> {
+  const [data,    setData]    = useState<T | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error,   setError]   = useState<string | null>(null)
+  const [tick,    setTick]    = useState(0)
+
+  const mutate = useCallback(() => setTick(t => t + 1), [])
+
+  useEffect(() => {
+    let cancelled = false
+    fetch(url)
+      .then(r => r.json())
+      .then(d => { if (!cancelled) { setData(d); setLoading(false) } })
+      .catch(e => { if (!cancelled) { setError(e.message); setLoading(false) } })
+    return () => { cancelled = true }
+  }, [url, tick])
+
+  return { data, loading, error, mutate }
+}
+
+// ── Producer hooks ───────
+export function useProducerProducts() {
+  return useFetch<{ products: Record<string, unknown>[]; tier: string; businessName?: string }>(
+    '/api/dashboard/producer/products'
+  )
+}
+
+export function useProducerBatches() {
+  return useFetch<{ batches: Record<string, unknown>[]; products: Record<string, unknown>[] }>(
+    '/api/dashboard/producer/batches'
+  )
+}
+
+export function useVerificationStatus() {
+  return useFetch<{ status: string; profile: Record<string, unknown> | null }>(
+    '/api/dashboard/producer/verification'
+  )
+}
+
+// ── Customer hooks ──────
+export function useSafetyAlerts(status = 'ACTIVE') {
+  return useFetch<{ alerts: Record<string, unknown>[] }>(
+    `/api/dashboard/customer/alerts?status=${status}`
+  )
+}
+
+export function useConsultations() {
+  return useFetch<{ consultations: Record<string, unknown>[] }>(
+    '/api/dashboard/customer/consultations'
+  )
+}
+
+// ── Admin hooks ────────────────────────────────────────────────────────────
+export function useAdminFlags() {
+  return useFetch<{ flaggedProducts: Record<string, unknown>[]; rejectedBatches: Record<string, unknown>[] }>(
+    '/api/dashboard/admin/flags'
+  )
+}
+
+export function useAdminBatchQueue(status?: string) {
+  const qs = status ? `?status=${status}` : ''
+  return useFetch<{ batches: Record<string, unknown>[] }>(
+    `/api/dashboard/admin/batches${qs}`
+  )
+}
+
+export function useAdminAlerts(status = 'ALL') {
+  return useFetch<{ alerts: Record<string, unknown>[] }>(
+    `/api/dashboard/admin/alerts?status=${status}`
+  )
+}
+
+export function useAdminUsers(role?: string, search?: string) {
+  const params = new URLSearchParams()
+  if (role)   params.set('role',   role)
+  if (search) params.set('search', search)
+  const qs = params.toString() ? `?${params}` : ''
+  return useFetch<{ users: Record<string, unknown>[]; total: number }>(
+    `/api/dashboard/admin/users${qs}`
+  )
+}
+
+// ── Mutation helpers ───────────────────────────────────────────────────────
+
+/** Generic POST helper */
+export async function apiPost(url: string, body: unknown) {
+  const res = await fetch(url, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(body),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error ?? 'Request failed')
+  return data
+}
+
+/** Generic PATCH helper */
+export async function apiPatch(url: string, body: unknown) {
+  const res = await fetch(url, {
+    method:  'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(body),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error ?? 'Request failed')
+  return data
+}
+
+// ── Domain-specific mutations ──────────────────────────────────────────────
+
+export const producerApi = {
+  createProduct:  (body: unknown) => apiPost('/api/dashboard/producer/products', body),
+  submitBatch:    (body: unknown) => apiPost('/api/dashboard/producer/batches',  body),
+  applyVerification: (body: unknown) => apiPost('/api/dashboard/producer/verification', body),
+}
+
+export const customerApi = {
+  bookConsultation: (body: unknown) => apiPost('/api/dashboard/customer/consultations', body),
+}
+
+export const adminApi = {
+  takeFlagAction: (body: unknown) => apiPatch('/api/dashboard/admin/flags',  body),
+  reviewBatch:    (body: unknown) => apiPatch('/api/dashboard/admin/batches', body),
+  publishAlert:   (body: unknown) => apiPost('/api/dashboard/admin/alerts',  body),
+  resolveAlert:   (body: unknown) => apiPatch('/api/dashboard/admin/alerts', body),
+  changeUserStatus: (body: unknown) => apiPatch('/api/dashboard/admin/users', body),
+}
+
+export const bookingApi = {
+  create: (body: unknown) => apiPost('/api/booking', body),
+  getSlots: () => fetch('/api/booking').then(r => r.json()),
+}
