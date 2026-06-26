@@ -88,9 +88,23 @@ export function ContactPage() {
     e.preventDefault();
     if (!form.name || !form.email || !form.message) return;
     setStatus("submitting");
-    // Simulate async send — wire to your API route or Resend/Nodemailer
-    await new Promise((r) => setTimeout(r, 1400));
-    setStatus("success");
+
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setStatus("success");
+      } else {
+        throw new Error(data.error ?? "Send failed");
+      }
+    } catch (err) {
+      console.error("[Contact form]", err);
+      setStatus("error");
+    }
   }
 
   return (
