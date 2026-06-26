@@ -167,10 +167,10 @@ export interface AuthSession {
   expires: string
 }
 
-// ── RBAC ──────────────────────────────────────────────────────────────────
+// ── RBAC ─────
 export type UserRole = 'CUSTOMER' | 'PRODUCER' | 'ADMIN'
 
-// ── Producer ──────────────────────────────────────────────────────────────
+// ── Producer ───────
 export type ProducerTier = 'UNVERIFIED' | 'VERIFIED'
 export type ProductStatus = 'DRAFT' | 'PENDING_REVIEW' | 'APPROVED' | 'FLAGGED' | 'BANNED'
 export type BatchStatus = 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED'
@@ -207,7 +207,7 @@ export interface BatchSubmission {
   createdAt: string
 }
 
-// ── Customer ──────────────────────────────────────────────────────────────
+// ── Customer ────────────
 export interface SavedMedication {
   id: string
   name: string
@@ -241,7 +241,7 @@ export interface SafetyAlert {
   publishedAt: string
 }
 
-// ── Admin ─────────────────────────────────────────────────────────────────
+// ── Admin ────────────
 export interface AdminAction {
   id: string
   action: string

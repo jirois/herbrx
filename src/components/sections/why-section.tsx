@@ -43,7 +43,7 @@ export function WhySection() {
                 transition={{ duration: 0.45, delay: i * 0.09 }}
                 className="group bg-white/6 border border-white/10 rounded-2xl p-7 hover:bg-white/10 transition-colors duration-300"
               >
-                <div className="text-[28px] mb-4">{item.icon}</div>
+                <div className="text-[28px] mb-4">{item.icon()}</div>
                 <h4 className="font-serif text-[19px] font-semibold text-white mb-2">
                   {item.title}
                 </h4>

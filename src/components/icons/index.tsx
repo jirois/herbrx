@@ -16,6 +16,13 @@ import {
   Droplets,
 } from "lucide-react";
 
+import forNigeriaIcon from "../../../public/nigeriaIcon.png";
+import verifyIcon from "../../../public/verifybIcon.png";
+import localTrustIcon from "../../../public/localtrustbIcon.png";
+import scienceTradition from "../../../public/scienceIcon.png";
+
+import Image from "next/image";
+
 type IconWrapperProps = {
   children: React.ReactNode;
 };
@@ -29,6 +36,26 @@ function IconWrapper({ children }: IconWrapperProps) {
         w-14
         items-center
         justify-center
+        rounded-2xl
+        bg-[#C8DABB]
+        text-[#1A3A2A]
+        transition-all
+        duration-300
+        group-hover:scale-110
+      "
+    >
+      {children}
+    </div>
+  );
+}
+function IconCover({ children }: IconWrapperProps) {
+  return (
+    <div
+      className="
+        relative
+        flex
+        items-center
+        justify-start
         rounded-2xl
         bg-[#C8DABB]
         text-[#1A3A2A]
@@ -188,6 +215,58 @@ export function HeroVerificationIcon() {
           text-[#1A3A2A]
           shadow-lg
         "
+      />
+    </div>
+  );
+}
+
+/* ==============================
+   WhyItem
+================================ */
+export function WhyItemNigeriaIcon() {
+  return (
+    <div className="relative flex items-center justify-start">
+      <Image
+        src={forNigeriaIcon}
+        alt="for Nigeria brand"
+        height={55}
+        width={55}
+      />
+    </div>
+  );
+}
+export function WhyItemVerifyIcon() {
+  return (
+    <div className="relative flex items-center justify-start">
+      <Image
+        src={verifyIcon}
+        alt="We verify for consumer"
+        height={55}
+        width={55}
+      />
+    </div>
+  );
+}
+export function WhyItemLocaltrustIcon() {
+  return (
+    <div className="relative flex items-center justify-start">
+      <Image
+        src={localTrustIcon}
+        alt="for Nigeria brand"
+        height={55}
+        width={55}
+      />
+    </div>
+  );
+}
+export function WhyItemScienceIcon() {
+  return (
+    <div className="relative flex items-center justify-start">
+      <Image
+        src={scienceTradition}
+        alt="for Nigeria brand"
+        height={55}
+        width={55}
       />
     </div>
   );

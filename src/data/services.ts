@@ -10,6 +10,10 @@ import {
   LanguageIcon,
   HerbIcon,
   VerifiedIcon,
+  WhyItemNigeriaIcon,
+  WhyItemLocaltrustIcon,
+  WhyItemScienceIcon,
+  WhyItemVerifyIcon
 } from '@/components/icons'
 import type { Service, Testimonial, Stat, NavLink, TrustItem } from '@/types'
 
@@ -135,22 +139,22 @@ export const trustItems: TrustItem[] = [
 
 export const whyItems = [
   {
-    icon: '🔬',
+    icon: WhyItemScienceIcon,
     title: 'Science + Tradition',
     desc: 'Verified herbal knowledge meets modern safety standards — every claim is evidence-based.',
   },
   {
-    icon: '🗣️',
+    icon: WhyItemLocaltrustIcon,
     title: 'Local & Trusted',
     desc: 'We speak your language — English, Igbo, Yoruba, Hausa, and Pidgin.',
   },
   {
-    icon: '✅',
-    title: 'We Verify, Not Sell',
+    icon: WhyItemVerifyIcon,
+    title: 'We Verify',
     desc: 'Our reviews are unbiased and driven purely by herbal science — never by sponsorships.',
   },
   {
-    icon: '🇳🇬',
+    icon: WhyItemNigeriaIcon,
     title: 'Made for Nigerians',
     desc: 'Every guide, review, and service is tailored to local health needs and realities.',
   },
