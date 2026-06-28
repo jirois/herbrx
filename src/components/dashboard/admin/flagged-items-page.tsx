@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { adminApi } from "@/hooks/dashboard-hooks";
 import {
   Flag,
   FlaskConical,
@@ -26,7 +27,7 @@ import {
 } from "lucide-react";
 import type { BatchStatus } from "@/types";
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// ── Types ──────
 type FlagSeverity = "HIGH" | "MEDIUM" | "LOW";
 type FlagTarget = "Product" | "Producer" | "Batch";
 type FlagAction = "Paused" | "Banned" | "Cleared" | "Warned";
@@ -60,7 +61,7 @@ interface BatchReview {
   reviewedAt: string | null;
 }
 
-// ── Mock data ──────────────────────────────────────────────────────────────
+// ── Mock data ───────
 const INITIAL_FLAGS: FlaggedItem[] = [
   {
     id: "f1",
@@ -292,7 +293,7 @@ const batchStatusConfig: Record<
 const inputCls =
   "w-full h-10 px-3.5 bg-white/[0.06] border border-white/[0.1] rounded-xl text-[14px] text-white placeholder:text-white/25 outline-none focus:border-[var(--green-mid)] transition-all";
 
-// ── Action modal ───────────────────────────────────────────────────────────
+// ── Action modal ────
 function ActionModal({
   item,
   onConfirm,
@@ -630,6 +631,17 @@ export function FlaggedItemsPage() {
       ),
     );
     setActionModal(null);
+
+    // Sync to API
+    const flag = flags.find((f) => f.id === id);
+    if (flag) {
+      adminApi.takeFlagAction({
+        targetType: flag.targetType,
+        targetId: id,
+        action: action.toUpperCase(),
+        reason: note,
+      });
+    }
   }
 
   function applyBatchDecision(
@@ -650,6 +662,10 @@ export function FlaggedItemsPage() {
       ),
     );
     setBatchModal(null);
+    // Sync to API
+    adminApi
+      .reviewBatch({ batchId: id, decision: status, reviewNote: note })
+      .catch(() => {});
   }
 
   const pendingFlags = flags.filter((f) => !f.action).length;

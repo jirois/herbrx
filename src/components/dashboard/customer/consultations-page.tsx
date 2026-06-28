@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { useConsultations, bookingApi } from "@/hooks/dashboard-hooks";
 import {
   Calendar,
   Clock,
@@ -220,6 +221,7 @@ type BookingStep = "browse" | "slot" | "notes" | "confirm" | "success";
 
 // ── Component ─────
 export function ConsultationsPage() {
+  const { data: consultData, mutate: refetchConsults } = useConsultations();
   const [tab, setTab] = useState<"upcoming" | "browse">("upcoming");
   const [bookings, setBookings] = useState<Booking[]>(INITIAL_BOOKINGS);
   const [selected, setSelected] = useState<Practitioner | null>(null);
@@ -243,20 +245,32 @@ export function ConsultationsPage() {
   async function confirmBooking() {
     if (!selected || !selectedSlot) return;
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 1500));
-    const newBooking: Booking = {
-      id: `bk${Date.now()}`,
-      practitionerId: selected.id,
-      practitionerName: selected.name,
-      type: selected.type,
-      status: "CONFIRMED",
-      scheduledAt: selectedSlot,
-      meetingUrl: `https://meet.herbrx.ng/session/${Date.now()}`,
-      bookedAt: new Date().toISOString().split("T")[0],
-    };
-    setBookings((prev) => [newBooking, ...prev]);
-    setSubmitting(false);
-    setBookingStep("success");
+    try {
+      await bookingApi.create({
+        practitionerId: selected.id,
+        practitionerName: selected.name,
+        type: selected.type,
+        scheduledAt: selectedSlot,
+        notes: bookingNotes,
+      });
+      refetchConsults();
+      setBookingStep("success");
+    } catch {
+      const newBooking: Booking = {
+        id: `bk${Date.now()}`,
+        practitionerId: selected.id,
+        practitionerName: selected.name,
+        type: selected.type,
+        status: "CONFIRMED",
+        scheduledAt: selectedSlot,
+        meetingUrl: `https://meet.herbrx.ng/session/${Date.now()}`,
+        bookedAt: new Date().toISOString().split("T")[0],
+      };
+      setBookings((prev) => [newBooking, ...prev]);
+      setBookingStep("success");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   function resetBooking() {

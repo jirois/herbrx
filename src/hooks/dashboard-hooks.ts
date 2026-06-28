@@ -64,7 +64,7 @@ export function useConsultations() {
   )
 }
 
-// ── Admin hooks ────────────────────────────────────────────────────────────
+// ── Admin hooks ─────────────────────
 export function useAdminFlags() {
   return useFetch<{ flaggedProducts: Record<string, unknown>[]; rejectedBatches: Record<string, unknown>[] }>(
     '/api/dashboard/admin/flags'
@@ -94,7 +94,7 @@ export function useAdminUsers(role?: string, search?: string) {
   )
 }
 
-// ── Mutation helpers ───────────────────────────────────────────────────────
+// ── Mutation helpers ──────────
 
 /** Generic POST helper */
 export async function apiPost(url: string, body: unknown) {
@@ -120,7 +120,7 @@ export async function apiPatch(url: string, body: unknown) {
   return data
 }
 
-// ── Domain-specific mutations ──────────────────────────────────────────────
+// ── Domain-specific mutations ───────
 
 export const producerApi = {
   createProduct:  (body: unknown) => apiPost('/api/dashboard/producer/products', body),
@@ -143,4 +143,47 @@ export const adminApi = {
 export const bookingApi = {
   create: (body: unknown) => apiPost('/api/booking', body),
   getSlots: () => fetch('/api/booking').then(r => r.json()),
+}
+
+// ── Public page hooks ─────
+
+export function useHerbs(params?: { category?: string; rating?: string; search?: string }) {
+  const entries = Object.entries(params || {})
+    .filter(([, v]) => v !== undefined)
+    .map(([k, v]) => [k, String(v)]) as [string, string][]
+  const qs = new URLSearchParams(entries).toString()
+  return useFetch<{ herbs: unknown[] }>(`/api/herbs${qs ? `?${qs}` : ''}`)
+}
+
+export function useGuides(params?: { category?: string; featured?: string; search?: string }) {
+  const entries = Object.entries(params || {})
+    .filter(([, v]) => v !== undefined)
+    .map(([k, v]) => [k, String(v)]) as [string, string][]
+  const qs = new URLSearchParams(entries).toString()
+  return useFetch<{ guides: unknown[] }>(`/api/guides${qs ? `?${qs}` : ''}`)
+}
+
+export function useSafetyReviews(params?: { verdict?: string; search?: string }) {
+  const entries = Object.entries(params || {})
+    .filter(([, v]) => v !== undefined)
+    .map(([k, v]) => [k, String(v)]) as [string, string][]
+  const qs = new URLSearchParams(entries).toString()
+  return useFetch<{ reviews: Record<string, unknown>[] }>(`/api/safety-reviews${qs ? `?${qs}` : ''}`)
+}
+
+export function usePress(type?: string) {
+  return useFetch<{ items: Record<string, unknown>[] }>(`/api/press${type ? `?type=${type}` : ''}`)
+}
+
+export const alertsApi = {
+  subscribe: (body: { email?: string; channels?: string[]; herbIds?: string[] }) =>
+    apiPost('/api/alerts/subscribe', body),
+}
+
+export function useAdminProducts(status?: string, search?: string) {
+  const params = new URLSearchParams()
+  if (status && status !== 'ALL') params.set('status', status)
+  if (search) params.set('search', search)
+  const qs = params.toString()
+  return useFetch<{ products: Record<string, unknown>[] }>(`/api/dashboard/admin/products${qs ? `?${qs}` : ''}`)
 }

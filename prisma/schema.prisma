@@ -300,6 +300,7 @@ model ProducerProduct {
 
   producerProfile  ProducerProfile   @relation(fields: [producerProfileId], references: [id], onDelete: Cascade)
   batchSubmissions BatchSubmission[]
+  meta             ProductMeta?
 
   @@index([producerProfileId])
   @@index([status])
@@ -354,4 +355,132 @@ model AdminAction {
 
   @@index([adminId])
   @@index([targetType, targetId])
+}
+
+// ── Herb Directory ──────
+model Herb {
+  id             String     @id @default(cuid())
+  slug           String     @unique
+  name           String
+  scientificName String
+  localNames     Json // string[]
+  emoji          String     @default("🌿")
+  category       String
+  safetyRating   HerbSafety
+  summary        String     @db.Text
+  keyBenefits    Json // string[]
+  warnings       Json // string[]
+  interactions   Json // string[]
+  languages      Json // string[]
+  reviewedAt     DateTime   @default(now())
+  publishedAt    DateTime   @default(now())
+  isPublished    Boolean    @default(true)
+
+  safetyReviews ProductSafetyReview[]
+
+  @@index([slug])
+  @@index([safetyRating])
+  @@index([category])
+}
+
+enum HerbSafety {
+  SAFE
+  CAUTION
+  DANGER
+  INSUFFICIENT_DATA
+}
+
+// ── Product Safety Reviews ──────
+model ProductSafetyReview {
+  id             String        @id @default(cuid())
+  herbId         String?
+  productName    String
+  producer       String
+  category       String
+  emoji          String        @default("🌿")
+  verdict        ReviewVerdict
+  overallScore   Float
+  reviewDate     DateTime      @default(now())
+  batchNo        String
+  labName        String
+  nafdacNo       String?
+  verifiedBadge  Boolean       @default(false)
+  parameters     Json // { name, result, limit, pass }[]
+  summary        String        @db.Text
+  recommendation String        @db.Text
+  reportUrl      String?
+  isPublished    Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  herb Herb? @relation(fields: [herbId], references: [id])
+
+  @@index([verdict])
+  @@index([isPublished])
+}
+
+enum ReviewVerdict {
+  APPROVED
+  REJECTED
+  CAUTION
+  PENDING
+}
+
+// ── Safety Guides 
+model SafetyGuide {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  title        String
+  description  String   @db.Text
+  category     String
+  languages    Json // string[]
+  readTime     String
+  downloadable Boolean  @default(false)
+  pdfUrl       String?
+  featured     Boolean  @default(false)
+  emoji        String   @default("📚")
+  isPublished  Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([slug])
+  @@index([category])
+}
+
+// ── Press Coverage & Releases 
+model PressItem {
+  id          String    @id @default(cuid())
+  type        PressType
+  outlet      String? // for COVERAGE
+  headline    String
+  excerpt     String?   @db.Text
+  category    String?
+  href        String?
+  date        DateTime
+  isPublished Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  @@index([type])
+}
+
+enum PressType {
+  COVERAGE
+  RELEASE
+}
+
+model ProductMeta {
+  id          String  @id @default(cuid())
+  productId   String  @unique
+  price       Int     @default(0) // kobo
+  emoji       String  @default("🌿")
+  productType String  @default("")
+  ingredients Json? // string[]
+  warnings    Json? // string[]
+  nafdacNo    String?
+  inStore     Boolean @default(false)
+  stock       Int     @default(0)
+  sales       Int     @default(0)
+  revenue     Int     @default(0) // kobo
+
+  product ProducerProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
 }

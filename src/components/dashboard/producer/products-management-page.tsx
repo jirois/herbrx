@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { useProducerProducts, producerApi } from "@/hooks/dashboard-hooks";
 import {
   Package,
   Plus,
@@ -53,6 +54,34 @@ interface ManagedProduct {
   inStore: boolean;
 }
 
+interface BatchSubmissionPayload {
+  id?: string | number;
+  reviewStatus: "APPROVED" | "PENDING" | "REJECTED" | string; // Type strictly if statuses are known
+}
+
+interface ProductMetaPayload {
+  productType?: string;
+  emoji?: string;
+  price?: number;
+  stock?: number;
+  sales?: number;
+  revenue?: number;
+  ingredients?: string[];
+  warnings?: string[];
+  nafdacNo?: string;
+  inStore?: boolean;
+}
+interface ApiProductPayload {
+  id: string | number;
+  name: string;
+  category?: string | null;
+  status: string;
+  flagReason?: string | null;
+  batchSubmissions?: BatchSubmissionPayload[] | null;
+  createdAt?: string;
+  description?: string | null;
+  meta?: ProductMetaPayload | null;
+}
 type FormMode = "create" | "edit";
 // type ViewMode = "grid" | "list";
 
@@ -539,6 +568,43 @@ export function ProductsManagementPage() {
     setEditTarget(null);
   }
 
+  const { data: productsData, mutate: refetchProducts } = useProducerProducts();
+
+  // Sync API data on load
+  if (
+    productsData?.products &&
+    productsData.products.length > 0 &&
+    JSON.stringify(products) === JSON.stringify(INITIAL_PRODUCTS)
+  ) {
+    // Cast the array explicitly here 🫵
+    const rawProducts = productsData.products as unknown as ApiProductPayload[];
+
+    const shaped = rawProducts.map((p) => ({
+      id: String(p.id),
+      name: p.name,
+      category: p.category ?? "",
+      type: p.meta?.productType ?? p.category ?? "",
+      emoji: p.meta?.emoji ?? "🌿",
+      price: p.meta?.price ?? 0,
+      status: p.status,
+      flagReason: p.flagReason ?? null,
+      batches: p.batchSubmissions?.length ?? 0,
+      approvedBatches: (p.batchSubmissions ?? []).filter(
+        (b) => b.reviewStatus === "APPROVED",
+      ).length,
+      stock: p.meta?.stock ?? 0,
+      sales: p.meta?.sales ?? 0,
+      revenue: p.meta?.revenue ?? 0,
+      createdAt: p.createdAt?.split?.("T")[0] ?? "",
+      description: p.description ?? "",
+      ingredients: p.meta?.ingredients ?? [],
+      warnings: p.meta?.warnings ?? [],
+      nafdacNo: p.meta?.nafdacNo ?? undefined,
+      inStore: p.meta?.inStore ?? false,
+    })) as ManagedProduct[];
+    setProducts(shaped);
+  }
+
   function handleSave(data: Partial<ManagedProduct>) {
     if (formMode === "create") {
       const newProd: ManagedProduct = {
@@ -563,6 +629,11 @@ export function ProductsManagementPage() {
       };
       setProducts((prev) => [newProd, ...prev]);
       setSaved(newProd.id);
+      // Sync to API
+      producerApi
+        .createProduct(data)
+        .then(() => refetchProducts())
+        .catch(() => {});
     } else if (formMode === "edit" && editTarget) {
       setProducts((prev) =>
         prev.map((p) => (p.id === editTarget.id ? { ...p, ...data } : p)),

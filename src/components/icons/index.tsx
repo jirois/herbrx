@@ -48,26 +48,6 @@ function IconWrapper({ children }: IconWrapperProps) {
     </div>
   );
 }
-function IconCover({ children }: IconWrapperProps) {
-  return (
-    <div
-      className="
-        relative
-        flex
-        items-center
-        justify-start
-        rounded-2xl
-        bg-[#C8DABB]
-        text-[#1A3A2A]
-        transition-all
-        duration-300
-        group-hover:scale-110
-      "
-    >
-      {children}
-    </div>
-  );
-}
 
 /* ==============================
    SERVICES

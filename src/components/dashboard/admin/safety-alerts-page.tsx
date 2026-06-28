@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { useAdminAlerts, adminApi } from "@/hooks/dashboard-hooks";
 import {
   AlertTriangle,
   X,
@@ -130,6 +131,7 @@ const labelCls =
 
 // ── Component ────────────
 export function SafetyAlertsPage() {
+  const { data: alertsData, mutate: refetchAlerts } = useAdminAlerts("ALL");
   const [alerts, setAlerts] = useState<Alert[]>(INITIAL_ALERTS);
   const [showForm, setShowForm] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -189,6 +191,10 @@ export function SafetyAlertsPage() {
     setAlerts((prev) =>
       prev.map((a) => (a.id === id ? { ...a, status: "RESOLVED" } : a)),
     );
+    adminApi
+      .resolveAlert({ alertId: id, status: "RESOLVED" })
+      .then(() => refetchAlerts())
+      .catch(() => {});
   }
 
   function deleteAlert(id: string) {

@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useProducerProducts } from "@/hooks/dashboard-hooks";
 import {
   Package,
   BadgeCheck,
@@ -79,10 +80,15 @@ interface Props {
 }
 
 export function ProducerDashboard({ user, tier = "UNVERIFIED" }: Props) {
+  const { data: productsData } = useProducerProducts();
+  const realProducts = productsData?.products ?? [];
+  const realTier =
+    (productsData?.tier as "UNVERIFIED" | "VERIFIED" | undefined) ?? tier;
+
   const hour = new Date().getHours();
   const greeting =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  const tc = tierConfig[tier];
+  const tc = tierConfig[realTier];
 
   return (
     <div>

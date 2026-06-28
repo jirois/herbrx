@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { adminApi } from "@/hooks/dashboard-hooks";
 import {
   Search,
   UserX,
@@ -420,9 +421,19 @@ export function UsersManagementPage() {
     setUsers((prev) =>
       prev.map((u) => (u.id === id ? { ...u, status, notes: note } : u)),
     );
-    setSelectedUser((prev) =>
-      prev?.id === id ? { ...prev, status, notes: note } : prev,
-    );
+    // setSelectedUser((prev) =>
+    //   prev?.id === id ? { ...prev, status, notes: note } : prev,
+    // );
+
+    // Sync to API
+    adminApi
+      .changeUserStatus({
+        userId: id,
+        action: status === "ACTIVE" ? "ACTIVATE" : status,
+        note,
+      })
+      .catch(() => {});
+
     setSelectedUser(null);
   }
 

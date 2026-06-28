@@ -11,6 +11,7 @@ import {
   Clock,
   ArrowRight,
 } from "lucide-react";
+import { useSafetyAlerts, useConsultations } from "@/hooks/dashboard-hooks";
 
 const mockAlerts = [
   {
@@ -74,6 +75,13 @@ interface Props {
 }
 
 export function CustomerDashboard({ user }: Props) {
+  const { data: alertsData } = useSafetyAlerts("ACTIVE");
+  const { data: consultationsData } = useConsultations();
+
+  const liveAlerts = alertsData?.alerts ?? mockAlerts;
+  const liveConsultations =
+    consultationsData?.consultations ?? mockConsultations;
+
   const hour = new Date().getHours();
   const greeting =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -156,7 +164,7 @@ export function CustomerDashboard({ user }: Props) {
             </Link>
           </div>
           <div className="space-y-3">
-            {mockAlerts.map((alert, i) => (
+            {(liveAlerts as typeof mockAlerts).map((alert, i) => (
               <motion.div
                 key={alert.id}
                 initial={{ opacity: 0, x: -12 }}
@@ -225,7 +233,7 @@ export function CustomerDashboard({ user }: Props) {
           </div>
 
           <div className="space-y-3 mb-4">
-            {mockConsultations.map((c, i) => (
+            {(liveConsultations as typeof mockConsultations).map((c, i) => (
               <motion.div
                 key={c.id}
                 initial={{ opacity: 0, x: 12 }}
