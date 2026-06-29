@@ -1,6 +1,5 @@
 "use client";
 
-import type { Metadata } from "next";
 import { motion } from "framer-motion";
 // import Link from 'next/link'
 import { SectionTitle } from "@/components/ui/section-title";
@@ -8,12 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Newsletter } from "@/components/sections/newsletter";
 import { Footer } from "@/components/sections/footer";
 import { usePress } from "@/hooks/dashboard-hooks";
-
-export const metadata: Metadata = {
-  title: "Press & Media — HerbRx",
-  description:
-    "Press releases, media coverage, brand assets, and contact information for journalists and media partners.",
-};
 
 // Static fallback
 const PRESS_COVERAGE = [
