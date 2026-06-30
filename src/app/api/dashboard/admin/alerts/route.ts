@@ -105,3 +105,37 @@ export async function PATCH(req: NextRequest) {
     return serverError(e)
   }
 }
+
+// DELETE /api/dashboard/admin/alerts?id=
+export async function DELETE(req: NextRequest){
+  const {session, error} = await requireAuth(req, ['ADMIN'])
+  if (error) return error;
+
+   try {
+    type AuthUser = { id: string }
+    const adminId = (session!.user as unknown as AuthUser).id
+    const url     = new URL(req.url)
+    const alertId = url.searchParams.get('id')
+
+    if (!alertId) return badRequest('id query param is required')
+
+    const alert = await prisma.safetyAlert.findUnique({ where: { id: alertId } })
+    if (!alert) return notFound('Alert not found')
+
+    await prisma.safetyAlert.delete({ where: { id: alertId } })
+
+    await prisma.adminAction.create({
+      data: {
+        adminId,
+        action:     'ALERT_DELETED',
+        targetType: 'Alert',
+        targetId:   alertId,
+        reason:     alert.title,
+      },
+    })
+
+    return ok({ success: true, deletedId: alertId })
+  } catch (e) {
+    return serverError(e)
+  }
+}

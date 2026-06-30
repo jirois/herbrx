@@ -42,10 +42,16 @@ export const authOptions: NextAuthOptions = {
         const user = await prisma.user.findUnique({
           where: { email: credentials.email.toLowerCase().trim() },
         })
-        if (!user) return null
+        if (!user){
+          console.log("❌ [NextAuth] No user record found for email:", credentials.email) // remove after
+         return null 
+        } 
 
         const valid = await bcrypt.compare(credentials.password, user.passwordHash)
-        if (!valid) return null
+        if (!valid) {
+          console.log("❌ [NextAuth] Bcrypt password match failed.")
+          return null
+        }
 
         if (!user.emailVerified) {
           // Signal to the client that verification is needed

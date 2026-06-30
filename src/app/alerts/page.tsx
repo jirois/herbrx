@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Newsletter } from "@/components/sections/newsletter";
 import { Footer } from "@/components/sections/footer";
 import { AlertTriangle, Search, Package, Hash } from "lucide-react";
-import { alertsApi } from "@/hooks/dashboard-hooks";
+import { alertsApi, usePublicAlerts } from "@/hooks/dashboard-hooks";
 
 type Severity = "DANGER" | "WARNING" | "INFO";
 type Status = "ACTIVE" | "RESOLVED";
@@ -128,12 +128,34 @@ const fadeUp = (delay = 0) => ({
 });
 
 export default function AlertsPage() {
+  const { data } = usePublicAlerts();
+  const liveAlerts: Alert[] = ((data?.alerts ?? []) as unknown as Alert[]).map(
+    (a) => ({
+      id: a.id,
+      title: a.title,
+      body: a.body,
+      severity: a.severity,
+      status: a.status,
+      productName: a.productName ?? undefined,
+      batchNo: a.batchNo ?? undefined,
+      publishedAt: new Date(a.publishedAt).toLocaleDateString("en-NG", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }),
+    }),
+  );
+
+  // Fall back to static seed examples only while the live request is in flight
+  // and has not returned data yet — never silently mask real (possibly empty) results.
+  const ALERTS_SOURCE = data ? liveAlerts : ALERTS;
+
   const [search, setSearch] = useState("");
   const [severityFilter, setSeverityFilter] = useState<Severity | "ALL">("ALL");
   const [statusFilter, setStatusFilter] = useState<Status | "ALL">("ACTIVE");
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const filtered = ALERTS.filter((a) => {
+  const filtered = ALERTS_SOURCE.filter((a) => {
     const matchSearch =
       !search ||
       a.title.toLowerCase().includes(search.toLowerCase()) ||

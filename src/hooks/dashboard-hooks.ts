@@ -9,19 +9,38 @@ type FetchState<T> = {
   data:    T | null
   loading: boolean
   error:   string | null
-  mutate:  () => void
+  mutate:  () => Promise<void>
 }
 
 function useFetch<T>(url: string): FetchState<T> {
   const [data,    setData]    = useState<T | null>(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState<string | null>(null)
-  const [tick,    setTick]    = useState(0)
+  const [tick,    ]    = useState(0)
 
-  const mutate = useCallback(() => setTick(t => t + 1), [])
+  const fetchNow = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(url)
+      const d = await res.json()
+      setData(d)
+      setError(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unknown error')
+    } finally {
+      setLoading(false)
+    }
+  }, [url])
+
+  const mutate = useCallback(async () => {
+      await fetchNow()
+  }, [fetchNow])
+
+  // const mutate = useCallback(() => setTick(t => t + 1), [])
 
   useEffect(() => {
     let cancelled = false
+  
     fetch(url)
       .then(r => r.json())
       .then(d => { if (!cancelled) { setData(d); setLoading(false) } })
@@ -56,6 +75,14 @@ export function useSafetyAlerts(status = 'ACTIVE') {
   return useFetch<{ alerts: Record<string, unknown>[] }>(
     `/api/dashboard/customer/alerts?status=${status}`
   )
+}
+
+export function usePublicAlerts(params?: {severity?: string; status?: string}){
+  const queryParams = new URLSearchParams()
+  if (params?.severity) queryParams.set('severity', params.severity)
+  if (params?.status) queryParams.set('status', params.status)
+  const qs = queryParams.toString()
+  return useFetch<{ alerts: Record<string, unknown>[] }>(`/api/alerts${qs ? `?${qs}` : ''}`)
 }
 
 export function useConsultations() {
@@ -120,6 +147,14 @@ export async function apiPatch(url: string, body: unknown) {
   return data
 }
 
+/** Generic DELETE helper */
+export async function apiDelete(url: string) {
+  const res = await fetch(url, {method: 'DELETE'})
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error ?? 'Request failed')
+  return data;
+}
+
 // ── Domain-specific mutations ───────
 
 export const producerApi = {
@@ -137,6 +172,7 @@ export const adminApi = {
   reviewBatch:    (body: unknown) => apiPatch('/api/dashboard/admin/batches', body),
   publishAlert:   (body: unknown) => apiPost('/api/dashboard/admin/alerts',  body),
   resolveAlert:   (body: unknown) => apiPatch('/api/dashboard/admin/alerts', body),
+  deleteAlert: (alertId: string) => apiDelete(`/api/dashboard/admin/alerts?id=${alertId}`),
   changeUserStatus: (body: unknown) => apiPatch('/api/dashboard/admin/users', body),
 }
 

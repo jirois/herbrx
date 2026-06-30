@@ -133,6 +133,7 @@ const labelCls =
 export function SafetyAlertsPage() {
   const { data: alertsData, mutate: refetchAlerts } = useAdminAlerts("ALL");
   const [alerts, setAlerts] = useState<Alert[]>(INITIAL_ALERTS);
+  const [hasSynced, setHasSynced] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [filter, setFilter] = useState<"ALL" | AlertSeverity | AlertStatus>(
@@ -141,6 +142,40 @@ export function SafetyAlertsPage() {
   const [search, setSearch] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [published, setPublished] = useState<string | null>(null);
+
+  if (alertsData?.alerts && !hasSynced) {
+    const shaped: Alert[] = alertsData.alerts.map((a: unknown) => {
+      const aa = a as {
+        id: string;
+        title: string;
+        body: string;
+        severity: AlertSeverity;
+        productName?: string | null;
+        batchNo?: string | null;
+        status: AlertStatus;
+        publishedAt: string;
+        createdBy?: string | null;
+        notifiedCount?: number | null;
+      };
+      return {
+        id: aa.id,
+        title: aa.title,
+        body: aa.body,
+        severity: aa.severity,
+        productName: aa.productName ?? undefined,
+        batchNo: aa.batchNo ?? undefined,
+        status: aa.status,
+        publishedAt: new Date(aa.publishedAt).toLocaleString("en-NG", {
+          dateStyle: "short",
+          timeStyle: "short",
+        }),
+        createdBy: aa.createdBy ?? "Admin",
+        notifiedCount: aa.notifiedCount ?? 0,
+      } as Alert;
+    });
+    setAlerts(shaped);
+    setHasSynced(true);
+  }
 
   const [form, setForm] = useState({
     title: "",
@@ -157,25 +192,25 @@ export function SafetyAlertsPage() {
   async function publishAlert() {
     if (!form.title || !form.body) return;
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 1600));
-
-    const newAlert: Alert = {
-      id: `a${Date.now()}`,
-      title: form.title,
-      body: form.body,
-      severity: form.severity,
-      productName: form.productName || undefined,
-      batchNo: form.batchNo || undefined,
-      status: "ACTIVE",
-      publishedAt: new Date().toLocaleString("en-NG", {
-        dateStyle: "short",
-        timeStyle: "short",
-      }),
-      createdBy: "Admin (You)",
-      notifiedCount: 0,
-    };
-    setAlerts((prev) => [newAlert, ...prev]);
-    setPublished(newAlert.id);
+    try {
+      const result = await adminApi.publishAlert({
+        title: form.title,
+        body: form.body,
+        severity: form.severity,
+        productName: form.productName,
+        batchNo: form.batchNo,
+      });
+      // Re-sync from the server so we get the real DB id and timestamp,
+      // and so the customer-facing alerts page sees this on its next fetch.
+      setHasSynced(false);
+      await refetchAlerts();
+      setPublished(result?.alerts?.id ?? null);
+    } catch (err) {
+      console.error("[publishAlert]", err);
+      // Surface the failure instead of silently faking success
+      setSubmitting(false);
+      return;
+    }
     setSubmitting(false);
     setShowForm(false);
     setForm({
@@ -187,24 +222,44 @@ export function SafetyAlertsPage() {
     });
   }
 
-  function resolveAlert(id: string) {
+  async function resolveAlert(id: string) {
+    // Optimistic UI update
     setAlerts((prev) =>
       prev.map((a) => (a.id === id ? { ...a, status: "RESOLVED" } : a)),
     );
-    adminApi
-      .resolveAlert({ alertId: id, status: "RESOLVED" })
-      .then(() => refetchAlerts())
-      .catch(() => {});
+    try {
+      await adminApi.resolveAlert({ alertId: id, status: "RESOLVED" });
+      setHasSynced(false);
+      refetchAlerts();
+    } catch (err) {
+      console.error("[resolveAlert]", err);
+    }
   }
 
-  function deleteAlert(id: string) {
+  async function deleteAlert(id: string) {
+    const prevAlerts = alerts;
     setAlerts((prev) => prev.filter((a) => a.id !== id));
+    try {
+      await adminApi.deleteAlert(id);
+      setHasSynced(false);
+      refetchAlerts();
+    } catch (err) {
+      console.error("[deleteAlert]", err);
+      setAlerts(prevAlerts); // revert on failure
+    }
   }
 
-  function reactivateAlert(id: string) {
+  async function reactivateAlert(id: string) {
     setAlerts((prev) =>
       prev.map((a) => (a.id === id ? { ...a, status: "ACTIVE" } : a)),
     );
+    try {
+      await adminApi.resolveAlert({ alertId: id, status: "ACTIVE" });
+      setHasSynced(false);
+      refetchAlerts();
+    } catch (err) {
+      console.error("[reactivateAlert]", err);
+    }
   }
 
   const filtered = alerts.filter((a) => {
