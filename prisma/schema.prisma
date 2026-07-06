@@ -34,9 +34,10 @@ model User {
   alertSubscriptions AlertSubscription[]
 
   // Producer-specific
-  producerProfile ProducerProfile?
+  producerProfile       ProducerProfile?
   // Admin-specific 
-  adminActions    AdminAction[]
+  adminActions          AdminAction[]
+  incubationSubmissions IncubationSubmission[]
 
   @@index([email])
   @@index([role])
@@ -198,13 +199,18 @@ model Consultation {
   scheduledAt    DateTime?
   notes          String?            @db.Text
   meetingUrl     String?
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  amount         Int?
+  paystackRef    String?            @unique
+  paymentStatus  ConsultPayStatus   @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([status])
+  @@index([paystackRef])
 }
 
 enum ConsultationType {
@@ -219,6 +225,12 @@ enum ConsultationStatus {
   CONFIRMED
   COMPLETED
   CANCELLED
+}
+
+enum ConsultPayStatus {
+  PENDING
+  PAID
+  FAILED
 }
 
 // Customer: Safety Alert Subscriptions
@@ -273,8 +285,20 @@ model ProducerProfile {
   tier          ProducerTier @default(UNVERIFIED)
   verifiedAt    DateTime?
   verifiedBy    String? // Admin user ID
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+
+  // Verification lifecycle
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+  verificationNote   String?            @db.Text // admin feedback on rejection
+  submittedAt        DateTime?
+  cacCertUrl         String?
+  labPartnerUrl      String?
+  nafdacCertUrl      String?
+  insuranceUrl       String?
+  state              String?
+  website            String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   products ProducerProduct[]
@@ -283,6 +307,14 @@ model ProducerProfile {
 enum ProducerTier {
   UNVERIFIED
   VERIFIED
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
 }
 
 // Producer Products
@@ -483,4 +515,88 @@ model ProductMeta {
   revenue     Int     @default(0) // kobo
 
   product ProducerProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model IncubationSubmission {
+  id              String           @id @default(cuid())
+  userId          String
+  productName     String
+  formulaCategory String
+  description     String           @db.Text
+  targetDosage    String? // e.g. "500mg capsule"
+  currentForm     String? // e.g. "Raw leaf extract"
+  originStory     String?          @db.Text
+  ndaSigned       Boolean          @default(false)
+  ndaSignedAt     DateTime?
+  royaltyAgreed   Boolean          @default(false)
+  royaltyRate     Float? // e.g. 0.15 = 15%
+  currentPhase    IncubationPhase  @default(INTAKE)
+  status          IncubationStatus @default(ACTIVE)
+  adminNotes      String?          @db.Text
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phases    IncubationPhaseLog[]
+  documents IncubationDocument[]
+
+  @@index([userId])
+  @@index([currentPhase])
+  @@index([status])
+}
+
+enum IncubationPhase {
+  INTAKE // Phase 1 — Formulation Intake & IP Agreement
+  PRECLINICAL // Phase 2 — Pre-Clinical Safety & Toxicity Screening
+  BRANDING // Phase 3 — Standardization & Branding
+  NAFDAC // Phase 4 — NAFDAC Listing Under HerbRx Umbrella
+  LAUNCH // Phase 5 — HerbRx Exclusive Launch
+}
+
+enum IncubationStatus {
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+// Log of phase transitions with timestamps and notes
+model IncubationPhaseLog {
+  id           String          @id @default(cuid())
+  submissionId String
+  phase        IncubationPhase
+  enteredAt    DateTime        @default(now())
+  completedAt  DateTime?
+  notes        String?         @db.Text
+  completedBy  String? // Admin user id
+
+  submission IncubationSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId])
+}
+
+// Documents uploaded or generated during incubation
+model IncubationDocument {
+  id           String            @id @default(cuid())
+  submissionId String
+  type         IncubationDocType
+  name         String
+  url          String
+  uploadedAt   DateTime          @default(now())
+  uploadedBy   String? // user or admin id
+
+  submission IncubationSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId])
+}
+
+enum IncubationDocType {
+  NDA // Signed Non-Disclosure Agreement
+  ROYALTY_CONTRACT // Fractional royalty agreement
+  FORMULA_SHEET // Submitted formula details
+  LAB_REPORT // Pre-clinical toxicity / heavy metals report
+  BRAND_GUIDE // HerbRx branding materials
+  NAFDAC_APPLICATION // NAFDAC listing application
+  NAFDAC_APPROVAL // Final NAFDAC listing certificate
+  LAUNCH_PLAN // Marketplace launch brief
 }

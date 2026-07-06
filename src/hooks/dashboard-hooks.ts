@@ -165,6 +165,8 @@ export const producerApi = {
 
 export const customerApi = {
   bookConsultation: (body: unknown) => apiPost('/api/dashboard/customer/consultations', body),
+  verifyConsultationPayment: (reference: string) =>
+    apiPost('/api/dashboard/customer/consultations/verify', { reference }),
 }
 
 export const adminApi = {
@@ -222,4 +224,13 @@ export function useAdminProducts(status?: string, search?: string) {
   if (search) params.set('search', search)
   const qs = params.toString()
   return useFetch<{ products: Record<string, unknown>[] }>(`/api/dashboard/admin/products${qs ? `?${qs}` : ''}`)
+}
+
+// ── Incubation hooks ───
+export function useIncubation() {
+  return useFetch<{ submission: Record<string, unknown> | null }>('/api/incubation')
+}
+
+export const incubationApi = {
+  submit: (body: unknown) => apiPost('/api/incubation', body),
 }

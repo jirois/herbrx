@@ -1,22 +1,20 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 
 export function useLocalStorage<T>(key: string, initialValue: T) {
-  const [storedValue, setStoredValue] = useState<T>(initialValue);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const [storedValue, setStoredValue] = useState<T>(() => {
+    if (typeof window === "undefined") return initialValue;
 
-  // Hydrate from localStorage after mount (SSR-safe)
-  useEffect(() => {
     try {
       const item = window.localStorage.getItem(key);
-      if (item !== null) setStoredValue(JSON.parse(item));
+      return item !== null ? JSON.parse(item) : initialValue;
     } catch (err) {
       console.warn(`useLocalStorage: failed to read "${key}"`, err);
-    } finally {
-      setIsHydrated(true);
+      return initialValue;
     }
-  }, [key]);
+  });
+  const [isHydrated] = useState(() => typeof window !== "undefined");
 
   const setValue = useCallback(
     (value: T | ((prev: T) => T)) => {

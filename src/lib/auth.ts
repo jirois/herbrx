@@ -39,19 +39,21 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email.toLowerCase().trim() },
-        })
-        if (!user){
-          console.log("❌ [NextAuth] No user record found for email:", credentials.email) // remove after
-         return null 
-        } 
+       let user
+        try {
+          user = await prisma.user.findUnique({
+            where: { email: credentials.email.toLowerCase().trim() },
+          })
+        } catch (err) {
+          // Surface DB/connection failures in logs instead of letting them
+          // manifest as a silent, unexplained "wrong email or password".
+          console.error('[Auth] DB error during sign-in:', err)
+          throw new Error('We could not reach the database right now. Please try again in a moment.')
+        }
+        if (!user) return null
 
         const valid = await bcrypt.compare(credentials.password, user.passwordHash)
-        if (!valid) {
-          console.log("❌ [NextAuth] Bcrypt password match failed.")
-          return null
-        }
+        if (!valid) return null
 
         if (!user.emailVerified) {
           // Signal to the client that verification is needed
@@ -81,7 +83,7 @@ export const authOptions: NextAuthOptions = {
         const authUser = user as AuthUser
         const existing = await prisma.user.findUnique({ where: { email: user.email! } })
         if (!existing) {
-          await prisma.user.create({
+          const newUser = await prisma.user.create({
             data: {
               email:         user.email!,
               firstName:     authUser.firstName ?? user.name?.split(' ')[0] ?? '',
@@ -89,10 +91,19 @@ export const authOptions: NextAuthOptions = {
               passwordHash:  '',         // no password for OAuth users
               emailVerified: true,
               image:         user.image ?? undefined,
+              role: 'CUSTOMER'
             },
           })
-        } else if (!existing.emailVerified) {
-          await prisma.user.update({ where:{ id:existing.id }, data:{ emailVerified:true } })
+          authUser.id   = newUser.id
+          authUser.role = newUser.role
+        }  else {
+          if (!existing.emailVerified) {
+            await prisma.user.update({ where:{ id: existing.id }, data:{ emailVerified: true } })
+          }
+          authUser.id        = existing.id
+          authUser.role      = existing.role
+          authUser.firstName = existing.firstName
+          authUser.lastName  = existing.lastName
         }
       }
       return true
@@ -128,4 +139,25 @@ export const authOptions: NextAuthOptions = {
   debug:  process.env.NODE_ENV === 'development',
 }
 
+// ── Type augmentation ─────────────────────────────────────────────────────
+declare module 'next-auth' {
+  interface Session {
+    user: {
+      id: string
+      firstName: string
+      lastName: string
+      phone?: string
+      role: string
+    } & {
+      name?: string | null
+      email?: string | null
+      image?: string | null
+    }
+  }
+}
+declare module 'next-auth/jwt' {
+  interface JWT {
+    id: string; firstName: string; lastName: string; phone?: string; role: string
+  }
+}
 

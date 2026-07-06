@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
-import { useConsultations, bookingApi } from "@/hooks/dashboard-hooks";
+import { useConsultations, customerApi } from "@/hooks/dashboard-hooks";
 import {
   Calendar,
   Clock,
-  CheckCircle,
   X,
   ChevronRight,
   Video,
@@ -19,8 +18,11 @@ import {
   Leaf,
   FlaskConical,
   Pill,
+  AlertTriangle,
 } from "lucide-react";
 import type { ConsultationType, ConsultationStatus } from "@/types";
+import { useRouter } from "next/router";
+import { useSearchParams } from "next/navigation";
 
 // ── Types ─────
 interface Practitioner {
@@ -49,6 +51,18 @@ interface Booking {
   meetingUrl?: string;
   notes?: string;
   bookedAt: string;
+}
+
+interface ConsultationRecord {
+  id: string;
+  practitionerId?: string;
+  practitionerName?: string;
+  type: ConsultationType;
+  status: ConsultationStatus;
+  scheduledAt?: string;
+  meetingUrl?: string;
+  notes?: string;
+  createdAt?: string;
 }
 
 // ── Mock data ─────
@@ -221,7 +235,11 @@ type BookingStep = "browse" | "slot" | "notes" | "confirm" | "success";
 
 // ── Component ─────
 export function ConsultationsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const { data: consultData, mutate: refetchConsults } = useConsultations();
+  const [hasSynced, setHasSynced] = useState(false);
   const [tab, setTab] = useState<"upcoming" | "browse">("upcoming");
   const [bookings, setBookings] = useState<Booking[]>(INITIAL_BOOKINGS);
   const [selected, setSelected] = useState<Practitioner | null>(null);
@@ -229,7 +247,80 @@ export function ConsultationsPage() {
   const [selectedSlot, setSelectedSlot] = useState<string>("");
   const [bookingNotes, setBookingNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [bookingError, setBookingError] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<ConsultationType | "ALL">("ALL");
+  // Verifying-payment overlay state, shown while we confirm a return from
+  // Paystack checkout (see the ?ref= handling in the effect below).
+  const [verifying, setVerifying] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+
+  if (consultData?.consultations && !hasSynced) {
+    const shaped: Booking[] = (
+      consultData.consultations as unknown as ConsultationRecord[]
+    ).map((c) => ({
+      id: c.id,
+      practitionerId: c.practitionerId ?? "",
+      practitionerName:
+        c.practitionerName ??
+        PRACTITIONERS.find((p) => p.id === c.practitionerId)?.name ??
+        "Practitioner",
+      type: c.type,
+      status: c.status,
+      scheduledAt: c.scheduledAt
+        ? new Date(c.scheduledAt).toLocaleString("en-NG", {
+            weekday: "short",
+            day: "numeric",
+            month: "short",
+            hour: "numeric",
+            minute: "2-digit",
+          })
+        : "",
+      meetingUrl: c.meetingUrl ?? undefined,
+      notes: c.notes ?? undefined,
+      bookedAt: c.createdAt
+        ? new Date(c.createdAt).toISOString().split("T")[0]
+        : "",
+    }));
+    setBookings(shaped);
+    setHasSynced(true);
+  }
+
+  useEffect(() => {
+    const ref = searchParams.get("ref");
+    if (!ref) return;
+
+    // avoid synchronous setState during render by deferring state updates
+    setTimeout(() => {
+      setVerifying(true);
+      setVerifyError(null);
+    }, 0);
+
+    customerApi
+      .verifyConsultationPayment(ref)
+      .then(() => {
+        setHasSynced(false);
+        return refetchConsults();
+      })
+      .then(() => {
+        setVerifying(false);
+        setTab("upcoming");
+        // Clean the ?ref= param out of the URL so re-rendering/refreshing
+        // doesn't re-trigger verification.
+        router.replace("/dashboard/customer/consultations");
+      })
+      .catch((err: unknown) => {
+        console.error("[Payment verify]", err);
+        setVerifying(false);
+        const message =
+          err instanceof Error
+            ? err.message
+            : typeof err === "string"
+              ? err
+              : "We could not confirm your payment. If you were charged, please contact support.";
+        setVerifyError(message);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const filteredPractitioners =
     filterType === "ALL"
@@ -240,39 +331,37 @@ export function ConsultationsPage() {
     setSelected(p);
     setBookingStep("slot");
     setTab("browse");
+    setBookingError(null);
   }
 
   async function confirmBooking() {
     if (!selected || !selectedSlot) return;
     setSubmitting(true);
+    setBookingError(null);
     try {
-      await bookingApi.create({
+      const result = await customerApi.bookConsultation({
         practitionerId: selected.id,
         practitionerName: selected.name,
         type: selected.type,
         scheduledAt: selectedSlot,
         notes: bookingNotes,
       });
-      refetchConsults();
-      setBookingStep("success");
-    } catch {
-      const newBooking: Booking = {
-        id: `bk${Date.now()}`,
-        practitionerId: selected.id,
-        practitionerName: selected.name,
-        type: selected.type,
-        status: "CONFIRMED",
-        scheduledAt: selectedSlot,
-        meetingUrl: `https://meet.herbrx.ng/session/${Date.now()}`,
-        bookedAt: new Date().toISOString().split("T")[0],
-      };
-      setBookings((prev) => [newBooking, ...prev]);
-      setBookingStep("success");
-    } finally {
+      if (!result?.authorizationUrl) {
+        throw new Error("Payment could not be started. Please try again");
+      }
+      window.location.href = result.authorizationUrl;
+    } catch (err: unknown) {
+      console.error("[confirmBooking]", err);
       setSubmitting(false);
+      const message =
+        err instanceof Error
+          ? err.message
+          : typeof err === "string"
+            ? err
+            : "Could not start payment. Please try again.";
+      setBookingError(message);
     }
   }
-
   function resetBooking() {
     setSelected(null);
     setBookingStep("browse");
@@ -286,7 +375,6 @@ export function ConsultationsPage() {
       heading="Consultations"
       subheading="Book micro-consultations with certified herbalists, naturopaths, toxicologists, and pharmacists."
     >
-      {/*  // ── Booking flow overlay ───── */}
       <AnimatePresence>
         {selected && bookingStep !== "browse" && (
           <motion.div
@@ -305,220 +393,240 @@ export function ConsultationsPage() {
               transition={{ duration: 0.2 }}
               className="bg-[#1A2030] border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl"
             >
-              {/* Success */}
-              {bookingStep === "success" ? (
-                <div className="p-8 text-center">
-                  <div className="w-16 h-16 rounded-full bg-green-500/15 flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle size={32} className="text-green-400" />
+              <>
+                {/* Modal header */}
+                <div className="flex items-center gap-3 p-5 border-b border-white/[0.07]">
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-[14px] shrink-0 ${selected.color}`}
+                  >
+                    {selected.initials}
                   </div>
-                  <h3 className="font-serif text-[22px] font-semibold text-white mb-2">
-                    Session Booked!
-                  </h3>
-                  <p className="text-[14px] text-white/50 mb-1">
-                    Your consultation with{" "}
-                    <span className="text-white font-medium">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[14px] font-semibold text-white">
                       {selected.name}
-                    </span>{" "}
-                    is confirmed.
-                  </p>
-                  <p className="text-[14px] text-(--green-pale) font-medium mb-6">
-                    {selectedSlot}
-                  </p>
-                  <div className="flex items-center gap-2 p-3 rounded-xl bg-white/5 text-[13px] text-white/50 mb-6">
-                    <Video size={14} className="text-blue-400 shrink-0" />A
-                    video meeting link has been sent to your email.
+                    </p>
+                    <p className="text-[12px] text-white/40">
+                      {selected.title}
+                    </p>
                   </div>
                   <button
                     onClick={resetBooking}
-                    className="w-full h-11 bg-(--green-mid) hover:bg-(--green-light) text-white font-medium rounded-xl transition-colors"
+                    className="text-white/30 hover:text-white"
                   >
-                    Done
+                    <X size={18} />
                   </button>
                 </div>
-              ) : (
-                <>
-                  {/* Modal header */}
-                  <div className="flex items-center gap-3 p-5 border-b border-white/[0.07]">
-                    <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-[14px] shrink-0 ${selected.color}`}
-                    >
-                      {selected.initials}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[14px] font-semibold text-white">
-                        {selected.name}
-                      </p>
-                      <p className="text-[12px] text-white/40">
-                        {selected.title}
-                      </p>
-                    </div>
-                    <button
-                      onClick={resetBooking}
-                      className="text-white/30 hover:text-white"
-                    >
-                      <X size={18} />
-                    </button>
-                  </div>
 
-                  <div className="p-5">
-                    {/* Step: pick slot */}
-                    {bookingStep === "slot" && (
-                      <div>
-                        <p className="text-[13px] text-white/50 mb-4">
-                          Select an available time slot for your 30-minute
-                          session.
-                        </p>
-                        <div className="grid grid-cols-2 gap-2 mb-5">
-                          {AVAILABLE_SLOTS.map((slot) => (
-                            <button
-                              key={slot}
-                              onClick={() => setSelectedSlot(slot)}
-                              className={`text-left p-3 rounded-xl border text-[13px] transition-all ${selectedSlot === slot ? "border-(--green-mid) bg-(--green-mid)/15 text-white" : "border-white/8 bg-white/3 text-white/60 hover:border-white/20 hover:text-white"}`}
-                            >
-                              <Calendar size={12} className="mb-1 opacity-60" />
-                              {slot}
-                            </button>
-                          ))}
-                        </div>
-                        <div className="flex items-center justify-between text-[13px] text-white/40 mb-5">
-                          <span className="flex items-center gap-1.5">
-                            <Clock size={13} /> 30-minute session
-                          </span>
-                          <span className="font-semibold text-white">
-                            ₦{selected.price.toLocaleString()}
-                          </span>
-                        </div>
+                <div className="p-5">
+                  {/* Step: pick slot */}
+                  {bookingStep === "slot" && (
+                    <div>
+                      <p className="text-[13px] text-white/50 mb-4">
+                        Select an available time slot for your 30-minute
+                        session.
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 mb-5">
+                        {AVAILABLE_SLOTS.map((slot) => (
+                          <button
+                            key={slot}
+                            onClick={() => setSelectedSlot(slot)}
+                            className={`text-left p-3 rounded-xl border text-[13px] transition-all ${selectedSlot === slot ? "border-(--green-mid) bg-(--green-mid)/15 text-white" : "border-white/8 bg-white/3 text-white/60 hover:border-white/20 hover:text-white"}`}
+                          >
+                            <Calendar size={12} className="mb-1 opacity-60" />
+                            {slot}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex items-center justify-between text-[13px] text-white/40 mb-5">
+                        <span className="flex items-center gap-1.5">
+                          <Clock size={13} /> 30-minute session
+                        </span>
+                        <span className="font-semibold text-white">
+                          ₦{selected.price.toLocaleString()}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => setBookingStep("notes")}
+                        disabled={!selectedSlot}
+                        className="w-full h-11 bg-(--green-mid) hover:bg-(--green-light) disabled:opacity-30 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
+                      >
+                        Continue <ChevronRight size={15} />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Step: notes */}
+                  {bookingStep === "notes" && (
+                    <div>
+                      <p className="text-[13px] text-white/50 mb-4">
+                        Let <span className="text-white">{selected.name}</span>{" "}
+                        know what you&apos;d like to discuss.
+                      </p>
+                      <textarea
+                        value={bookingNotes}
+                        onChange={(e) => setBookingNotes(e.target.value)}
+                        placeholder="e.g. I'm taking Metformin for Type 2 diabetes and want to understand if I can safely use Bitter Leaf extract alongside it…"
+                        rows={5}
+                        className="w-full px-4 py-3 bg-white/6 border border-white/10 rounded-xl text-[14px] text-white placeholder:text-white/25 outline-none focus:border-(--green-mid) resize-none transition-colors"
+                      />
+                      <p className="text-[11px] text-white/30 mt-2 mb-5">
+                        This is shared privately with your practitioner before
+                        the session.
+                      </p>
+                      <div className="flex gap-3">
                         <button
-                          onClick={() => setBookingStep("notes")}
-                          disabled={!selectedSlot}
-                          className="w-full h-11 bg-(--green-mid) hover:bg-(--green-light) disabled:opacity-30 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
+                          onClick={() => setBookingStep("slot")}
+                          className="h-11 px-5 border border-white/10 text-white/50 hover:text-white rounded-xl text-[14px] transition-colors"
                         >
-                          Continue <ChevronRight size={15} />
+                          ← Back
+                        </button>
+                        <button
+                          onClick={() => setBookingStep("confirm")}
+                          className="flex-1 h-11 bg-(--green-mid) hover:bg-(--green-light) text-white font-medium rounded-xl transition-colors"
+                        >
+                          Review Booking →
                         </button>
                       </div>
-                    )}
+                    </div>
+                  )}
 
-                    {/* Step: notes */}
-                    {bookingStep === "notes" && (
-                      <div>
-                        <p className="text-[13px] text-white/50 mb-4">
-                          Let{" "}
-                          <span className="text-white">{selected.name}</span>{" "}
-                          know what you&apos;d like to discuss.
-                        </p>
-                        <textarea
-                          value={bookingNotes}
-                          onChange={(e) => setBookingNotes(e.target.value)}
-                          placeholder="e.g. I'm taking Metformin for Type 2 diabetes and want to understand if I can safely use Bitter Leaf extract alongside it…"
-                          rows={5}
-                          className="w-full px-4 py-3 bg-white/6 border border-white/10 rounded-xl text-[14px] text-white placeholder:text-white/25 outline-none focus:border-(--green-mid) resize-none transition-colors"
-                        />
-                        <p className="text-[11px] text-white/30 mt-2 mb-5">
-                          This is shared privately with your practitioner before
-                          the session.
-                        </p>
-                        <div className="flex gap-3">
-                          <button
-                            onClick={() => setBookingStep("slot")}
-                            className="h-11 px-5 border border-white/10 text-white/50 hover:text-white rounded-xl text-[14px] transition-colors"
+                  {/* Step: confirm */}
+                  {bookingStep === "confirm" && (
+                    <div>
+                      <p className="text-[13px] text-white/50 mb-4">
+                        Confirm your booking details.
+                      </p>
+                      <div className="space-y-3 mb-5">
+                        {[
+                          {
+                            label: "Practitioner",
+                            value: `${selected.name} · ${selected.title}`,
+                          },
+                          {
+                            label: "Specialty",
+                            value: typeConfig[selected.type].label,
+                          },
+                          { label: "Date & Time", value: selectedSlot },
+                          {
+                            label: "Duration",
+                            value: "30 minutes · Video call",
+                          },
+                          {
+                            label: "Fee",
+                            value: `₦${selected.price.toLocaleString()}`,
+                          },
+                        ].map((f) => (
+                          <div
+                            key={f.label}
+                            className="flex items-start justify-between gap-4 py-2 border-b border-white/5"
                           >
-                            ← Back
-                          </button>
-                          <button
-                            onClick={() => setBookingStep("confirm")}
-                            className="flex-1 h-11 bg-(--green-mid) hover:bg-(--green-light) text-white font-medium rounded-xl transition-colors"
-                          >
-                            Review Booking →
-                          </button>
-                        </div>
+                            <span className="text-[12px] text-white/35">
+                              {f.label}
+                            </span>
+                            <span className="text-[13px] text-white font-medium text-right">
+                              {f.value}
+                            </span>
+                          </div>
+                        ))}
+                        {bookingNotes && (
+                          <div className="pt-1">
+                            <p className="text-[12px] text-white/35 mb-1">
+                              Your Notes
+                            </p>
+                            <p className="text-[13px] text-white/60 leading-relaxed">
+                              {bookingNotes}
+                            </p>
+                          </div>
+                        )}
                       </div>
-                    )}
+                      {bookingError && (
+                        <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 mb-4">
+                          <AlertTriangle
+                            size={15}
+                            className="text-red-400 shrink-0 mt-0.5"
+                          />
+                          <p className="text-[13px] text-red-300">
+                            {bookingError}
+                          </p>
+                        </div>
+                      )}
 
-                    {/* Step: confirm */}
-                    {bookingStep === "confirm" && (
-                      <div>
-                        <p className="text-[13px] text-white/50 mb-4">
-                          Confirm your booking details.
-                        </p>
-                        <div className="space-y-3 mb-5">
-                          {[
-                            {
-                              label: "Practitioner",
-                              value: `${selected.name} · ${selected.title}`,
-                            },
-                            {
-                              label: "Specialty",
-                              value: typeConfig[selected.type].label,
-                            },
-                            { label: "Date & Time", value: selectedSlot },
-                            {
-                              label: "Duration",
-                              value: "30 minutes · Video call",
-                            },
-                            {
-                              label: "Fee",
-                              value: `₦${selected.price.toLocaleString()}`,
-                            },
-                          ].map((f) => (
-                            <div
-                              key={f.label}
-                              className="flex items-start justify-between gap-4 py-2 border-b border-white/5"
-                            >
-                              <span className="text-[12px] text-white/35">
-                                {f.label}
-                              </span>
-                              <span className="text-[13px] text-white font-medium text-right">
-                                {f.value}
-                              </span>
-                            </div>
-                          ))}
-                          {bookingNotes && (
-                            <div className="pt-1">
-                              <p className="text-[12px] text-white/35 mb-1">
-                                Your Notes
-                              </p>
-                              <p className="text-[13px] text-white/60 leading-relaxed">
-                                {bookingNotes}
-                              </p>
-                            </div>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => setBookingStep("notes")}
+                          className="h-11 px-5 border border-white/10 text-white/50 hover:text-white rounded-xl text-[14px] transition-colors"
+                        >
+                          ← Back
+                        </button>
+                        <button
+                          onClick={confirmBooking}
+                          disabled={submitting}
+                          className="flex-1 h-11 bg-(--green-deep) hover:bg-(--green-mid) disabled:opacity-60 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+                        >
+                          {submitting ? (
+                            <>
+                              <Loader2 size={14} className="animate-spin" />{" "}
+                              Redirecting to payment…
+                            </>
+                          ) : (
+                            <>
+                              Continue to Payment — ₦
+                              {selected.price.toLocaleString()}
+                            </>
                           )}
-                        </div>
-                        <div className="flex gap-3">
-                          <button
-                            onClick={() => setBookingStep("notes")}
-                            className="h-11 px-5 border border-white/10 text-white/50 hover:text-white rounded-xl text-[14px] transition-colors"
-                          >
-                            ← Back
-                          </button>
-                          <button
-                            onClick={confirmBooking}
-                            disabled={submitting}
-                            className="flex-1 h-11 bg-(--green-deep) hover:bg-(--green-mid) disabled:opacity-60 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
-                          >
-                            {submitting ? (
-                              <>
-                                <Loader2 size={14} className="animate-spin" />{" "}
-                                Booking…
-                              </>
-                            ) : (
-                              <>
-                                Confirm & Pay ₦{selected.price.toLocaleString()}
-                              </>
-                            )}
-                          </button>
-                        </div>
-                        <p className="text-[11px] text-white/25 text-center mt-3">
-                          Payment processed securely via Paystack
-                        </p>
+                        </button>
                       </div>
-                    )}
-                  </div>
-                </>
-              )}
+                      <p className="text-[11px] text-white/25 text-center mt-3">
+                        You&apos;ll be redirected to Paystack&apos;s secure
+                        checkout. Your session is only confirmed, and your
+                        meeting link generated, once payment succeeds.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+      {/*  // ── Booking flow overlay ───── */}
+      <AnimatePresence>
+        {verifying && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 z-60 flex items-center justify-center p-4"
+          >
+            <div className="bg-[#1A2030] border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center">
+              <Loader2
+                size={32}
+                className="animate-spin text-(--green-pale) mx-auto mb-4"
+              />
+              <p className="text-[15px] font-semibold text-white mb-1">
+                Confirming your payment…
+              </p>
+              <p className="text-[13px] text-white/50">
+                Please don&apos;t close this page.
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {verifyError && (
+        <div className="mb-6 flex items-start gap-3 p-4 rounded-2xl bg-red-500/10 border border-red-500/20">
+          <AlertTriangle size={16} className="text-red-400 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-[14px] font-medium text-white">{verifyError}</p>
+            <p className="text-[12px] text-white/40 mt-0.5">
+              If money left your account but this isn&apos;t reflected, contact
+              support with your payment reference and we&apos;ll confirm
+              manually.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 bg-white/4 border border-white/[0.07] rounded-xl p-1 w-fit">
@@ -602,7 +710,7 @@ export function ConsultationsPage() {
                         </div>
                         {b.notes && (
                           <p className="mt-2 text-[13px] text-white/50 leading-relaxed italic">
-                            &qout;{b.notes} &qout;
+                            &qout;{b.notes}&qout;
                           </p>
                         )}
                       </div>

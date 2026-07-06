@@ -66,7 +66,7 @@ export interface TrustItem {
     label: string;
 }
 
-// ── Cart ──────────────────────────────────────────────────────────────────
+// ── Cart ─────
 export interface CartItem {
   product: Product
   quantity: number
@@ -77,7 +77,7 @@ export interface CartState {
   isOpen: boolean
 }
 
-// ── Order ─────────────────────────────────────────────────────────────────
+// ── Order ───
 export interface OrderCustomer {
   firstName: string
   lastName: string
@@ -103,7 +103,7 @@ export interface Order {
   createdAt: string
 }
 
-// ── Paystack ──────────────────────────────────────────────────────────────
+// ── Paystack ────
 export interface PaystackInitializeRequest {
   email: string
   amount: number           // in kobo
@@ -150,7 +150,7 @@ export interface PaystackVerifyResponse {
   }
 }
 
-// ── Auth / User ───────────────────────────────────────────────────────────
+// ── Auth / User ─────
 export interface User {
   id: string
   email: string

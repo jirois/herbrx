@@ -19,7 +19,7 @@ const createPrismaClient = () => {
     database: url.pathname.replace(/^\//, ''),
     connectionLimit: 5, // Kept small to respect Hostinger shared hosting limits
 
-    // 👇 THESE TWO LINES ARE CRITICAL FOR HOSTINGER SHARED/REMOTE ROUTING
+    // THESE TWO LINES ARE CRITICAL FOR HOSTINGER SHARED/REMOTE ROUTING
     connectTimeout: 10000,       // Wait up to 10 seconds for initial socket setup
     socketTimeout: 10000,        // Allow 10 seconds for standard packet handling
     acquireTimeout: 10000,

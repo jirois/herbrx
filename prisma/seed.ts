@@ -8,7 +8,7 @@ import {prisma} from '@/lib/prisma'
 async function main() {
   console.log('🌿 Seeding HerbRx database…')
 
-  const passwordHash      = await bcrypt.hash('test1234',    12)
+  const passwordHash      = await bcrypt.hash('U2Akpos@herbrx26',    12)
   const customerHash      = await bcrypt.hash('customer123', 12)
   const producerHash      = await bcrypt.hash('producer123', 12)
 
@@ -16,21 +16,21 @@ async function main() {
   const admin = await prisma.user.upsert({
     where:  { email: 'admin@herbrx.ng' },
     update: {},
-    create: { email: 'admin@herbrx.ng', firstName: 'Omas', lastName: 'Omas', phone: '08012345678', passwordHash, emailVerified: true, role: 'ADMIN' },
+    create: { email: 'admin@herbrx.ng', firstName: 'Ajiri', lastName: 'Omas', phone: '08012345678', passwordHash, emailVerified: true, role: 'ADMIN' },
   })
   console.log('  ✓ Admin:', admin.email)
 
   const customer = await prisma.user.upsert({
     where:  { email: 'customer@herbrx.ng' },
     update: {},
-    create: { email: 'customer@herbrx.ng', firstName: 'Ngozi', lastName: 'Eze', phone: '08087654321', passwordHash: customerHash, emailVerified: true, role: 'CUSTOMER' },
+    create: { email: 'customer@herbrx.ng', firstName: 'Okezi', lastName: 'Omas', phone: '08087654321', passwordHash: customerHash, emailVerified: true, role: 'CUSTOMER' },
   })
   console.log('  ✓ Customer:', customer.email)
 
   const producer = await prisma.user.upsert({
     where:  { email: 'producer@herbrx.ng' },
     update: {},
-    create: { email: 'producer@herbrx.ng', firstName: 'Emeka', lastName: 'Nwosu', phone: '08055551234', passwordHash: producerHash, emailVerified: true, role: 'PRODUCER' },
+    create: { email: 'producer@herbrx.ng', firstName: 'Akpofure', lastName: 'Ajiri', phone: '08055551234', passwordHash: producerHash, emailVerified: true, role: 'PRODUCER' },
   })
   console.log('  ✓ Producer:', producer.email)
 
