@@ -15,21 +15,21 @@ async function main() {
   // ── Users ──────────────────────────────────────────────────────────────
   const admin = await prisma.user.upsert({
     where:  { email: 'admin@herbrx.ng' },
-    update: {},
+    update: {email: 'admin@herbrx.ng', firstName: 'Ajiri', lastName: 'Omas', phone: '08012345678', passwordHash, role: 'ADMIN' },
     create: { email: 'admin@herbrx.ng', firstName: 'Ajiri', lastName: 'Omas', phone: '08012345678', passwordHash, emailVerified: true, role: 'ADMIN' },
   })
   console.log('  ✓ Admin:', admin.email)
 
   const customer = await prisma.user.upsert({
     where:  { email: 'customer@herbrx.ng' },
-    update: {},
+    update: { email: 'customer@herbrx.ng', firstName: 'Okezi', lastName: 'Omas', role: 'CUSTOMER' },
     create: { email: 'customer@herbrx.ng', firstName: 'Okezi', lastName: 'Omas', phone: '08087654321', passwordHash: customerHash, emailVerified: true, role: 'CUSTOMER' },
   })
   console.log('  ✓ Customer:', customer.email)
 
   const producer = await prisma.user.upsert({
     where:  { email: 'producer@herbrx.ng' },
-    update: {},
+    update: {email: 'producer@herbrx.ng', firstName: 'Akpofure', lastName: 'Ajiri', role: 'PRODUCER' },
     create: { email: 'producer@herbrx.ng', firstName: 'Akpofure', lastName: 'Ajiri', phone: '08055551234', passwordHash: producerHash, emailVerified: true, role: 'PRODUCER' },
   })
   console.log('  ✓ Producer:', producer.email)

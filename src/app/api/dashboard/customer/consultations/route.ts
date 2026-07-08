@@ -11,7 +11,7 @@ import { initializeTransaction, generateReference } from '@/lib/paystack'
 const CONSULTATION_PRICES: Record<string, number> = {
   HERBALIST:    5000,
   NATUROPATH:   6500,
-  TOXICOLOGIST: 7500,
+  TOXICOLOGIST: 50,
   PHARMACIST:   8500,
 }
 
@@ -59,6 +59,11 @@ export async function POST(req: NextRequest) {
       return badRequest('type and scheduledAt are required')
     }
 
+    const parsedDate = new Date(scheduledAt)
+    if (isNaN(parsedDate.getTime())) {
+      return badRequest('The scheduledAt parameter must be a valid ISO date or timestamp string')
+    }
+
     const validTypes = ['HERBALIST', 'NATUROPATH', 'TOXICOLOGIST', 'PHARMACIST']
     if (!validTypes.includes(type)) {
       return badRequest(`type must be one of: ${validTypes.join(', ')}`)
@@ -71,7 +76,7 @@ export async function POST(req: NextRequest) {
       data: {
         userId,
         practitionerId: practitionerId ?? null,
-        practitionerName: practionerName ?? null,
+        // practitionerName: practionerName ?? null,
         type,
         status:      'REQUESTED',
         scheduledAt: new Date(scheduledAt),
@@ -86,20 +91,23 @@ export async function POST(req: NextRequest) {
 
     let paystackRes
 
+    const baseUrl = typeof process.env.NEXTAUTH_URL === 'string' 
+      ? process.env.NEXTAUTH_URL 
+      : 'http://localhost:3000';
+
     try {
       paystackRes = await initializeTransaction({
         email,
         amount:  priceNaira, // lib converts to kobo internally
         reference,
         metadata: {
-          consultationId: consultation.id,
-          type,
-          cancel_action: `${process.env.NEXTAUTH_URL ?? 'http://localhost:3000'}/dashboard/customer/consultations`,
+          customerId: userId,
+          cancel_action: `${baseUrl}/dashboard/customer/consultations`,
           orderId: consultation.id,
           customer_name: email,
           items_summary: `${type} consultation`,
-        } as Record<string, string>,
-        callback_url: `${process.env.NEXTAUTH_URL ?? 'http://localhost:3000'}/dashboard/customer/consultations?ref=${reference}`,
+        } ,
+        callback_url: `${baseUrl}/dashboard/customer/consultations?ref=${reference}`,
 
       })
 

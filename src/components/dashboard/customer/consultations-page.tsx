@@ -21,7 +21,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import type { ConsultationType, ConsultationStatus } from "@/types";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 
 // ── Types ─────
@@ -116,7 +116,7 @@ const PRACTITIONERS: Practitioner[] = [
     languages: ["English", "Hausa"],
     bio: "Toxicology PhD from ABU Zaria. Expert in herbal product contamination, adverse reactions, and emergency protocols.",
     nextAvailable: "Mon 30 Jun · 9:00 AM",
-    price: 7500,
+    price: 50,
     initials: "FA",
     color: "bg-[#C2DDD5] text-[#1A6B5A]",
   },
@@ -339,17 +339,70 @@ export function ConsultationsPage() {
     setSubmitting(true);
     setBookingError(null);
     try {
+      //  1. Create a baseline date object matching right now
+      let baseDate = new Date();
+
+      try {
+        // Attempt to extract times if format looks like "14:30" or "09:15"
+        const [hours, minutes] = selectedSlot.split(":");
+        if (hours && minutes) {
+          baseDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+        } else {
+          // If it's a structural format like "10:00 AM", handle regular expressions
+          const match = selectedSlot.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+          if (match) {
+            let h = parseInt(match[1], 10);
+            const m = parseInt(match[2], 10);
+            const ampm = match[3].toUpperCase();
+            if (ampm === "PM" && h < 12) h += 12;
+            if (ampm === "AM" && h === 12) h = 0;
+            baseDate.setHours(h, m, 0, 0);
+          } else {
+            // Attempt standard JavaScript fallback parsing
+            const backupParse = new Date(selectedSlot);
+            if (!isNaN(backupParse.getTime())) {
+              baseDate = backupParse;
+            }
+          }
+        }
+      } catch (parseErr) {
+        console.warn(
+          "Could not parse selectedSlot layout, defaulting safely to current time.",
+          parseErr,
+        );
+      }
+
+      // 🎯 2. Absolute Security Layer: If baseDate is STILL an invalid value, force it to 'Now'
+      if (isNaN(baseDate.getTime())) {
+        baseDate = new Date();
+      }
+
+      const finalDateString = baseDate.toISOString();
+
       const result = await customerApi.bookConsultation({
         practitionerId: selected.id,
-        practitionerName: selected.name,
+        practionerName: selected.name,
         type: selected.type,
-        scheduledAt: selectedSlot,
+        scheduledAt: finalDateString,
         notes: bookingNotes,
       });
-      if (!result?.authorizationUrl) {
-        throw new Error("Payment could not be started. Please try again");
+      console.log("[confirmBooking] RAW API RESPONSE:", result);
+
+      // 2. Extract string
+      const targetUrl = result?.authorizationUrl?.authorization_url;
+
+      if (!targetUrl || typeof targetUrl !== "string") {
+        console.error(
+          "[confirmBooking] Failed to extract target checkout string:",
+          result,
+        );
+        throw new Error(
+          "Payment could not be started. Invalid authorization URL payload configuration.",
+        );
       }
-      window.location.href = result.authorizationUrl;
+
+      // window.location.href = result.authorizationUrl;
+      window.location.href = targetUrl;
     } catch (err: unknown) {
       console.error("[confirmBooking]", err);
       setSubmitting(false);
