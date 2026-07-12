@@ -15,6 +15,7 @@ import {
   XCircle,
   Rocket,
 } from "lucide-react";
+import { ProductImage } from "@/components/ui/product-image";
 
 const tierConfig = {
   UNVERIFIED: {
@@ -81,6 +82,7 @@ interface Product {
   status: keyof typeof statusConfig;
   meta?: {
     emoji?: string;
+    imageUrl?: string;
   };
   batchSubmissions?: Array<unknown>;
 }
@@ -369,8 +371,13 @@ export function ProducerDashboard({ user, tier = "UNVERIFIED" }: Props) {
                       transition={{ delay: 0.2 + i * 0.06 }}
                       className="flex items-center gap-4 px-5 py-4 border-b border-white/5 last:border-0 hover:bg-white/3 transition-colors"
                     >
-                      <div className="w-9 h-9 rounded-xl bg-white/6 flex items-center justify-center shrink-0 text-[18px]">
-                        {p.meta?.emoji ?? "🌿"}
+                      <div className="w-9 h-9 rounded-xl  shrink-0 overflow-hidden">
+                        <ProductImage
+                          src={p.meta?.imageUrl ?? null}
+                          emoji={p.meta?.emoji ?? "🌿"}
+                          size="w-9 h-9"
+                          theme="dark"
+                        />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-[14px] font-medium text-white truncate">

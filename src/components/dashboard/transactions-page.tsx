@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, X, Download, ChevronDown, ChevronUp } from "lucide-react";
 import { DashboardShell } from "./dashboard-shell";
 import { formatNaira, cn } from "@/lib/utils";
+import { ProductImage } from "@/components/ui/product-image";
 import type { Order } from "@/types";
 
 const STATUS_ALL = "all";
@@ -352,8 +353,13 @@ export function TransactionsPage({ orders }: Props) {
                         </p>
                         {order.items.map((item) => (
                           <p key={item.product.id} className="text-white/70">
-                            {item.product.emoji} {item.product.name} ×
-                            {item.quantity} —{" "}
+                            <ProductImage
+                              src={item.product.imageUrl ?? null}
+                              emoji={item.product.emoji}
+                              size="w-9 h-9"
+                              theme="dark"
+                            />{" "}
+                            {item.product.name} ×{item.quantity} —{" "}
                             {formatNaira(item.product.price * item.quantity)}
                           </p>
                         ))}

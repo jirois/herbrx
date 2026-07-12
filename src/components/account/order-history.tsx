@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { formatNaira } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ProductImage } from "@/components/ui/product-image";
 import type { Order } from "@/types";
 
 const statusConfig: Record<
@@ -203,7 +204,12 @@ function OrderCard({ order, index }: { order: Order; index: number }) {
                     background: `linear-gradient(135deg, ${item.product.gradientFrom}, ${item.product.gradientTo})`,
                   }}
                 >
-                  {item.product.emoji}
+                  <ProductImage
+                    src={item.product.imageUrl}
+                    emoji={item.product.emoji}
+                    size="w-10 h-10"
+                    theme="light"
+                  />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[13px] font-medium text-(--text-dark) truncate">

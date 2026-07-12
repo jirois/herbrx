@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     const body   = await req.json()
 
     const { name, category, type, emoji, price, description,
-            ingredients, warnings, nafdacNo } = body
+            ingredients, warnings, nafdacNo, imageUrl } = body
 
     if (!name || !category || !price || !description) {
       return badRequest('name, category, price, and description are required')
@@ -85,6 +85,7 @@ export async function POST(req: NextRequest) {
             ingredients: ingredients ?? [],
             warnings:    warnings ?? [],
             nafdacNo:    nafdacNo ?? null,
+            imageUrl: imageUrl ?? null,
           },
         },
       },
@@ -109,7 +110,7 @@ export async function PATCH(req: NextRequest) {
     const userId = user.id
     const body   = await req.json()
     const { productId, name, category, type, emoji, price, description,
-            ingredients, warnings, nafdacNo, inStore } = body
+            ingredients, warnings, nafdacNo, inStore, imageUrl } = body
 
     if (!productId) return badRequest('productId is required')
 
@@ -139,6 +140,7 @@ export async function PATCH(req: NextRequest) {
               warnings:    warnings ?? [],
               nafdacNo:    nafdacNo ?? null,
               inStore:     inStore ?? false,
+              imageUrl:   imageUrl ?? null,
             },
             update: {
               ...(price       !== undefined ? { price: Number(price) || 0 } : {}),
@@ -148,6 +150,7 @@ export async function PATCH(req: NextRequest) {
               ...(warnings    !== undefined ? { warnings }                  : {}),
               ...(nafdacNo    !== undefined ? { nafdacNo }                  : {}),
               ...(inStore     !== undefined ? { inStore }                   : {}),
+              ...(imageUrl    !== undefined ? { imageUrl }                  : {}),
             },
           },
         },

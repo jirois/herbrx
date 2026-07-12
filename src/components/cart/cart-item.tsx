@@ -4,6 +4,7 @@ import { Minus, Plus, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useCart } from "@/context/cart-context";
 import { formatNaira } from "@/lib/utils";
+import { ProductImage } from "@/components/ui/product-image";
 import type { CartItem as CartItemType } from "@/types";
 
 export function CartItem({ item }: { item: CartItemType }) {
@@ -27,7 +28,12 @@ export function CartItem({ item }: { item: CartItemType }) {
         }}
         aria-hidden="true"
       >
-        {product.emoji}
+        <ProductImage
+          src={product.imageUrl}
+          emoji={product.emoji}
+          size="w-12 h-12"
+          theme="light"
+        />
       </div>
 
       {/* Details */}

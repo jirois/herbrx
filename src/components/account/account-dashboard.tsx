@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { formatNaira } from "@/lib/utils";
 import type { Order } from "@/types";
+import { ProductImage } from "../ui/product-image";
 import Image from "next/image";
 
 interface Props {
@@ -246,7 +247,12 @@ export function AccountDashboard({ user, recentOrders }: Props) {
                             }}
                             title={item.product.name}
                           >
-                            {item.product.emoji}
+                            <ProductImage
+                              src={item.product.imageUrl}
+                              emoji={item.product.emoji}
+                              size="w-10 h-10"
+                              theme="light"
+                            />
                           </div>
                         ))}
                         {order.items.length > 3 && (

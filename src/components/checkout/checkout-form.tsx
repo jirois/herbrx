@@ -14,6 +14,7 @@ import {
 import { useCart } from "@/context/cart-context";
 import { useAuth } from "@/context/auth-context";
 import { formatNaira, cn } from "@/lib/utils";
+import { ProductImage } from "@/components/ui/product-image";
 import type { OrderCustomer } from "@/types";
 
 const NIGERIAN_STATES = [
@@ -612,7 +613,12 @@ export function CheckoutForm() {
                       background: `linear-gradient(135deg, ${item.product.gradientFrom}, ${item.product.gradientTo})`,
                     }}
                   >
-                    {item.product.emoji}
+                    <ProductImage
+                      src={item.product.imageUrl}
+                      emoji={item.product.emoji}
+                      size="w-10 h-10"
+                      theme="light"
+                    />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-medium text-(--text-dark) truncate">

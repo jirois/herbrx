@@ -1,38 +1,50 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { motion } from 'framer-motion'
-import { CheckCircle, Package, Mail, ArrowRight, MapPin, Phone } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { formatNaira } from '@/lib/utils'
-import type { Order } from '@/types'
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { motion } from "framer-motion";
+import {
+  CheckCircle,
+  Package,
+  Mail,
+  ArrowRight,
+  MapPin,
+  Phone,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { formatNaira } from "@/lib/utils";
+import { ProductImage } from "@/components/ui/product-image";
+import type { Order } from "@/types";
 
 export function OrderSuccessContent() {
-  const params  = useSearchParams()
-  const orderId = params.get('order')
-  const [order, setOrder] = useState<Order | null>(null)
+  const params = useSearchParams();
+  const orderId = params.get("order");
+  const [order, setOrder] = useState<Order | null>(null);
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('herbrx_last_order')
+      const stored = localStorage.getItem("herbrx_last_order");
       if (stored) {
         // Defer state update to avoid synchronous setState inside effect
-        const parsed = JSON.parse(stored)
-        setTimeout(() => setOrder(parsed), 0)
+        const parsed = JSON.parse(stored);
+        setTimeout(() => setOrder(parsed), 0);
       }
     } catch {}
-  }, [])
+  }, []);
 
   return (
     <div className="min-h-screen bg-(--cream) py-16 px-6">
       <div className="max-w-150 mx-auto text-center">
-
         {/* Animated checkmark */}
         <motion.div
           initial={{ scale: 0, rotate: -15 }}
           animate={{ scale: 1, rotate: 0 }}
-          transition={{ type: 'spring', stiffness: 220, damping: 16, delay: 0.15 }}
+          transition={{
+            type: "spring",
+            stiffness: 220,
+            damping: 16,
+            delay: 0.15,
+          }}
           className="w-24 h-24 bg-(--green-pale) rounded-full flex items-center justify-center mx-auto mb-7"
         >
           <CheckCircle size={46} className="text-(--green-mid)" />
@@ -47,8 +59,8 @@ export function OrderSuccessContent() {
             Order Confirmed! 🎉
           </h1>
           <p className="text-[16px] text-(--text-muted) font-light mb-10 leading-relaxed max-w-110 mx-auto">
-            Thank you for shopping with HerbRx. Your order has been received and will be
-            processed shortly.
+            Thank you for shopping with HerbRx. Your order has been received and
+            will be processed shortly.
           </p>
         </motion.div>
 
@@ -67,7 +79,7 @@ export function OrderSuccessContent() {
                   Order ID
                 </p>
                 <p className="font-mono text-[17px] font-semibold text-(--green-deep)">
-                  {orderId ?? order?.id ?? '—'}
+                  {orderId ?? order?.id ?? "—"}
                 </p>
               </div>
               <div className="text-right">
@@ -75,7 +87,7 @@ export function OrderSuccessContent() {
                   Total Paid
                 </p>
                 <p className="font-serif text-[22px] font-semibold text-(--green-mid)">
-                  {order ? formatNaira(order.total) : '—'}
+                  {order ? formatNaira(order.total) : "—"}
                 </p>
               </div>
             </div>
@@ -84,14 +96,22 @@ export function OrderSuccessContent() {
             {order?.items && order.items.length > 0 && (
               <div className="space-y-3 mb-5">
                 {order.items.map((item) => (
-                  <div key={item.product.id} className="flex items-center gap-3">
+                  <div
+                    key={item.product.id}
+                    className="flex items-center gap-3"
+                  >
                     <div
                       className="w-11 h-11 rounded-xl flex items-center justify-center text-[22px] shrink-0"
                       style={{
                         background: `linear-gradient(135deg, ${item.product.gradientFrom}, ${item.product.gradientTo})`,
                       }}
                     >
-                      {item.product.emoji}
+                      <ProductImage
+                        src={item.product.imageUrl}
+                        emoji={item.product.emoji}
+                        size="w-12 h-12"
+                        theme="light"
+                      />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[13px] font-medium text-(--text-dark) truncate">
@@ -116,10 +136,13 @@ export function OrderSuccessContent() {
                   Delivering to
                 </p>
                 <div className="flex items-start gap-2 text-[13px] text-(--text-body)">
-                  <MapPin size={14} className="text-(--green-mid) mt-0.5 shrink-0" />
+                  <MapPin
+                    size={14}
+                    className="text-(--green-mid) mt-0.5 shrink-0"
+                  />
                   <span>
-                    {order.customer.firstName} {order.customer.lastName},{' '}
-                    {order.customer.address}, {order.customer.city},{' '}
+                    {order.customer.firstName} {order.customer.lastName},{" "}
+                    {order.customer.address}, {order.customer.city},{" "}
                     {order.customer.state}
                   </span>
                 </div>
@@ -142,13 +165,13 @@ export function OrderSuccessContent() {
           {[
             {
               icon: <Mail size={20} />,
-              title: 'Check your email',
-              desc: 'Confirmation + receipt sent to your inbox',
+              title: "Check your email",
+              desc: "Confirmation + receipt sent to your inbox",
             },
             {
               icon: <Package size={20} />,
-              title: 'Track your delivery',
-              desc: 'Tracking info sent within 24 hours',
+              title: "Track your delivery",
+              desc: "Tracking info sent within 24 hours",
             },
           ].map((item) => (
             <div
@@ -159,8 +182,12 @@ export function OrderSuccessContent() {
                 {item.icon}
               </div>
               <div>
-                <p className="font-medium text-[14px] text-(--text-dark)">{item.title}</p>
-                <p className="text-[12px] text-(--text-muted) mt-0.5 font-light">{item.desc}</p>
+                <p className="font-medium text-[14px] text-(--text-dark)">
+                  {item.title}
+                </p>
+                <p className="text-[12px] text-(--text-muted) mt-0.5 font-light">
+                  {item.desc}
+                </p>
               </div>
             </div>
           ))}
@@ -182,5 +209,5 @@ export function OrderSuccessContent() {
         </motion.div>
       </div>
     </div>
-  )
+  );
 }

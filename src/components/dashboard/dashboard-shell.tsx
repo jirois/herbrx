@@ -30,6 +30,7 @@ import {
   BadgeCheck,
   Store,
   Flag,
+  Rocket,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -100,6 +101,16 @@ const producerNav: NavSection[] = [
     ],
   },
   {
+    label: "Incubation",
+    items: [
+      {
+        href: "/dashboard/producer/incubation",
+        icon: Rocket,
+        label: "Incubation Tracker",
+      },
+    ],
+  },
+  {
     label: "Sales",
     items: [
       {
@@ -134,6 +145,11 @@ const adminNav: NavSection[] = [
         label: "Safety Alerts",
       },
       { href: "/dashboard/admin/flags", icon: Flag, label: "Flagged Items" },
+      {
+        href: "/dashboard/admin/interactions",
+        icon: Pill,
+        label: "Interaction DB",
+      },
     ],
   },
   {

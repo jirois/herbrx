@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { formatNaira, cn } from "@/lib/utils";
+import { ProductImage } from "@/components/ui/product-image";
 import type { Order } from "@/types";
 
 const statusStyles: Record<string, string> = {
@@ -170,8 +171,13 @@ export function RecentTransactions({
                     </p>
                     {order.items.map((item) => (
                       <p key={item.product.id} className="text-white/70">
-                        {item.product.emoji} {item.product.name} ×
-                        {item.quantity}
+                        <ProductImage
+                          src={item.product.imageUrl ?? null}
+                          emoji={item.product.emoji}
+                          size="w-9 h-9"
+                          theme="dark"
+                        />
+                        {item.product.name} ×{item.quantity}
                       </p>
                     ))}
                   </div>

@@ -25,6 +25,7 @@ import {
   Hash,
   Beaker,
   Loader2,
+  Package,
 } from "lucide-react";
 import type { BatchStatus } from "@/types";
 
@@ -341,42 +342,43 @@ export function BatchCOAPage() {
   }
 
   const { data: batchData, mutate: refetchBatches } = useProducerBatches();
+  const [hasSynced, setHasSynced] = useState(false);
 
   // Sync real batches from API into local state on first load
-  if (
-    batchData?.batches &&
-    batchData.batches.length > 0 &&
-    JSON.stringify(batches) === JSON.stringify(MOCK_BATCHES)
-  ) {
-    const rawBatches = batchData.batches as unknown as ApiBatchPayload[];
-
-    const shaped = rawBatches.map((b) => ({
-      id: String(b.id),
-      productId: String(b.productId),
-      productName: b.productName ?? b.product?.name ?? "",
-      batchNo: b.batchNo,
-      labName: b.labName ?? "",
-      testedAt: b.testedAt
-        ? new Date(b.testedAt).toISOString().split("T")[0]
-        : "",
-      reviewStatus: b.reviewStatus,
-      reviewNotes: b.reviewNotes ?? null,
-      coaFileName: b.coaFileUrl?.split("/").pop() ?? "COA_document.pdf",
-      submittedAt: b.createdAt
-        ? new Date(b.createdAt).toISOString().split("T")[0]
-        : "",
-      supplyChain: [],
-    })) as MockBatch[];
+  if (batchData?.batches && !hasSynced) {
+    const shaped = (batchData.batches as unknown as ApiBatchPayload[]).map(
+      (b) => ({
+        id: String(b.id),
+        productId: String(b.productId),
+        productName: b.productName ?? b.product?.name ?? "",
+        batchNo: b.batchNo,
+        labName: b.labName ?? "",
+        testedAt: b.testedAt
+          ? new Date(b.testedAt).toISOString().split("T")[0]
+          : "",
+        reviewStatus: b.reviewStatus as BatchStatus,
+        reviewNotes: b.reviewNotes ?? null,
+        coaFileName: b.coaFileUrl?.split("/").pop() ?? "COA_document.pdf",
+        submittedAt: b.createdAt
+          ? new Date(b.createdAt).toISOString().split("T")[0]
+          : "",
+        supplyChain: [],
+      }),
+    );
 
     // 3. Commit to your React state tracker
     setBatches(shaped);
+    setHasSynced(true);
   }
 
   // Sync real products for the submission form
   const formProducts = batchData?.products ?? MOCK_PRODUCTS;
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   async function handleSubmit() {
     setSubmitting(true);
+    setSubmitError(null);
+
     try {
       // In production, upload COA file to Cloudinary/S3 first, get URL back
       const coaFileUrl = form.coaFile
@@ -391,26 +393,40 @@ export function BatchCOAPage() {
         coaFileUrl,
         chainStages: form.chainStages,
       });
-      refetchBatches();
-    } catch {
+      // Re-sync from the server so the list reflects the real DB row
+      // (with its real id, status, and timestamps) rather than a
+      // fabricated local placeholder.
+      setHasSynced(false);
+      await refetchBatches();
+      setSubmitting(false);
+      setSubmitted(true);
+    } catch (err: unknown) {
+      // Normalize unknown error to a message string
+      const errMsg =
+        err instanceof Error
+          ? err.message
+          : String(err ?? "Failed to submit batch. Please try again.");
+      console.error("[handleSubmit:batch]", err);
+      setSubmitting(false);
+      setSubmitError(errMsg);
       // Optimistic fallback — still show success locally
     }
-    const newBatch: MockBatch = {
-      id: `b${Date.now()}`,
-      productId: form.productId,
-      productName: selectedProduct?.name ?? "",
-      batchNo: form.batchNo,
-      labName: form.labName,
-      testedAt: form.testedAt,
-      reviewStatus: "SUBMITTED",
-      reviewNotes: null,
-      coaFileName: form.coaFile?.name ?? "COA_document.pdf",
-      submittedAt: new Date().toISOString().split("T")[0],
-      supplyChain: form.chainStages.map((s) => ({ ...s, verified: false })),
-    };
-    setBatches((prev) => [newBatch, ...prev]);
-    setSubmitting(false);
-    setSubmitted(true);
+    // const newBatch: MockBatch = {
+    //   id: `b${Date.now()}`,
+    //   productId: form.productId,
+    //   productName: selectedProduct?.name ?? "",
+    //   batchNo: form.batchNo,
+    //   labName: form.labName,
+    //   testedAt: form.testedAt,
+    //   reviewStatus: "SUBMITTED",
+    //   reviewNotes: null,
+    //   coaFileName: form.coaFile?.name ?? "COA_document.pdf",
+    //   submittedAt: new Date().toISOString().split("T")[0],
+    //   supplyChain: form.chainStages.map((s) => ({ ...s, verified: false })),
+    // };
+    // setBatches((prev) => [newBatch, ...prev]);
+    // setSubmitting(false);
+    // setSubmitted(true);
   }
 
   // function resetForm() {
@@ -446,7 +462,9 @@ export function BatchCOAPage() {
                 onClick={() => updateForm({ productId: p.id })}
                 className={`text-left p-4 rounded-2xl border transition-all ${form.productId === p.id ? "border-(--green-mid) bg-(--green-mid)/10" : "border-white/8 bg-white/3 hover:border-white/20"}`}
               >
-                <div className="text-[22px] mb-2">🌿</div>
+                <div className="w-12 h-12 rounded-xl bg-white/[0.07] flex items-center justify-center shrink-0">
+                  <Package size={22} className="text-white/30" />
+                </div>
                 <p className="text-[14px] font-semibold text-white">{p.name}</p>
                 <p className="text-[12px] text-white/40 mt-0.5">{p.category}</p>
                 {form.productId === p.id && (
@@ -910,6 +928,16 @@ export function BatchCOAPage() {
               </div>
             </div>
           </div>
+
+          {submitError && (
+            <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 mb-4">
+              <AlertTriangle
+                size={15}
+                className="text-red-400 shrink-0 mt-0.5"
+              />
+              <p className="text-[13px] text-red-300">{submitError}</p>
+            </div>
+          )}
 
           <div className="flex gap-3">
             <button

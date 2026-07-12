@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatNaira } from "@/lib/utils";
 import { useCart } from "@/context/cart-context";
 import type { Product } from "@/types";
+import { ProductImage } from "../ui/product-image";
 
 interface ProductCardProps {
   product: Product;
@@ -42,13 +43,22 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
               background: `linear-gradient(135deg, ${product.gradientFrom}, ${product.gradientTo})`,
             }}
           >
-            <span
-              className="select-none transition-transform duration-300 group-hover:scale-110"
-              role="img"
-              aria-label={product.name}
-            >
-              {product.emoji}
-            </span>
+            {product.imageUrl ? (
+              <ProductImage
+                src={product.imageUrl}
+                alt={product.name}
+                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              />
+            ) : (
+              <span
+                className="select-none transition-transform duration-300 group-hover:scale-110"
+                role="img"
+                aria-label={product.name}
+              >
+                {product.emoji}
+              </span>
+            )}
+
             <div className="absolute top-3 left-3">
               <Badge variant={product.badgeVariant} size="sm">
                 {product.badge}

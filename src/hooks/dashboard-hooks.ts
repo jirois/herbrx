@@ -159,6 +159,8 @@ export async function apiDelete(url: string) {
 
 export const producerApi = {
   createProduct:  (body: unknown) => apiPost('/api/dashboard/producer/products', body),
+  updateProduct:  (body: unknown) => apiPatch('/api/dashboard/producer/products', body),
+  deleteProduct:  (productId: string) => apiDelete(`/api/dashboard/producer/products?id=${productId}`),
   submitBatch:    (body: unknown) => apiPost('/api/dashboard/producer/batches',  body),
   applyVerification: (body: unknown) => apiPost('/api/dashboard/producer/verification', body),
 }
@@ -233,4 +235,14 @@ export function useIncubation() {
 
 export const incubationApi = {
   submit: (body: unknown) => apiPost('/api/incubation', body),
+}
+
+export function useProducerAnalytics() {
+  return useFetch<{
+    summary: Record<string, unknown> | null
+    products: Record<string, unknown>[]
+    batches: Record<string, unknown>[]
+    revenueByMonth: { label: string; revenue: number; sales: number }[]
+    categories: { category: string; revenue: number; sales: number; count: number }[]
+  }>('/api/dashboard/producer/analytics')
 }

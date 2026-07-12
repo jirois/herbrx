@@ -319,10 +319,274 @@ async function main() {
     }
   }
 
-  console.log('\n✅ Seed complete!')
+  console.log('\n✅ Core seed complete!')
+  await seedInteractions()
+  console.log('\n🌿 Full seed done!')
+}
+
+// ── Seed helper ───────
+async function seedInteractions() {
+  type InteractionPair = {
+    drugName: string
+    drugAliases: string[]
+    drugClass: string
+    herbName: string
+    herbScientific: string
+    herbLocalNames: string[]
+    severity: 'DANGER' | 'WARNING' | 'INFO' | 'BENEFICIAL'
+    evidenceLevel: 'STRONG' | 'MODERATE' | 'PRELIMINARY'
+    mechanism: string
+    effect: string
+    advice: string
+  }
+
+  const pairs: InteractionPair[] = [
+    // WARFARIN
+    { drugName:'warfarin', drugAliases:['coumadin','warf'], drugClass:'Anticoagulant',
+      herbName:"St. John's Wort", herbScientific:'Hypericum perforatum', herbLocalNames:[],
+      severity:'DANGER', evidenceLevel:'STRONG',
+      mechanism:'Potent CYP3A4 and P-glycoprotein inducer — accelerates warfarin metabolism by 30–70%, dramatically reducing plasma levels.',
+      effect:'Sub-therapeutic anticoagulation causing increased clotting and stroke risk. Reduces INR significantly within days of starting.',
+      advice:'ABSOLUTELY CONTRAINDICATED. Discontinue St. John\'s Wort immediately and monitor INR closely for 2 weeks after stopping.' },
+    { drugName:'warfarin', drugAliases:['coumadin'], drugClass:'Anticoagulant',
+      herbName:'Garlic Extract', herbScientific:'Allium sativum', herbLocalNames:['Ayu (Hausa)','Alubosa Ayu (Yoruba)'],
+      severity:'WARNING', evidenceLevel:'MODERATE',
+      mechanism:'Garlic sulfur compounds inhibit platelet aggregation and may weakly inhibit CYP2C9, the primary warfarin-metabolising enzyme.',
+      effect:'Enhanced anticoagulant effect — INR may rise unpredictably, increasing bruising and bleeding risk.',
+      advice:'Avoid garlic supplements (>2g/day). Culinary garlic is generally safe. Monitor INR if adding high-dose garlic.' },
+    { drugName:'warfarin', drugAliases:['coumadin'], drugClass:'Anticoagulant',
+      herbName:'Moringa', herbScientific:'Moringa oleifera', herbLocalNames:['Zogale (Hausa)','Ewe Ile (Yoruba)','Odudu Oyibo (Igbo)'],
+      severity:'WARNING', evidenceLevel:'MODERATE',
+      mechanism:'High Vitamin K content (≈200mcg per 100g dry leaf) directly antagonises warfarin\'s mechanism of action.',
+      effect:'Reduces warfarin efficacy — regular high-dose Moringa consumption may require significant dose adjustments.',
+      advice:'Avoid large or inconsistent quantities of Moringa. Inform your anticoagulation clinic if you use Moringa regularly.' },
+    { drugName:'warfarin', drugAliases:['coumadin'], drugClass:'Anticoagulant',
+      herbName:'Ginger', herbScientific:'Zingiber officinale', herbLocalNames:['Jinja (Hausa)','Atale (Yoruba)','Ji Ose (Igbo)'],
+      severity:'WARNING', evidenceLevel:'MODERATE',
+      mechanism:'Gingerols inhibit thromboxane synthetase and platelet aggregation, potentiating warfarin\'s antiplatelet activity.',
+      effect:'Increased bleeding risk, particularly at high supplement doses. Culinary amounts are low-risk.',
+      advice:'Avoid concentrated ginger capsules/supplements. Culinary use is acceptable. Monitor for unusual bruising.' },
+    // METFORMIN
+    { drugName:'metformin', drugAliases:['glucophage','metforal','diabex'], drugClass:'Antidiabetic (Biguanide)',
+      herbName:'Bitter Leaf', herbScientific:'Vernonia amygdalina', herbLocalNames:['Ewuro (Yoruba)','Onugbu (Igbo)','Shiwaka (Hausa)'],
+      severity:'WARNING', evidenceLevel:'MODERATE',
+      mechanism:'Vernoniamide alkaloids exhibit insulin-sensitising activity producing additive glucose-lowering with metformin.',
+      effect:'Risk of hypoglycaemia (blood sugar crash), especially with preparations >500mg/day or concentrated extracts.',
+      advice:'Monitor blood glucose closely. Reduce Bitter Leaf dose or separate administration from metformin by at least 2 hours.' },
+    { drugName:'metformin', drugAliases:['glucophage'], drugClass:'Antidiabetic',
+      herbName:'Moringa', herbScientific:'Moringa oleifera', herbLocalNames:['Zogale (Hausa)','Ewe Ile (Yoruba)'],
+      severity:'INFO', evidenceLevel:'PRELIMINARY',
+      mechanism:'Isothiocyanate compounds in Moringa have demonstrated insulin-mimetic activity in animal models.',
+      effect:'Mild additive blood glucose-lowering. Risk is low at culinary doses but may be significant with concentrated supplements.',
+      advice:'Inform your doctor. Monitor fasting blood glucose weekly when initiating or changing Moringa supplementation.' },
+    { drugName:'metformin', drugAliases:['glucophage'], drugClass:'Antidiabetic',
+      herbName:'Zobo / Hibiscus', herbScientific:'Hibiscus sabdariffa', herbLocalNames:['Zobo (nationwide)','Isapa (Yoruba)'],
+      severity:'INFO', evidenceLevel:'PRELIMINARY',
+      mechanism:'Hibiscus anthocyanins have shown weak glucose-modulating activity in pilot human trials.',
+      effect:'Possible mild additive glucose reduction at high concentrate doses. Regular zobo drink quantities are low-risk.',
+      advice:'Concentrated Hibiscus supplements warrant blood glucose monitoring. Regular zobo drink consumption is low-risk.' },
+    // SSRIs
+    { drugName:'sertraline', drugAliases:['zoloft','sertralina'], drugClass:'SSRI Antidepressant',
+      herbName:"St. John's Wort", herbScientific:'Hypericum perforatum', herbLocalNames:[],
+      severity:'DANGER', evidenceLevel:'STRONG',
+      mechanism:'Both inhibit serotonin reuptake. Combined serotonergic excess triggers serotonin syndrome via 5-HT receptor overstimulation.',
+      effect:'Serotonin syndrome: confusion, agitation, rapid heart rate, high blood pressure, fever, muscle rigidity. Potentially life-threatening.',
+      advice:'ABSOLUTELY CONTRAINDICATED. Stop St. John\'s Wort immediately if taking any SSRI. Applies to all SSRIs.' },
+    { drugName:'fluoxetine', drugAliases:['prozac','sarafem'], drugClass:'SSRI Antidepressant',
+      herbName:"St. John's Wort", herbScientific:'Hypericum perforatum', herbLocalNames:[],
+      severity:'DANGER', evidenceLevel:'STRONG',
+      mechanism:'Dual serotonin reuptake inhibition — same as sertraline interaction, affects all SSRIs equally.',
+      effect:'Serotonin syndrome with potentially fatal consequences.',
+      advice:'ABSOLUTELY CONTRAINDICATED with any SSRI. This class-wide interaction is one of the most dangerous known herb-drug interactions.' },
+    { drugName:'sertraline', drugAliases:['zoloft'], drugClass:'SSRI Antidepressant',
+      herbName:'Valerian Root', herbScientific:'Valeriana officinalis', herbLocalNames:[],
+      severity:'WARNING', evidenceLevel:'MODERATE',
+      mechanism:'Valerenic acid potentiates GABAergic activity; combined with SSRI CNS effects this enhances sedation.',
+      effect:'Excessive sedation, cognitive impairment, increased fall risk. May worsen depression in some patients.',
+      advice:'Avoid concurrent use. If needed for sleep, discuss safer alternatives with your prescribing physician.' },
+    // ANTIHYPERTENSIVES
+    { drugName:'amlodipine', drugAliases:['norvasc','amlodipin'], drugClass:'Calcium Channel Blocker',
+      herbName:'Zobo / Hibiscus', herbScientific:'Hibiscus sabdariffa', herbLocalNames:['Zobo (nationwide)','Isapa (Yoruba)'],
+      severity:'WARNING', evidenceLevel:'STRONG',
+      mechanism:'Hibiscus exhibits significant ACE-inhibitory and vasodilatory activity confirmed in multiple Nigerian clinical trials.',
+      effect:'Additive blood pressure reduction beyond therapeutic target. Risk of symptomatic hypotension — dizziness, fainting.',
+      advice:'Monitor blood pressure at home if drinking zobo regularly. May require dose reduction — discuss with your doctor.' },
+    { drugName:'lisinopril', drugAliases:['zestril','prinivil'], drugClass:'ACE Inhibitor',
+      herbName:'Zobo / Hibiscus', herbScientific:'Hibiscus sabdariffa', herbLocalNames:['Zobo (nationwide)'],
+      severity:'WARNING', evidenceLevel:'STRONG',
+      mechanism:'Hibiscus exhibits natural ACE inhibitory activity — directly additive to lisinopril mechanism.',
+      effect:'Excessive blood pressure reduction, hypotension, dizziness, potential renal stress at high doses.',
+      advice:'Limit zobo to occasional small quantities. Monitor blood pressure regularly. Report persistent dizziness to your doctor.' },
+    { drugName:'hydrochlorothiazide', drugAliases:['hctz','microzide'], drugClass:'Thiazide Diuretic',
+      herbName:'Zobo / Hibiscus', herbScientific:'Hibiscus sabdariffa', herbLocalNames:['Zobo (nationwide)'],
+      severity:'WARNING', evidenceLevel:'MODERATE',
+      mechanism:'Hibiscus has independent diuretic properties. Combined with HCTZ this can produce excessive diuresis.',
+      effect:'Excessive fluid loss, hypokalaemia (dangerous in cardiac patients), dehydration.',
+      advice:'Avoid concentrated Hibiscus supplements. Occasional zobo drink is low-risk. Monitor electrolytes if combining.' },
+    { drugName:'amlodipine', drugAliases:['norvasc'], drugClass:'Calcium Channel Blocker',
+      herbName:'Hawthorn', herbScientific:'Crataegus monogyna', herbLocalNames:[],
+      severity:'WARNING', evidenceLevel:'MODERATE',
+      mechanism:'Hawthorn flavonoids exhibit independent vasodilatory and mild negative chronotropic activity.',
+      effect:'Additive blood pressure and heart rate reduction — risk of symptomatic hypotension.',
+      advice:'Avoid hawthorn supplements with any antihypertensive medication. Monitor blood pressure closely if combined.' },
+    // STATINS
+    { drugName:'atorvastatin', drugAliases:['lipitor','atorva'], drugClass:'Statin',
+      herbName:'Red Yeast Rice', herbScientific:'Monascus purpureus', herbLocalNames:[],
+      severity:'DANGER', evidenceLevel:'STRONG',
+      mechanism:'Red yeast rice naturally contains monacolin K, chemically identical to lovastatin. Combined use is effectively double-dosing a statin.',
+      effect:'Severely elevated risk of rhabdomyolysis (muscle breakdown), myopathy, and acute kidney failure.',
+      advice:'AVOID all red yeast rice if taking any statin — including traditional preparations sold in health stores.' },
+    { drugName:'atorvastatin', drugAliases:['lipitor'], drugClass:'Statin',
+      herbName:'Grapefruit', herbScientific:'Citrus paradisi', herbLocalNames:['Grape fruit'],
+      severity:'DANGER', evidenceLevel:'STRONG',
+      mechanism:'Furanocoumarins in grapefruit irreversibly inhibit intestinal CYP3A4 — the primary enzyme metabolising atorvastatin.',
+      effect:'Up to 83% increase in atorvastatin plasma levels, dramatically increasing statin toxicity risk.',
+      advice:'Avoid grapefruit entirely while on atorvastatin, simvastatin, or lovastatin. Switch to orange juice.' },
+    { drugName:'simvastatin', drugAliases:['zocor','simva'], drugClass:'Statin',
+      herbName:'Grapefruit', herbScientific:'Citrus paradisi', herbLocalNames:[],
+      severity:'DANGER', evidenceLevel:'STRONG',
+      mechanism:'CYP3A4 inhibition — simvastatin is more susceptible than atorvastatin to this interaction.',
+      effect:'Massive increase in simvastatin bioavailability, causing severe statin toxicity.',
+      advice:'Absolutely avoid grapefruit with simvastatin. One glass of grapefruit juice can affect drug levels for 24+ hours.' },
+    // ANTIBIOTICS
+    { drugName:'amoxicillin', drugAliases:['augmentin','amoxil'], drugClass:'Beta-lactam Antibiotic',
+      herbName:'African Basil (Scent Leaf)', herbScientific:'Ocimum gratissimum', herbLocalNames:['Efirin (Yoruba)','Nchuanwu (Igbo)','Daidoya (Hausa)'],
+      severity:'INFO', evidenceLevel:'PRELIMINARY',
+      mechanism:'In vitro studies suggest eugenol from Ocimum gratissimum may have modest synergistic antibacterial activity.',
+      effect:'Possible mild synergy against some bacterial strains. No clinically documented harm at culinary doses.',
+      advice:'No action required at culinary doses. Avoid high-dose concentrated extracts during antibiotic courses.' },
+    { drugName:'ciprofloxacin', drugAliases:['cipro','ciproflox'], drugClass:'Fluoroquinolone',
+      herbName:'Moringa', herbScientific:'Moringa oleifera', herbLocalNames:['Zogale (Hausa)'],
+      severity:'INFO', evidenceLevel:'PRELIMINARY',
+      mechanism:'Divalent cation-chelating compounds in Moringa may bind ciprofloxacin and reduce its absorption.',
+      effect:'Theoretical reduction in ciprofloxacin bioavailability. Clinical significance remains unclear.',
+      advice:'Separate Moringa supplements and ciprofloxacin doses by at least 2 hours to ensure complete antibiotic absorption.' },
+    // ANTIMALARIALS
+    { drugName:'chloroquine', drugAliases:['chloroquin','resochin'], drugClass:'Antimalarial',
+      herbName:'Zobo / Hibiscus', herbScientific:'Hibiscus sabdariffa', herbLocalNames:['Zobo (nationwide)','Isapa (Yoruba)'],
+      severity:'WARNING', evidenceLevel:'MODERATE',
+      mechanism:'Organic acids in Hibiscus sabdariffa reduce gastric pH, impairing chloroquine absorption — bioavailability reduced by up to 42% in one Nigerian study.',
+      effect:'Sub-therapeutic chloroquine levels, risking treatment failure for malaria.',
+      advice:'Do not drink zobo for at least 2 hours before or after taking chloroquine. Avoid zobo entirely during malaria treatment.' },
+    { drugName:'artemether', drugAliases:['coartem','lumartem'], drugClass:'Artemisinin Antimalarial',
+      herbName:'African Wormwood', herbScientific:'Artemisia afra', herbLocalNames:[],
+      severity:'WARNING', evidenceLevel:'MODERATE',
+      mechanism:'Artemisia species contain artemisinin precursors. Combined use is pharmacological duplication with unpredictable toxicity.',
+      effect:'Unpredictable artemisinin-related neurotoxicity or cardiotoxicity risk. May select for resistance.',
+      advice:'Do not use any Artemisia herbal preparation during an artemisinin-based combination therapy course.' },
+    // THYROID
+    { drugName:'levothyroxine', drugAliases:['eltroxin','synthroid','thyroxine'], drugClass:'Thyroid Hormone',
+      herbName:'Moringa', herbScientific:'Moringa oleifera', herbLocalNames:['Zogale (Hausa)'],
+      severity:'WARNING', evidenceLevel:'MODERATE',
+      mechanism:'Moringa isothiocyanates have demonstrated antithyroid activity in animal studies, potentially countering levothyroxine.',
+      effect:'Reduced levothyroxine efficacy — risk of hypothyroidism relapse or inadequate replacement.',
+      advice:'Avoid large daily quantities of Moringa. If using supplements, inform your endocrinologist and monitor TSH every 6 weeks.' },
+    // ORAL CONTRACEPTIVES
+    { drugName:'combined oral contraceptive', drugAliases:['microgynon','levlen','pill','ocp','yasmin'], drugClass:'Oral Contraceptive',
+      herbName:"St. John's Wort", herbScientific:'Hypericum perforatum', herbLocalNames:[],
+      severity:'DANGER', evidenceLevel:'STRONG',
+      mechanism:'CYP3A4 induction reduces ethinylestradiol and progestogen levels, dramatically reducing contraceptive plasma levels.',
+      effect:'Contraceptive failure with unintended pregnancy. Multiple documented cases in literature.',
+      advice:'CONTRAINDICATED. Use barrier contraception for the entire duration of St. John\'s Wort use plus 28 days after stopping.' },
+    // DIGOXIN
+    { drugName:'digoxin', drugAliases:['lanoxin'], drugClass:'Cardiac Glycoside',
+      herbName:'Aloe Vera (Latex)', herbScientific:'Aloe barbadensis', herbLocalNames:['Eti Erin (Yoruba)'],
+      severity:'DANGER', evidenceLevel:'STRONG',
+      mechanism:'Anthraquinone laxative effect of aloe latex causes hypokalaemia. Digoxin toxicity is dramatically worsened by low potassium.',
+      effect:'Life-threatening cardiac arrhythmias including ventricular fibrillation.',
+      advice:'CONTRAINDICATED. Never use aloe latex (internal laxative use) with digoxin. Topical aloe gel is safe.' },
+    { drugName:'digoxin', drugAliases:['lanoxin'], drugClass:'Cardiac Glycoside',
+      herbName:'Hawthorn', herbScientific:'Crataegus monogyna', herbLocalNames:[],
+      severity:'WARNING', evidenceLevel:'MODERATE',
+      mechanism:'Hawthorn has independent positive inotropic effects and may sensitise cardiac tissue to digoxin.',
+      effect:'Increased risk of digoxin toxicity — nausea, arrhythmia, visual disturbances — at usual digoxin doses.',
+      advice:'Avoid hawthorn supplementation while on digoxin. Discuss cardiac-safe alternatives with your cardiologist.' },
+    // IMMUNOSUPPRESSANTS
+    { drugName:'cyclosporine', drugAliases:['sandimmun','neoral'], drugClass:'Calcineurin Inhibitor',
+      herbName:"St. John's Wort", herbScientific:'Hypericum perforatum', herbLocalNames:[],
+      severity:'DANGER', evidenceLevel:'STRONG',
+      mechanism:'Potent CYP3A4 induction reduces cyclosporine blood levels by 50–70%.',
+      effect:'Transplant rejection. Multiple documented organ rejection episodes reported in literature after patients took St. John\'s Wort.',
+      advice:'ABSOLUTELY CONTRAINDICATED in any transplant or immunosuppressed patient. This interaction has caused confirmed organ rejections.' },
+    { drugName:'cyclosporine', drugAliases:['sandimmun'], drugClass:'Immunosuppressant',
+      herbName:'Neem', herbScientific:'Azadirachta indica', herbLocalNames:['Dogonyaro (Hausa)','Eedu (Yoruba)'],
+      severity:'WARNING', evidenceLevel:'MODERATE',
+      mechanism:'Neem limonoids may modulate immune activity, potentially altering the balance of pharmacological immunosuppression.',
+      effect:'Unpredictable alteration of immunosuppression — risk of over-suppression or rejection window.',
+      advice:'Avoid all neem preparations in immunocompromised patients on immunosuppressant medications.' },
+    // ANTI-EPILEPTICS
+    { drugName:'phenytoin', drugAliases:['dilantin','epanutin'], drugClass:'Anti-epileptic',
+      herbName:"St. John's Wort", herbScientific:'Hypericum perforatum', herbLocalNames:[],
+      severity:'DANGER', evidenceLevel:'STRONG',
+      mechanism:'CYP3A4 and CYP2C9 induction reduces phenytoin plasma levels significantly within days.',
+      effect:'Seizure breakthrough with potentially fatal consequences.',
+      advice:'CONTRAINDICATED with all anti-epileptics. Never use St. John\'s Wort if you have a seizure disorder.' },
+    { drugName:'carbamazepine', drugAliases:['tegretol','carbatrol'], drugClass:'Anti-epileptic / Mood Stabiliser',
+      herbName:'Grapefruit', herbScientific:'Citrus paradisi', herbLocalNames:[],
+      severity:'WARNING', evidenceLevel:'MODERATE',
+      mechanism:'CYP3A4 inhibition by grapefruit furanocoumarins increases carbamazepine plasma levels unpredictably.',
+      effect:'Carbamazepine toxicity: diplopia, ataxia, nausea, confusion. Seizure risk during toxic episodes.',
+      advice:'Avoid grapefruit and grapefruit juice while on carbamazepine.' },
+    // PROTON PUMP INHIBITORS
+    { drugName:'omeprazole', drugAliases:['prilosec','losec'], drugClass:'Proton Pump Inhibitor',
+      herbName:'Ginger', herbScientific:'Zingiber officinale', herbLocalNames:['Jinja (Hausa)','Atale (Yoruba)'],
+      severity:'BENEFICIAL', evidenceLevel:'MODERATE',
+      mechanism:'Ginger has independent gastroprotective, prokinetic, and mild anti-ulcer properties complementary to omeprazole\'s acid suppression.',
+      effect:'Potentially enhanced GI symptom relief and complementary mucosal protection. No known harm at culinary-to-moderate supplement doses.',
+      advice:'Generally compatible. High-dose ginger supplements (>2g/day) should still be discussed with your doctor.' },
+    // BENZODIAZEPINES
+    { drugName:'diazepam', drugAliases:['valium','apaurin'], drugClass:'Benzodiazepine',
+      herbName:'Kava Kava', herbScientific:'Piper methysticum', herbLocalNames:[],
+      severity:'DANGER', evidenceLevel:'MODERATE',
+      mechanism:'Kavalactones potentiate GABA-A receptor activity — the same mechanism as benzodiazepines. The combined effect is supra-additive CNS depression.',
+      effect:'Respiratory depression, dangerous sedation, coma. Risk of death — especially if alcohol is also present.',
+      advice:'CONTRAINDICATED. Never combine kava with any benzodiazepine, sleeping pill, or alcohol.' },
+    { drugName:'diazepam', drugAliases:['valium'], drugClass:'Benzodiazepine',
+      herbName:'Valerian Root', herbScientific:'Valeriana officinalis', herbLocalNames:[],
+      severity:'WARNING', evidenceLevel:'MODERATE',
+      mechanism:'Valerenic acid binds and activates GABA-A receptors, producing additive CNS depression with benzodiazepines.',
+      effect:'Excessive sedation, cognitive impairment, respiratory depression risk.',
+      advice:'Avoid valerian with benzodiazepines. Discuss non-sedating alternatives with your physician.' },
+    // NSAIDs
+    { drugName:'ibuprofen', drugAliases:['brufen','advil','nurofen'], drugClass:'NSAID',
+      herbName:'Garlic Extract', herbScientific:'Allium sativum', herbLocalNames:['Ayu (Hausa)'],
+      severity:'WARNING', evidenceLevel:'MODERATE',
+      mechanism:'Both garlic and ibuprofen inhibit platelet aggregation via different pathways — synergistic antiplatelet effect.',
+      effect:'Increased bleeding time. Particularly significant before surgery or with concurrent anticoagulants.',
+      advice:'Avoid garlic supplements with regular NSAID use. Occasional culinary garlic is safe. Discontinue supplements 7 days before surgery.' },
+    { drugName:'ibuprofen', drugAliases:['brufen'], drugClass:'NSAID',
+      herbName:'Turmeric', herbScientific:'Curcuma longa', herbLocalNames:['Gangamau (Hausa)','Ata Ile Pupa (Yoruba)'],
+      severity:'WARNING', evidenceLevel:'MODERATE',
+      mechanism:'Curcumin inhibits COX-1/2 enzymes (same mechanism as ibuprofen) and also inhibits platelet aggregation.',
+      effect:'Enhanced anti-inflammatory effect (possibly desired) but increased bleeding risk and gastric irritation.',
+      advice:'Avoid high-dose curcumin supplements with regular NSAIDs. Culinary turmeric is safe. Stop supplements before procedures.' },
+  ]
+
+   console.log('\n  Seeding drug-herb interaction pairs…')
+  let added = 0
+  for (const pair of pairs) {
+    const { drugAliases, herbLocalNames, ...rest } = pair
+    try {
+      await prisma.drugHerbInteraction.upsert({
+        where:  { drugName_herbName: { drugName: pair.drugName, herbName: pair.herbName } },
+        update: { ...rest, drugAliases, herbLocalNames, isPublished: true },
+        create: { ...rest, drugAliases, herbLocalNames, references: [], isPublished: true },
+      })
+      added++
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e)
+      console.log(`    ⚠ Skipped ${pair.drugName} × ${pair.herbName}: ${message.slice(0, 60)}`)
+    }
+  }
+  console.log(`  ✅ Seeded ${added}/${pairs.length} interaction pairs`)
 }
 
 main()
   .then(() => prisma.$disconnect())
-  .catch(async (e) => { console.error(e); await prisma.$disconnect(); process.exit(1) })
+  .catch(async (e: unknown) => {
+    const msg = e instanceof Error ? e.message : String(e)
+    console.error(msg)
+    await prisma.$disconnect()
+    process.exit(1)
+  })
 

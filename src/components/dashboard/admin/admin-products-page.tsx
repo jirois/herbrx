@@ -24,6 +24,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { useAdminProducts } from "@/hooks/dashboard-hooks";
+import { ProductImage } from "@/components/ui/product-image";
 
 type ProductStatus =
   | "DRAFT"
@@ -44,6 +45,7 @@ interface AdminProduct {
   batches: number;
   approvedBatches: number;
   nafdacNo?: string;
+  imageUrl?: string;
   sales: number;
   createdAt: string;
   updatedAt: string;
@@ -229,19 +231,21 @@ const inputCls =
   "w-full h-10 px-3.5 bg-white/[0.06] border border-white/[0.1] rounded-xl text-[14px] text-white placeholder:text-white/25 outline-none focus:border-[var(--green-mid)] transition-all";
 
 export function AdminProductsPage() {
-  const { data: productsData, mutate: refetchProducts } = useAdminProducts();
-  const [products, setProducts] = useState<AdminProduct[]>(MOCK_PRODUCTS);
-  // Sync API data into local state
-  if (
-    productsData?.products &&
-    productsData.products.length > 0 &&
-    products === MOCK_PRODUCTS
-  ) {
+  const {
+    data: productsData,
+    loading: productsLoading,
+    mutate: refetchProducts,
+  } = useAdminProducts();
+  const [products, setProducts] = useState<AdminProduct[]>([]);
+  const [hasSynced, setHasSynced] = useState(false);
+  // Sync real DB data on load and after every mutation (hasSynced reset before refetch)
+  if (productsData?.products && !hasSynced) {
     setProducts(productsData.products as unknown as AdminProduct[]);
+    setHasSynced(true);
   }
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ProductStatus | "ALL">(
-    "ALL",
+    "PENDING_REVIEW",
   );
   const [expanded, setExpanded] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
@@ -282,21 +286,7 @@ export function AdminProductsPage() {
     };
     const newStatus = statusMap[actionModal.action];
 
-    try {
-      await fetch("/api/dashboard/admin/products", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productId: actionModal.product.id,
-          action: actionModal.action,
-          reason: actionNote,
-        }),
-      });
-      refetchProducts();
-    } catch {
-      /* optimistic update still applied below */
-    }
-
+    // Optimistic update first for responsive UI
     setProducts((prev) =>
       prev.map((p) =>
         p.id === actionModal.product.id
@@ -312,6 +302,26 @@ export function AdminProductsPage() {
           : p,
       ),
     );
+
+    try {
+      await fetch("/api/dashboard/admin/products", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: actionModal.product.id,
+          action: actionModal.action,
+          reason: actionNote,
+        }),
+      });
+      // Re-sync from DB so our list reflects reality after the write
+      setHasSynced(false);
+      refetchProducts();
+    } catch (err) {
+      console.error("[applyAction", err);
+      /* oRevert ptimistic update failure */
+      setHasSynced(false);
+      await refetchProducts();
+    }
     setActioning(false);
     setActionModal(null);
     setActionNote("");
@@ -442,6 +452,13 @@ export function AdminProductsPage() {
         )}
       </AnimatePresence>
 
+      {/* Loading state */}
+      {productsLoading && products.length === 0 && (
+        <div className="flex items-center justify-center h-48">
+          <Loader2 size={28} className="animate-spin text-(--green-pale)" />
+        </div>
+      )}
+
       {/* KPI strip */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-7">
         {[
@@ -567,9 +584,12 @@ export function AdminProductsPage() {
               {/* Row */}
               <div className="flex items-center gap-3 px-5 py-4">
                 <div className="relative shrink-0">
-                  <div className="w-10 h-10 rounded-xl bg-white/[0.07] flex items-center justify-center text-[22px]">
-                    {product.emoji}
-                  </div>
+                  <ProductImage
+                    src={product.imageUrl ?? null}
+                    emoji={product.emoji}
+                    size="w-10 h-10"
+                    theme="dark"
+                  />
                   <span
                     className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#0F1117] ${cfg.dot}`}
                   />

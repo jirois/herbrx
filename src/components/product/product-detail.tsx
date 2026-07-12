@@ -19,6 +19,7 @@ import { ProductCard } from "@/components/store/product-card";
 import { useCart } from "@/context/cart-context";
 import { formatNaira } from "@/lib/utils";
 import { getRelatedProducts } from "@/data/products";
+import { ProductImage } from "../ui/product-image";
 import type { Product } from "@/types";
 
 type Tab = "description" | "ingredients" | "how-to-use" | "warnings";
@@ -81,13 +82,22 @@ export function ProductDetail({ product }: { product: Product }) {
                 background: `linear-gradient(135deg, ${product.gradientFrom}, ${product.gradientTo})`,
               }}
             >
-              <span
-                className="select-none"
-                role="img"
-                aria-label={product.name}
-              >
-                {product.emoji}
-              </span>
+              {" "}
+              {product.imageUrl ? (
+                <ProductImage
+                  src={product.imageUrl}
+                  alt={product.name}
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+              ) : (
+                <span
+                  className="select-none transition-transform duration-300 group-hover:scale-110"
+                  role="img"
+                  aria-label={product.name}
+                >
+                  {product.emoji}
+                </span>
+              )}
               <div className="absolute top-5 left-5">
                 <Badge variant={product.badgeVariant} size="lg">
                   {product.badge}

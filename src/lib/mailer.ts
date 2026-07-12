@@ -277,3 +277,70 @@ export async function sendOrderConfirmationEmail(opts: {
     text:    `Hi ${opts.firstName}, your HerbRx order ${opts.orderId} (${fmtNaira(opts.total)}) is confirmed. Track it at https://herbrx.ng/account/orders`,
   })
 }
+
+// ── Product Status Notification ────────────────────────────────────────
+export async function sendProductStatusEmail(opts: {
+  to:          string
+  firstName:   string
+  productName: string
+  action:      string   // APPROVE | FLAG | BAN | RESTORE | PAUSE
+  reason?:     string
+}) {
+  const baseUrl     = process.env.NEXTAUTH_URL ?? 'https://herbrx.ng'
+  const dashUrl     = `${baseUrl}/dashboard/producer/products`
+
+  const actionConfig: Record<string, { subject: string; headline: string; color: string; detail: string }> = {
+    APPROVE:  { subject: '🎉 Your product has been approved!', headline: 'Product Approved!', color: '#27ae60', detail: 'Your product has been approved and is ready to be listed on the HerbRx marketplace. Head to your dashboard to set your stock level and toggle it live.' },
+    FLAG:     { subject: '⚠ Action required — your product has been flagged', headline: 'Product Flagged', color: '#e67e22', detail: 'Your product has been flagged by our compliance team and may not be visible to customers until the issue is resolved.' },
+    BAN:      { subject: '🚫 Your product has been removed from HerbRx', headline: 'Product Removed', color: '#e74c3c', detail: 'Your product has been permanently removed from the HerbRx marketplace following a compliance review.' },
+    PAUSE:    { subject: '⏸ Your product has been temporarily paused', headline: 'Product Paused', color: '#e67e22', detail: 'Your product has been temporarily paused and is not visible to customers. Please review the reason below and contact us to resolve the issue.' },
+    RESTORE:  { subject: '✅ Your product has been restored', headline: 'Product Restored', color: '#27ae60', detail: 'Your product has been reviewed and restored to the marketplace. You can continue selling as normal.' },
+  }
+
+  const cfg = actionConfig[opts.action] ?? { subject: `Product update: ${opts.productName}`, headline: 'Product Update', color: BRAND_GREEN, detail: `There has been an update to your product on HerbRx.` }
+
+  const body = `
+    <h1 style="font-family:Georgia,serif;font-size:26px;font-weight:600;color:${cfg.color};margin-bottom:8px;">
+      ${cfg.headline}
+    </h1>
+    <p style="font-size:15px;color:#555;line-height:1.7;margin-bottom:20px;">
+      Hi ${opts.firstName}, here's an update about your product on HerbRx.
+    </p>
+
+    <div style="background:#f7f3ec;border-radius:12px;padding:20px 24px;margin-bottom:24px;">
+      <p style="font-size:12px;color:#999;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Product</p>
+      <p style="font-size:18px;font-weight:600;color:#1a3a2a;font-family:Georgia,serif;margin:0;">${opts.productName}</p>
+    </div>
+
+    <p style="font-size:15px;color:#444;line-height:1.7;margin-bottom:${opts.reason ? '16px' : '28px'};">
+      ${cfg.detail}
+    </p>
+
+    ${opts.reason ? `
+    <div style="background:#fff8f0;border-left:4px solid ${cfg.color};padding:16px 20px;border-radius:0 12px 12px 0;margin-bottom:28px;">
+      <p style="font-size:12px;color:#999;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Reason from HerbRx team</p>
+      <p style="font-size:14px;color:#555;margin:0;line-height:1.7;">${opts.reason}</p>
+    </div>
+    ` : ''}
+
+    <div style="text-align:center;margin-bottom:28px;">
+      <a href="${dashUrl}"
+         style="display:inline-block;background:${BRAND_GREEN};color:#ffffff;font-family:Georgia,serif;font-size:15px;font-weight:600;padding:14px 36px;border-radius:50px;text-decoration:none;">
+        Go to My Products →
+      </a>
+    </div>
+
+    <p style="font-size:13px;color:#888;line-height:1.7;">
+      If you have questions, reply to this email or contact us at
+      <a href="mailto:support@herbrx.ng" style="color:${BRAND_GREEN};">support@herbrx.ng</a>
+    </p>
+  `
+
+  return transporter.sendMail({
+    from:    FROM,
+    to:      opts.to,
+    subject: `${cfg.subject} — ${opts.productName} | HerbRx`,
+    html:    emailLayout(cfg.headline, body),
+    text:    `Hi ${opts.firstName}, ${cfg.detail}${opts.reason ? ` Reason: ${opts.reason}` : ''} Visit ${dashUrl} to manage your products.`,
+  })
+}

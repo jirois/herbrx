@@ -38,6 +38,7 @@ model User {
   // Admin-specific 
   adminActions          AdminAction[]
   incubationSubmissions IncubationSubmission[]
+  interactionFeedback   InteractionFeedback[]
 
   @@index([email])
   @@index([role])
@@ -430,6 +431,7 @@ model ProductSafetyReview {
   producer       String
   category       String
   emoji          String        @default("🌿")
+  imageUrl       String?
   verdict        ReviewVerdict
   overallScore   Float
   reviewDate     DateTime      @default(now())
@@ -505,6 +507,7 @@ model ProductMeta {
   productId   String  @unique
   price       Int     @default(0) // kobo
   emoji       String  @default("🌿")
+  imageUrl    String? // primary product image, compressed to ≤100KB by client
   productType String  @default("")
   ingredients Json? // string[]
   warnings    Json? // string[]
@@ -599,4 +602,96 @@ enum IncubationDocType {
   NAFDAC_APPLICATION // NAFDAC listing application
   NAFDAC_APPROVAL // Final NAFDAC listing certificate
   LAUNCH_PLAN // Marketplace launch brief
+}
+
+// ── Drug-Herb Interaction Engine ──
+model DrugHerbInteraction {
+  id             String        @id @default(cuid())
+  drugName       String // normalised lowercase, eg warfarin
+  drugAliases    Json //  string[] - brand names
+  drugClass      String?
+  herbName       String
+  herbScientific String?
+  herbLocalNames Json // string[] - Yoruba, Hausa, Igbo Names
+  severity       Severity
+  mechanism      String?       @db.Text
+  effect         String        @db.Text
+  advice         String        @db.Text
+  evidenceLevel  EvidenceLevel
+  references     Json // string[] - DOI / URL citations
+  source         String        @default("PHARMACIST_CURATED")
+  isPublished    Boolean       @default(true)
+  confirmedCount Int           @default(0)
+  disputedCount  Int           @default(0)
+  reportedCount  Int           @default(0)
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  feedback InteractionFeedback[]
+
+  @@unique([drugName, herbName])
+  @@index([drugName])
+  @@index([herbName])
+  @@index([severity])
+  @@index([isPublished])
+}
+
+enum Severity {
+  DANGER
+  WARNING
+  INFO
+  BENEFICIAL
+}
+
+enum EvidenceLevel {
+  STRONG
+  MODERATE
+  PRELIMINARY
+  ANECDOTAL
+}
+
+// Every search session logged — powers the gap report
+model InteractionQuery {
+  id             String   @id @default(cuid())
+  userId         String?
+  sessionId      String?
+  drugs          Json // string[] of searched drug names
+  herbs          Json? // string[] of herb filter (optional)
+  resultCount    Int      @default(0)
+  hadMissingDrug Boolean  @default(false)
+  missingDrugs   Json? // string[] — drugs that returned no results
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+  @@index([hadMissingDrug])
+  @@index([createdAt])
+}
+
+// User feedback on individual interaction records
+model InteractionFeedback {
+  id            String    @id @default(cuid())
+  userId        String
+  interactionId String?
+  type          String // CONFIRM | DISPUTE | REPORT
+  drugName      String?
+  herbName      String?
+  severity      Severity?
+  description   String    @db.Text
+  outcome       String?   @db.Text
+  verified      Boolean   @default(false)
+  verifiedBy    String?
+  verifiedAt    DateTime?
+  promotedToDb  Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  interaction DrugHerbInteraction? @relation(fields: [interactionId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([interactionId])
+  @@index([type])
+  @@index([verified])
 }

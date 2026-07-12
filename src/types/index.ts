@@ -25,6 +25,7 @@ export interface Product {
   tags: string[]
   category: string
   images?: string[]
+  imageUrl?: string
   featured?: boolean
 }
 export interface Service {

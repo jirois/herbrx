@@ -5,6 +5,7 @@ import Link from "next/link";
 import { DashboardShell } from "./dashboard-shell";
 import { formatNaira, cn } from "@/lib/utils";
 import { ExternalLink, Star } from "lucide-react";
+import { ProductImage } from "@/components/ui/product-image";
 import type { Product } from "@/types";
 
 interface Props {
@@ -120,7 +121,12 @@ export function ProductsDashboard({ products, topProducts }: Props) {
                     background: `linear-gradient(135deg, ${product.gradientFrom}, ${product.gradientTo})`,
                   }}
                 >
-                  {product.emoji}
+                  <ProductImage
+                    src={product.imageUrl ?? null}
+                    emoji={product.emoji}
+                    size="w-9 h-9"
+                    theme="dark"
+                  />
                 </div>
                 <div className="min-w-0">
                   <p className="text-[13px] font-medium text-white truncate">

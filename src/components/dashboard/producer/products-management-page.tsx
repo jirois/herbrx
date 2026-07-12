@@ -30,6 +30,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import type { ProductStatus } from "@/types";
+import { ImageUploader } from "@/components/ui/image-uploader";
+import { ProductImage } from "@/components/ui/product-image";
 
 // ── Types ───────
 interface ManagedProduct {
@@ -38,6 +40,7 @@ interface ManagedProduct {
   category: string;
   type: string;
   emoji: string;
+  imageUrl?: string | null;
   price: number;
   status: ProductStatus;
   flagReason?: string;
@@ -66,6 +69,7 @@ interface ProductMetaPayload {
   stock?: number;
   sales?: number;
   revenue?: number;
+  imageUrl?: string | null;
   ingredients?: string[];
   warnings?: string[];
   nafdacNo?: string;
@@ -75,7 +79,7 @@ interface ApiProductPayload {
   id: string | number;
   name: string;
   category?: string | null;
-  status: string;
+  status: ProductStatus;
   flagReason?: string | null;
   batchSubmissions?: BatchSubmissionPayload[] | null;
   createdAt?: string;
@@ -293,6 +297,7 @@ function ProductForm({
     category: initial?.category ?? "Capsules",
     type: initial?.type ?? "",
     emoji: initial?.emoji ?? "🌿",
+    imageUrl: (initial?.imageUrl ?? null) as string | null,
     price: initial?.price ? String(initial.price) : "",
     description: initial?.description ?? "",
     nafdacNo: initial?.nafdacNo ?? "",
@@ -314,6 +319,7 @@ function ProductForm({
       category: form.category,
       type: form.type || form.category,
       emoji: form.emoji,
+      imageUrl: form.imageUrl,
       price: Number(form.price),
       description: form.description,
       nafdacNo: form.nafdacNo || undefined,
@@ -329,20 +335,20 @@ function ProductForm({
     setSaving(false);
   }
 
-  const EMOJIS = [
-    "🌿",
-    "🫚",
-    "🧴",
-    "🫐",
-    "🍃",
-    "🌸",
-    "🌾",
-    "🥬",
-    "🫖",
-    "💊",
-    "🧪",
-    "🍋",
-  ];
+  // const EMOJIS = [
+  //   "🌿",
+  //   "🫚",
+  //   "🧴",
+  //   "🫐",
+  //   "🍃",
+  //   "🌸",
+  //   "🌾",
+  //   "🥬",
+  //   "🫖",
+  //   "💊",
+  //   "🧪",
+  //   "🍋",
+  // ];
 
   return (
     <div className="bg-[#1A2030] border border-white/10 rounded-2xl overflow-hidden">
@@ -357,8 +363,8 @@ function ProductForm({
       </div>
 
       <div className="p-6 space-y-5">
-        {/* Emoji picker */}
-        <div>
+        {/* product image */}
+        {/* <div>
           <label className={labelCls}>Product Icon</label>
           <div className="flex gap-2 flex-wrap">
             {EMOJIS.map((e) => (
@@ -371,6 +377,17 @@ function ProductForm({
               </button>
             ))}
           </div>
+        </div> */}
+        <div className="max-w-50">
+          <ImageUploader
+            value={form.imageUrl}
+            onChange={(url) => update({ imageUrl: url })}
+            aspectRatio="1/1"
+            label="Product Image"
+            targetMaxKb={100}
+            targetMinKb={50}
+            theme="dark"
+          />
         </div>
 
         <div className="grid sm:grid-cols-2 gap-4">
@@ -569,13 +586,10 @@ export function ProductsManagementPage() {
   }
 
   const { data: productsData, mutate: refetchProducts } = useProducerProducts();
+  const [hasSynced, setHasSynced] = useState(false);
 
   // Sync API data on load
-  if (
-    productsData?.products &&
-    productsData.products.length > 0 &&
-    JSON.stringify(products) === JSON.stringify(INITIAL_PRODUCTS)
-  ) {
+  if (productsData?.products && !hasSynced) {
     // Cast the array explicitly here 🫵
     const rawProducts = productsData.products as unknown as ApiProductPayload[];
 
@@ -585,9 +599,10 @@ export function ProductsManagementPage() {
       category: p.category ?? "",
       type: p.meta?.productType ?? p.category ?? "",
       emoji: p.meta?.emoji ?? "🌿",
+      imageUrl: p.meta?.imageUrl ?? null,
       price: p.meta?.price ?? 0,
       status: p.status,
-      flagReason: p.flagReason ?? null,
+      flagReason: p.flagReason ?? undefined,
       batches: p.batchSubmissions?.length ?? 0,
       approvedBatches: (p.batchSubmissions ?? []).filter(
         (b) => b.reviewStatus === "APPROVED",
@@ -599,84 +614,106 @@ export function ProductsManagementPage() {
       description: p.description ?? "",
       ingredients: p.meta?.ingredients ?? [],
       warnings: p.meta?.warnings ?? [],
-      nafdacNo: p.meta?.nafdacNo ?? undefined,
+      nafdacNo: p.meta?.nafdacNo,
       inStore: p.meta?.inStore ?? false,
-    })) as ManagedProduct[];
+    }));
     setProducts(shaped);
+    setHasSynced(true);
   }
 
-  function handleSave(data: Partial<ManagedProduct>) {
+  async function handleSave(data: Partial<ManagedProduct>) {
     if (formMode === "create") {
-      const newProd: ManagedProduct = {
-        id: `p${Date.now()}`,
-        name: data.name!,
-        category: data.category!,
-        type: data.type!,
-        emoji: data.emoji!,
-        price: data.price!,
-        status: "DRAFT",
-        batches: 0,
-        approvedBatches: 0,
-        stock: 0,
-        sales: 0,
-        revenue: 0,
-        createdAt: new Date().toISOString().split("T")[0],
-        description: data.description!,
-        ingredients: data.ingredients ?? [],
-        warnings: data.warnings ?? [],
-        nafdacNo: data.nafdacNo,
-        inStore: false,
-      };
-      setProducts((prev) => [newProd, ...prev]);
-      setSaved(newProd.id);
-      // Sync to API
-      producerApi
-        .createProduct(data)
-        .then(() => refetchProducts())
-        .catch(() => {});
+      try {
+        await producerApi.createProduct(data);
+        setHasSynced(false);
+        await refetchProducts();
+        setSaved("new-product");
+      } catch (err) {
+        console.error("[handleSave:create]", err);
+        setFormMode(null);
+        setEditTarget(null);
+        return;
+      }
     } else if (formMode === "edit" && editTarget) {
-      setProducts((prev) =>
-        prev.map((p) => (p.id === editTarget.id ? { ...p, ...data } : p)),
-      );
-      setSaved(editTarget.id);
+      try {
+        await producerApi.updateProduct({ productId: editTarget.id, ...data });
+        setHasSynced(false);
+        await refetchProducts();
+        setSaved(editTarget.id);
+      } catch (err) {
+        console.error("[handleSave:edit]", err);
+        setFormMode(null);
+        setEditTarget(null);
+        return;
+      }
     }
     setFormMode(null);
     setEditTarget(null);
     setTimeout(() => setSaved(null), 4000);
   }
 
-  function duplicateProduct(p: ManagedProduct) {
-    const dup: ManagedProduct = {
-      ...p,
-      id: `p${Date.now()}`,
-      name: `${p.name} (Copy)`,
-      status: "DRAFT",
-      batches: 0,
-      approvedBatches: 0,
-      stock: 0,
-      sales: 0,
-      revenue: 0,
-      inStore: false,
-      createdAt: new Date().toISOString().split("T")[0],
-    };
-    setProducts((prev) => [dup, ...prev]);
+  async function duplicateProduct(p: ManagedProduct) {
     setMenuOpen(null);
+    try {
+      await producerApi.createProduct({
+        name: `${p.name} (Copy)`,
+        category: p.category,
+        type: p.type,
+        imageUrl: p.imageUrl,
+        price: p.price,
+        description: p.description,
+        ingredients: p.ingredients,
+        warnings: p.warnings,
+        nafdacNo: p.nafdacNo,
+      });
+      setHasSynced(false);
+      refetchProducts();
+    } catch (err) {
+      console.error("[duplicateProduct]", err);
+    }
   }
 
-  function deleteProduct(id: string) {
+  async function deleteProduct(id: string) {
+    setMenuOpen(null);
+    const prevProducts = products;
     setDeleted(id);
-    setTimeout(() => {
-      setProducts((prev) => prev.filter((p) => p.id !== id));
+    // Optimistic removal after the brief exit animation
+    setTimeout(
+      () => setProducts((prev) => prev.filter((p) => p.id !== id)),
+      400,
+    );
+    try {
+      await producerApi.deleteProduct(id);
+      setHasSynced(false);
+      refetchProducts();
+    } catch (err) {
+      console.error("[deleteProduct]", err);
+      setProducts(prevProducts); // revert on failure
+    } finally {
       setDeleted(null);
-    }, 400);
-    setMenuOpen(null);
+    }
   }
 
-  function toggleStore(id: string) {
-    setProducts((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, inStore: !p.inStore } : p)),
-    );
+  async function toggleStore(id: string) {
     setMenuOpen(null);
+    const target = products.find((p) => p.id === id);
+    if (!target) return;
+    const nextInStore = !target.inStore;
+    // Optimistic update
+    setProducts((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, inStore: nextInStore } : p)),
+    );
+    try {
+      await producerApi.updateProduct({ productId: id, inStore: nextInStore });
+      setHasSynced(false);
+      refetchProducts();
+    } catch (err) {
+      console.error("[toggleStore]", err);
+      // revert
+      setProducts((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, inStore: !nextInStore } : p)),
+      );
+    }
   }
 
   return (
@@ -871,11 +908,14 @@ export function ProductsManagementPage() {
               >
                 {/* Main row */}
                 <div className="flex items-center gap-4 px-5 py-4">
-                  {/* Emoji + status dot */}
+                  {/* Product image + status dot */}
                   <div className="relative shrink-0">
-                    <div className="w-11 h-11 rounded-xl bg-white/[0.07] flex items-center justify-center text-[24px]">
-                      {product.emoji}
-                    </div>
+                    <ProductImage
+                      src={product.imageUrl}
+                      emoji={product.emoji}
+                      size="w-11 h-11"
+                      theme="dark"
+                    />
                     <span
                       className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#0F1117] ${cfg.dot}`}
                     />
@@ -1037,7 +1077,6 @@ export function ProductsManagementPage() {
                     </div>
                   </div>
                 )}
-
                 {/* Expanded detail */}
                 <AnimatePresence>
                   {isExpanded && (
