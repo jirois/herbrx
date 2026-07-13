@@ -38,13 +38,15 @@ export function ProductImage({
   if (src) {
     return (
       <div
-        className={`${size} ${rounded} overflow-hidden shrink-0 ${className}`}
+        className={`relative ${size} ${rounded} overflow-hidden shrink-0 ${className}`}
       >
         <Image
           src={src}
           alt={alt}
-          className="w-full h-full object-cover"
-          loading="lazy"
+          fill
+          sizes="48px"
+          className="object-cover"
+          unoptimized={src.startsWith("data:")}
         />
       </div>
     );

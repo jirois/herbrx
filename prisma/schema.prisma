@@ -507,7 +507,7 @@ model ProductMeta {
   productId   String  @unique
   price       Int     @default(0) // kobo
   emoji       String  @default("🌿")
-  imageUrl    String? // primary product image, compressed to ≤100KB by client
+  imageUrl    String? @db.MediumText // primary product image, compressed to ≤100KB by client
   productType String  @default("")
   ingredients Json? // string[]
   warnings    Json? // string[]

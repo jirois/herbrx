@@ -624,6 +624,9 @@ export function ProductsManagementPage() {
   async function handleSave(data: Partial<ManagedProduct>) {
     if (formMode === "create") {
       try {
+        console.log("Sending image length:", data.imageUrl?.length);
+        console.log("Sending preview:", data.imageUrl?.substring(0, 100));
+
         await producerApi.createProduct(data);
         setHasSynced(false);
         await refetchProducts();
@@ -636,6 +639,7 @@ export function ProductsManagementPage() {
       }
     } else if (formMode === "edit" && editTarget) {
       try {
+        console.log("Updating image length:", data.imageUrl?.length);
         await producerApi.updateProduct({ productId: editTarget.id, ...data });
         setHasSynced(false);
         await refetchProducts();

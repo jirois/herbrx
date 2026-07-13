@@ -58,6 +58,9 @@ export async function POST(req: NextRequest) {
     const { name, category, type, emoji, price, description,
             ingredients, warnings, nafdacNo, imageUrl } = body
 
+          console.log("POST image length:", imageUrl?.length);
+console.log("POST preview:", imageUrl?.substring(0, 100));
+
     if (!name || !category || !price || !description) {
       return badRequest('name, category, price, and description are required')
     }
@@ -89,9 +92,17 @@ export async function POST(req: NextRequest) {
           },
         },
       },
+      include: { meta: true, batchSubmissions: true },
     })
 
+
+    console.log(
+  "Saved image length:",
+  product.meta?.imageUrl?.length
+);
+
     return created({ product })
+    
   } catch (e) {
     return serverError(e)
   }
