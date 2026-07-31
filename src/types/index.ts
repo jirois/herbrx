@@ -1,32 +1,52 @@
 import { ComponentType } from "react"
 
 export interface Product {
-  id: string
-  name: string
-  type: string
-  price: number
-  originalPrice?: number
-  unit: string
-  emoji: string
-  gradientFrom: string
-  gradientTo: string
-  badge: 'Bestseller' | 'Verified' | 'New' | 'Limited'
-  badgeVariant: 'gold' | 'green' | 'teal'
-  rating: number
-  reviews: number
-  inStock: boolean
-  stockCount?: number
-  slug: string
-  shortDesc: string
-  longDesc?: string
-  ingredients?: string[]
+ id: string;
+  slug: string;
+
+  name: string;
+  category: string;
+  type: string;
+
+  price: number;
+  originalPrice?: number | null;
+
+  imageUrl?: string | null;
+  emoji?: string;
+
+  shortDesc: string;
+  longDesc: string;
+
+  ingredients: string[];
+  warnings: string[];
+
+  nafdacNo?: string | null;
+
+  inStock: boolean;
+  stockCount: number;
+
+  rating: number;
+  reviews: number;
+
+  featured: boolean;
+
   howToUse?: string
-  warnings?: string[]
-  tags: string[]
-  category: string
-  images?: string[]
-  imageUrl?: string
-  featured?: boolean
+
+ badge: 'Bestseller' | 'Verified' | 'New' | 'Limited'
+  badgeVariant: 'gold' | 'green' | 'teal'
+
+  unit: string;
+
+  gradientFrom: string;
+  gradientTo: string;
+
+  tags: string[];
+
+  producer?: string;
+
+  createdAt: string;
+  updatedAt: string;
+  
 }
 export interface Service {
     id: string;
@@ -250,4 +270,77 @@ export interface AdminAction {
   targetId: string
   reason?: string
   createdAt: string
+}
+
+// Store Product
+export interface StoreProduct {
+  id: string;
+  slug: string;
+
+  name: string;
+  category: string;
+
+  price: number;
+
+  imageUrl?: string | null;
+  emoji?: string;
+
+  producer?: string;
+
+  description?: string;
+}
+
+export interface RelatedProduct {
+  id: string;
+  slug: string;
+
+  name: string;
+  category: string;
+
+  price: number;
+
+  imageUrl?: string | null;
+  emoji?: string;
+}
+
+export interface StoreProductDetail {
+  id: string;
+  slug: string;
+
+  name: string;
+  category: string;
+
+  type: string;
+
+  price: number;
+
+  imageUrl?: string | null;
+
+  emoji?: string;
+
+  shortDesc: string;
+
+  longDesc: string;
+
+  ingredients: string[];
+
+  warnings: string[];
+
+  nafdacNo?: string | null;
+
+  stockCount: number;
+
+  inStock: boolean;
+
+  producer?: string;
+
+  relatedProducts: RelatedProduct[];
+}
+
+export interface StoreProductsResponse {
+  products: StoreProduct[];
+}
+
+export interface StoreProductResponse {
+  product: StoreProductDetail;
 }

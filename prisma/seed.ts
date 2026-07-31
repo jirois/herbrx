@@ -1,5 +1,6 @@
 // import { PrismaClient } from "@prisma/client";
 import bcrypt from 'bcryptjs'
+import slugify from 'slugify'
 
 
 // const prisma = new PrismaClient()
@@ -68,6 +69,10 @@ async function main() {
         data: {
           producerProfileId: producerProfile.id,
           name:              p.name,
+           slug: slugify(p.name, {
+            lower: true,
+            strict: true,
+          }),
           description:       p.desc,
           category:          p.category,
           status:            p.status,
@@ -76,6 +81,7 @@ async function main() {
       await prisma.productMeta.create({
         data: {
           productId:   prod.id,
+           
           price:       p.price,
           emoji:       p.emoji,
           productType: p.category,
@@ -324,7 +330,7 @@ async function main() {
   console.log('\n🌿 Full seed done!')
 }
 
-// ── Seed helper ───────
+// ── Seed helper ────────────────────────────────────────────────────────────
 async function seedInteractions() {
   type InteractionPair = {
     drugName: string

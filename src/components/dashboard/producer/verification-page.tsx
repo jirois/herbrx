@@ -5,6 +5,14 @@ import { motion } from "framer-motion";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { useVerificationStatus, producerApi } from "@/hooks/dashboard-hooks";
 import {
+  required,
+  validEmail,
+  validNgPhone,
+  collectErrors,
+  hasErrors,
+  type FieldErrors,
+} from "@/lib/vaildation";
+import {
   BadgeCheck,
   Building2,
   FileText,
@@ -580,13 +588,33 @@ export function VerificationPage() {
     setBusiness((p) => ({ ...p, ...patch }));
   }
 
-  const businessComplete = !!(
-    business.businessName &&
-    business.businessEmail &&
-    business.businessPhone &&
-    business.rcNumber &&
-    business.state
-  );
+  const businessErrors: FieldErrors = collectErrors({
+    businessName: required(business.businessName, "Business name"),
+    businessEmail: validEmail(business.businessEmail, "Business email"),
+    businessPhone: validNgPhone(business.businessPhone, "Business phone"),
+    rcNumber: required(business.rcNumber, "CAC RC number"),
+    state: required(business.state, "State of operation"),
+    yearFounded:
+      business.yearFounded &&
+      (Number(business.yearFounded) < 1900 ||
+        Number(business.yearFounded) > new Date().getFullYear())
+        ? "Enter a valid year."
+        : null,
+  });
+
+  const [businessTouched, setBusinessTouched] = useState<
+    Record<string, boolean>
+  >({});
+  const [businessSubmitAttempted, setBusinessSubmitAttempted] = useState(false);
+  const showBusinessError = (field: string) =>
+    businessTouched[field] || businessSubmitAttempted
+      ? businessErrors[field]
+      : undefined;
+
+  function touchBusiness(field: string) {
+    setBusinessTouched((t) => ({ ...t, [field]: true }));
+  }
+  const businessComplete = !hasErrors(businessErrors);
   const docsComplete = !!(docs.cacCertFile && docs.labPartnerFile);
 
   const { data: verificationData, mutate: refetchVerification } =
@@ -596,8 +624,10 @@ export function VerificationPage() {
   const apiStatus = verificationData?.status as VerificationStatus | undefined;
   const effectiveStatus = apiStatus ?? verificationStatus;
 
+  const [profileSynced, setProfileSynced] = useState(false);
+
   // Pre-fill business form from API profile if available
-  if (verificationData?.profile && !business.businessName) {
+  if (verificationData?.profile && !profileSynced) {
     const p = verificationData.profile as VerifiedProfilePayload;
 
     setBusiness((prev: BusinessForm) => ({
@@ -608,10 +638,14 @@ export function VerificationPage() {
       rcNumber: p.rcNumber ?? prev.rcNumber,
       nafdacNumber: p.nafdacNumber ?? prev.nafdacNumber,
     }));
+    setProfileSynced(true);
   }
+
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   async function handleSubmit() {
     setSubmitting(true);
+    setSubmitError(null);
     try {
       await producerApi.applyVerification({
         businessName: business.businessName,
@@ -889,9 +923,15 @@ export function VerificationPage() {
                       onChange={(e) =>
                         updateBusiness({ businessName: e.target.value })
                       }
+                      onBlur={() => touchBusiness("businessName")}
                       placeholder="e.g. GreenHealth Nigeria Ltd"
-                      className={inputCls}
+                      className={`${inputCls} ${showBusinessError("businessName") ? "border-red-500/50" : ""}`}
                     />
+                    {showBusinessError("businessName") && (
+                      <p className="text-[11px] text-red-400 mt-1">
+                        {businessErrors.businessName}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -907,10 +947,16 @@ export function VerificationPage() {
                         onChange={(e) =>
                           updateBusiness({ businessEmail: e.target.value })
                         }
+                        onBlur={() => touchBusiness("businessEmail")}
                         placeholder="business@example.com"
-                        className={`${inputCls} pl-8`}
+                        className={`${inputCls} pl-8 ${showBusinessError("businessEmail") ? "border-red-500/50" : ""}`}
                       />
                     </div>
+                    {showBusinessError("businessEmail") && (
+                      <p className="text-[11px] text-red-400 mt-1">
+                        {businessErrors.businessEmail}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -925,10 +971,16 @@ export function VerificationPage() {
                         onChange={(e) =>
                           updateBusiness({ businessPhone: e.target.value })
                         }
+                        onBlur={() => touchBusiness("businessPhone")}
                         placeholder="+234 800 000 0000"
-                        className={`${inputCls} pl-8`}
+                        className={`${inputCls} pl-8 ${showBusinessError("businessPhone") ? "border-red-500/50" : ""}`}
                       />
                     </div>
+                    {showBusinessError("businessPhone") && (
+                      <p className="text-[11px] text-red-400 mt-1">
+                        {businessErrors.businessPhone}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -943,10 +995,16 @@ export function VerificationPage() {
                         onChange={(e) =>
                           updateBusiness({ rcNumber: e.target.value })
                         }
+                        onBlur={() => touchBusiness("rcNumber")}
                         placeholder="e.g. RC-1234567"
-                        className={`${inputCls} pl-8`}
+                        className={`${inputCls} pl-8 ${showBusinessError("rcNumber") ? "border-red-500/50" : ""}`}
                       />
                     </div>
+                    {showBusinessError("rcNumber") && (
+                      <p className="text-[11px] text-red-400 mt-1">
+                        {businessErrors.rcNumber}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -973,7 +1031,8 @@ export function VerificationPage() {
                         onChange={(e) =>
                           updateBusiness({ state: e.target.value })
                         }
-                        className={`${inputCls} pl-8 cursor-pointer`}
+                        onBlur={() => touchBusiness("state")}
+                        className={`${inputCls} pl-8 cursor-pointer ${showBusinessError("state") ? "border-red-500/50" : ""}`}
                       >
                         <option value="">Select state…</option>
                         {NIGERIAN_STATES.map((s) => (
@@ -983,6 +1042,11 @@ export function VerificationPage() {
                         ))}
                       </select>
                     </div>
+                    {showBusinessError("state") && (
+                      <p className="text-[11px] text-red-400 mt-1">
+                        {businessErrors.state}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -992,9 +1056,16 @@ export function VerificationPage() {
                       onChange={(e) =>
                         updateBusiness({ yearFounded: e.target.value })
                       }
+                      onBlur={() => touchBusiness("yearFounded")}
                       placeholder="e.g. 2018"
-                      className={inputCls}
+                      inputMode="numeric"
+                      className={`${inputCls} ${showBusinessError("yearFounded") ? "border-red-500/50" : ""}`}
                     />
+                    {showBusinessError("yearFounded") && (
+                      <p className="text-[11px] text-red-400 mt-1">
+                        {businessErrors.yearFounded}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -1055,8 +1126,10 @@ export function VerificationPage() {
                   ← Back
                 </button>
                 <button
-                  onClick={() => setStep(2)}
-                  disabled={!businessComplete}
+                  onClick={() => {
+                    if (businessComplete) setStep(2);
+                    else setBusinessSubmitAttempted(true);
+                  }}
                   className="h-11 px-8 bg-(--green-mid) hover:bg-(--green-light) disabled:opacity-30 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors text-[14px] flex items-center gap-2"
                 >
                   Continue to Documents <ChevronRight size={15} />
@@ -1071,7 +1144,7 @@ export function VerificationPage() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
             >
-              <div className="bg-white/4 border border-white/[0.07] rounded-2xl p-6 space-y-5">
+              <div className="bg-white/4 border border-white/7 rounded-2xl p-6 space-y-5">
                 <h3 className="text-[15px] font-semibold text-white flex items-center gap-2 mb-1">
                   <Upload size={16} className="text-(--green-pale)" /> Upload
                   Documents
@@ -1258,6 +1331,16 @@ export function VerificationPage() {
                   </p>
                 </div>
               </div>
+
+              {submitError && (
+                <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 mb-4">
+                  <AlertTriangle
+                    size={15}
+                    className="text-red-400 shrink-0 mt-0.5"
+                  />
+                  <p className="text-[13px] text-red-300">{submitError}</p>
+                </div>
+              )}
 
               <div className="flex gap-3">
                 <button

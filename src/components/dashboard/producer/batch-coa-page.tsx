@@ -29,146 +29,6 @@ import {
 } from "lucide-react";
 import type { BatchStatus } from "@/types";
 
-// ── Mock data ────
-const MOCK_PRODUCTS = [
-  { id: "p1", name: "Moringa Gold Capsules", category: "Capsules" },
-  { id: "p2", name: "Bitter Leaf Tonic", category: "Tonic" },
-  { id: "p3", name: "Zobo Immune Blend", category: "Beverage" },
-  { id: "p4", name: "Shea Butter Balm", category: "Topical" },
-];
-
-const MOCK_BATCHES: MockBatch[] = [
-  {
-    id: "b1",
-    productId: "p1",
-    productName: "Moringa Gold Capsules",
-    batchNo: "B2024-07",
-    labName: "Spectralab NG",
-    testedAt: "2024-06-12",
-    reviewStatus: "APPROVED",
-    reviewNotes:
-      "All parameters within acceptable limits. Heavy metals screening passed.",
-    coaFileName: "COA_MorgingGold_B2024-07.pdf",
-    submittedAt: "2024-06-15",
-    supplyChain: [
-      {
-        stage: "Farm",
-        location: "Kwara State",
-        date: "2024-04-10",
-        verified: true,
-      },
-      {
-        stage: "Drying",
-        location: "Ilorin Processing Hub",
-        date: "2024-04-18",
-        verified: true,
-      },
-      {
-        stage: "Milling",
-        location: "Lagos Mill, Ikeja",
-        date: "2024-04-28",
-        verified: true,
-      },
-      {
-        stage: "Encapsulation",
-        location: "GreenHealth NG Factory",
-        date: "2024-05-05",
-        verified: true,
-      },
-      {
-        stage: "Lab Testing",
-        location: "Spectralab NG, Abuja",
-        date: "2024-06-12",
-        verified: true,
-      },
-      {
-        stage: "Packaging",
-        location: "GreenHealth NG Factory",
-        date: "2024-06-20",
-        verified: false,
-      },
-    ],
-  },
-  {
-    id: "b2",
-    productId: "p2",
-    productName: "Bitter Leaf Tonic",
-    batchNo: "B2024-10",
-    labName: "PharmAnalytics Ltd",
-    testedAt: "2024-07-01",
-    reviewStatus: "UNDER_REVIEW",
-    reviewNotes: null,
-    coaFileName: "COA_BitterLeaf_B2024-10.pdf",
-    submittedAt: "2024-07-03",
-    supplyChain: [
-      {
-        stage: "Farm",
-        location: "Ogun State",
-        date: "2024-05-15",
-        verified: true,
-      },
-      {
-        stage: "Harvesting",
-        location: "Ogun State Farm",
-        date: "2024-05-20",
-        verified: true,
-      },
-      {
-        stage: "Processing",
-        location: "Ibadan Facility",
-        date: "2024-05-30",
-        verified: true,
-      },
-      {
-        stage: "Lab Testing",
-        location: "PharmAnalytics, Lagos",
-        date: "2024-07-01",
-        verified: false,
-      },
-      {
-        stage: "Packaging",
-        location: "HerbalNaija Factory",
-        date: "Pending",
-        verified: false,
-      },
-    ],
-  },
-  {
-    id: "b3",
-    productId: "p3",
-    productName: "Zobo Immune Blend",
-    batchNo: "B2024-11",
-    labName: "NaijaLab",
-    testedAt: "2024-07-10",
-    reviewStatus: "REJECTED",
-    reviewNotes:
-      "Microbial count exceeds acceptable limits (TPC: 8.2×10⁴ CFU/g vs limit of 1×10⁴). Resubmit after remediation.",
-    coaFileName: "COA_ZoboImmune_B2024-11.pdf",
-    submittedAt: "2024-07-12",
-    supplyChain: [
-      {
-        stage: "Farm",
-        location: "Kano State",
-        date: "2024-06-01",
-        verified: true,
-      },
-      {
-        stage: "Processing",
-        location: "Kano Facility",
-        date: "2024-06-10",
-        verified: true,
-      },
-      {
-        stage: "Lab Testing",
-        location: "NaijaLab, Abuja",
-        date: "2024-07-10",
-        verified: true,
-      },
-      { stage: "Packaging", location: "—", date: "—", verified: false },
-    ],
-  },
-];
-
 // ── Types ──────
 interface SupplyChainStage {
   stage: string;
@@ -216,7 +76,7 @@ interface ApiBatchPayload {
   id: string | number;
   productId: string | number;
   batchNo: string;
-  reviewStatus: string;
+  reviewStatus: BatchStatus;
   createdAt: string | Date;
   productName?: string | null;
   product?: {
@@ -284,6 +144,38 @@ const inputCls =
 const labelCls =
   "block text-[12px] font-medium text-white/50 mb-1.5 uppercase tracking-wider";
 
+// Today, in the YYYY-MM-DD shape <input type="date"> expects.
+function todayISO() {
+  return new Date().toISOString().split("T")[0];
+}
+
+// Validates supply-chain stage dates: none may be in the future, and dates
+function getChainDateErrors(
+  stages: { date: string }[],
+): Record<number, string> {
+  const errors: Record<number, string> = {};
+  const today = todayISO();
+  let lastDate: string | null = null;
+  let lastIndex = -1;
+
+  stages.forEach((s, i) => {
+    if (!s.date) return;
+    if (s.date > today) {
+      errors[i] = "Date cannot be in the future.";
+      return;
+    }
+    if (lastDate && s.date < lastDate) {
+      errors[i] =
+        `Must be on or after stage ${lastIndex + 1}'s date (${lastDate}).`;
+      return;
+    }
+    lastDate = s.date;
+    lastIndex = i;
+  });
+
+  return errors;
+}
+
 // ── Main component ──
 export function BatchCOAPage() {
   const [view, setView] = useState<"list" | "new">("list");
@@ -291,7 +183,7 @@ export function BatchCOAPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [batches, setBatches] = useState<MockBatch[]>(MOCK_BATCHES);
+  const [batches, setBatches] = useState<MockBatch[]>([]);
   const [dragOver, setDragOver] = useState(false);
 
   const [form, setForm] = useState<FormData>({
@@ -307,8 +199,40 @@ export function BatchCOAPage() {
     chainStages: DEFAULT_CHAIN.map((s) => ({ ...s })),
   });
 
+  const { data: batchData, mutate: refetchBatches } = useProducerBatches();
+  const [hasSynced, setHasSynced] = useState(false);
+  // Sync real batches from API into local state on load, and again after
+  // every submission (hasSynced is reset before each refetch).
+
+  if (batchData?.batches && !hasSynced) {
+    const shaped = (batchData.batches as unknown as ApiBatchPayload[]).map(
+      (b) => ({
+        id: `${b.id}`,
+        productId: `${b.productId}`,
+        productName: b.productName ?? b.product?.name ?? "",
+        batchNo: b.batchNo,
+        labName: b.labName ?? "",
+        testedAt: b.testedAt
+          ? new Date(b.testedAt).toISOString().split("T")[0]
+          : "",
+        reviewStatus: b.reviewStatus,
+        reviewNotes: b.reviewNotes ?? null,
+        coaFileName: b.coaFileUrl?.split("/").pop() ?? "COA_document.pdf",
+        submittedAt: b.createdAt
+          ? new Date(b.createdAt).toISOString().split("T")[0]
+          : "",
+        supplyChain: [],
+      }),
+    );
+    setBatches(shaped);
+    setHasSynced(true);
+  }
+  // Real products for the submission form
+  const formProducts: Product[] = (batchData?.products ?? []) as unknown as Product[];
   const stepIndex = STEPS.findIndex((s) => s.key === step);
-  const selectedProduct = MOCK_PRODUCTS.find((p) => p.id === form.productId);
+  const selectedProduct = formProducts.find(
+    (p: Product) => p.id === form.productId,
+  );
 
   function updateForm(patch: Partial<FormData>) {
     setForm((prev) => ({ ...prev, ...patch }));
@@ -341,42 +265,11 @@ export function BatchCOAPage() {
     if (file && file.type === "application/pdf") updateForm({ coaFile: file });
   }
 
-  const { data: batchData, mutate: refetchBatches } = useProducerBatches();
-  const [hasSynced, setHasSynced] = useState(false);
-
-  // Sync real batches from API into local state on first load
-  if (batchData?.batches && !hasSynced) {
-    const shaped = (batchData.batches as unknown as ApiBatchPayload[]).map(
-      (b) => ({
-        id: String(b.id),
-        productId: String(b.productId),
-        productName: b.productName ?? b.product?.name ?? "",
-        batchNo: b.batchNo,
-        labName: b.labName ?? "",
-        testedAt: b.testedAt
-          ? new Date(b.testedAt).toISOString().split("T")[0]
-          : "",
-        reviewStatus: b.reviewStatus as BatchStatus,
-        reviewNotes: b.reviewNotes ?? null,
-        coaFileName: b.coaFileUrl?.split("/").pop() ?? "COA_document.pdf",
-        submittedAt: b.createdAt
-          ? new Date(b.createdAt).toISOString().split("T")[0]
-          : "",
-        supplyChain: [],
-      }),
-    );
-
-    // 3. Commit to your React state tracker
-    setBatches(shaped);
-    setHasSynced(true);
-  }
-
   // Sync real products for the submission form
-  const formProducts = batchData?.products ?? MOCK_PRODUCTS;
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   async function handleSubmit() {
-    setSubmitting(true);
+    setSubmitted(true);
     setSubmitError(null);
 
     try {
@@ -394,58 +287,19 @@ export function BatchCOAPage() {
         chainStages: form.chainStages,
       });
       // Re-sync from the server so the list reflects the real DB row
-      // (with its real id, status, and timestamps) rather than a
-      // fabricated local placeholder.
+
       setHasSynced(false);
       await refetchBatches();
       setSubmitting(false);
       setSubmitted(true);
     } catch (err: unknown) {
-      // Normalize unknown error to a message string
-      const errMsg =
-        err instanceof Error
-          ? err.message
-          : String(err ?? "Failed to submit batch. Please try again.");
       console.error("[handleSubmit:batch]", err);
       setSubmitting(false);
-      setSubmitError(errMsg);
-      // Optimistic fallback — still show success locally
+      const msg = err instanceof Error ? err.message : String(err);
+      setSubmitError(msg ?? "Failed to submit batch. Please try again.");
+      // Do NOT show the success screen or fabricate a local batch —
     }
-    // const newBatch: MockBatch = {
-    //   id: `b${Date.now()}`,
-    //   productId: form.productId,
-    //   productName: selectedProduct?.name ?? "",
-    //   batchNo: form.batchNo,
-    //   labName: form.labName,
-    //   testedAt: form.testedAt,
-    //   reviewStatus: "SUBMITTED",
-    //   reviewNotes: null,
-    //   coaFileName: form.coaFile?.name ?? "COA_document.pdf",
-    //   submittedAt: new Date().toISOString().split("T")[0],
-    //   supplyChain: form.chainStages.map((s) => ({ ...s, verified: false })),
-    // };
-    // setBatches((prev) => [newBatch, ...prev]);
-    // setSubmitting(false);
-    // setSubmitted(true);
   }
-
-  // function resetForm() {
-  //   setForm({
-  //     productId: "",
-  //     batchNo: "",
-  //     labName: "",
-  //     testedAt: "",
-  //     expiryDate: "",
-  //     quantity: "",
-  //     unit: "kg",
-  //     notes: "",
-  //     coaFile: null,
-  //     chainStages: DEFAULT_CHAIN.map((s) => ({ ...s })),
-  //   });
-  //   setStep("product");
-  //   setSubmitted(false);
-  //   setView("list");
-  // }
 
   // ── Render step content ────
   function renderStep() {
@@ -456,7 +310,7 @@ export function BatchCOAPage() {
             Select the product this batch belongs to.
           </p>
           <div className="grid sm:grid-cols-2 gap-3">
-            {(formProducts as Product[]).map((p: Product) => (
+            {formProducts.map((p: Product) => (
               <button
                 key={p.id}
                 onClick={() => updateForm({ productId: p.id })}
@@ -534,10 +388,16 @@ export function BatchCOAPage() {
                 <input
                   type="date"
                   value={form.testedAt}
+                  max={todayISO()}
                   onChange={(e) => updateForm({ testedAt: e.target.value })}
                   className={`${inputCls} pl-8`}
                 />
               </div>
+              {form.testedAt > todayISO() && (
+                <p className="text-[11px] text-red-400 mt-1">
+                  Date tested cannot be in the future.
+                </p>
+              )}
             </div>
             <div>
               <label className={labelCls}>Expiry Date</label>
@@ -553,6 +413,13 @@ export function BatchCOAPage() {
                   className={`${inputCls} pl-8`}
                 />
               </div>
+              {form.expiryDate &&
+                form.testedAt &&
+                form.expiryDate < form.testedAt && (
+                  <p className="text-[11px] text-red-400 mt-1">
+                    Expiry date can&apos;t be before the test date.
+                  </p>
+                )}
             </div>
             <div>
               <label className={labelCls}>Batch Quantity</label>
@@ -595,7 +462,13 @@ export function BatchCOAPage() {
             </button>
             <button
               onClick={() => setStep("upload")}
-              disabled={!form.batchNo || !form.labName || !form.testedAt}
+              disabled={
+                !form.batchNo ||
+                !form.labName ||
+                !form.testedAt ||
+                form.testedAt > todayISO() ||
+                (!!form.expiryDate && form.expiryDate < form.testedAt)
+              }
               className="h-11 px-8 bg-(--green-mid) hover:bg-(--green-light) disabled:opacity-30 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors text-[14px]"
             >
               Continue →
@@ -725,7 +598,9 @@ export function BatchCOAPage() {
         </div>
       );
 
-    if (step === "chain")
+    if (step === "chain") {
+      const chainErrors = getChainDateErrors(form.chainStages);
+      const hasChainErrors = Object.keys(chainErrors).length > 0;
       return (
         <div>
           <div className="flex items-start gap-3 mb-5 p-4 rounded-2xl bg-amber-500/8 border border-amber-500/15">
@@ -789,11 +664,17 @@ export function BatchCOAPage() {
                         <input
                           type="date"
                           value={stage.date}
+                          max={todayISO()}
                           onChange={(e) =>
                             updateChainStage(i, "date", e.target.value)
                           }
                           className={inputCls}
                         />
+                        {chainErrors[i] && (
+                          <p className="text-[11px] text-red-400 mt-1">
+                            {chainErrors[i]}
+                          </p>
+                        )}
                       </div>
                     </div>
                     {form.chainStages.length > 2 && (
@@ -817,22 +698,32 @@ export function BatchCOAPage() {
             <Plus size={14} /> Add another stage
           </button>
 
+          {hasChainErrors && (
+            <p className="text-[12px] text-red-400 mt-3">
+              Fix the highlighted date
+              {Object.keys(chainErrors).length > 1 ? "s" : ""} above before
+              continuing.
+            </p>
+          )}
+
           <div className="flex gap-3 mt-6">
             <button
               onClick={() => setStep("upload")}
-              className="h-11 px-6 border border-white/10 text-white/60 hover:text-white rounded-xl text-[14px] transition-colors"
+              className="h-11 px-6 border border-white/1 text-white/60 hover:text-white rounded-xl text-[14px] transition-colors"
             >
               ← Back
             </button>
             <button
               onClick={() => setStep("review")}
-              className="h-11 px-8 bg-(--green-mid) hover:bg-(--green-light) text-white font-medium rounded-xl transition-colors text-[14px]"
+              disabled={hasChainErrors}
+              className="h-11 px-8 bg-(--green-mid) hover:bg-(--green-light) disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors text-[14px]"
             >
               Review Submission →
             </button>
           </div>
         </div>
       );
+    }
 
     if (step === "review")
       return (
@@ -964,7 +855,7 @@ export function BatchCOAPage() {
       );
   }
 
-  // ── Supply chain timeline (for batch detail expand) ─────
+  // ── Supply chain timeline (for batch detail expand) ─────────────────────
   function SupplyChainTimeline({ stages }: { stages: SupplyChainStage[] }) {
     return (
       <div className="mt-4 pt-4 border-t border-white/6">
@@ -1007,7 +898,7 @@ export function BatchCOAPage() {
     );
   }
 
-  // ── Main render ────
+  // ── Main render ───
   return (
     <DashboardShell
       heading="Batch & COA Submissions"

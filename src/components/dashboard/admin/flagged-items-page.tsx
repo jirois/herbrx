@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
-import { adminApi } from "@/hooks/dashboard-hooks";
+import { adminApi, useAdminBatches } from "@/hooks/dashboard-hooks";
 import {
   Flag,
   FlaskConical,
@@ -55,10 +55,24 @@ interface BatchReview {
   testedAt: string;
   submittedAt: string;
   reviewStatus: BatchStatus;
-  coaFileName: string;
-  parameters: { name: string; result: string; limit: string; pass: boolean }[];
+  coaFileUrl: string;
+  // parameters: { name: string; result: string; limit: string; pass: boolean }[];
   reviewNote: string;
   reviewedAt: string | null;
+}
+
+// Shape for batches returned by useAdminBatches
+interface AdminBatch {
+  id?: string;
+  product?: { name?: string; producerProfile?: { businessName?: string } } | null;
+  batchNo?: string | null;
+  labName?: string | null;
+  testedAt?: string | null;
+  createdAt?: string | null;
+  reviewStatus?: BatchStatus | null;
+  coaFileUrl?: string | null;
+  reviewNotes?: string | null;
+  updatedAt?: string | null;
 }
 
 // ── Mock data ───────
@@ -121,125 +135,125 @@ const INITIAL_FLAGS: FlaggedItem[] = [
   },
 ];
 
-const INITIAL_BATCHES: BatchReview[] = [
-  {
-    id: "br1",
-    productName: "Moringa Gold Capsules",
-    producerName: "GreenHealth NG",
-    batchNo: "B2024-12",
-    labName: "Spectralab NG",
-    testedAt: "2025-06-10",
-    submittedAt: "2025-06-12",
-    reviewStatus: "SUBMITTED",
-    coaFileName: "COA_Moringa_B2024-12.pdf",
-    parameters: [
-      {
-        name: "Lead (Pb)",
-        result: "0.8 mg/kg",
-        limit: "< 2 mg/kg",
-        pass: true,
-      },
-      {
-        name: "Mercury (Hg)",
-        result: "0.02 mg/kg",
-        limit: "< 0.1 mg/kg",
-        pass: true,
-      },
-      {
-        name: "Arsenic (As)",
-        result: "0.15 mg/kg",
-        limit: "< 1 mg/kg",
-        pass: true,
-      },
-      {
-        name: "Total Plate Count",
-        result: "2.1×10² CFU/g",
-        limit: "< 1×10⁴",
-        pass: true,
-      },
-      { name: "E. coli", result: "Not detected", limit: "Absent", pass: true },
-      { name: "Moisture Content", result: "4.2%", limit: "< 8%", pass: true },
-    ],
-    reviewNote: "",
-    reviewedAt: null,
-  },
-  {
-    id: "br2",
-    productName: "Bitter Leaf Tonic",
-    producerName: "HerbalNaija",
-    batchNo: "B2024-10",
-    labName: "PharmAnalytics Ltd",
-    testedAt: "2025-06-08",
-    submittedAt: "2025-06-09",
-    reviewStatus: "UNDER_REVIEW",
-    coaFileName: "COA_BitterLeaf_B2024-10.pdf",
-    parameters: [
-      {
-        name: "Lead (Pb)",
-        result: "1.4 mg/kg",
-        limit: "< 2 mg/kg",
-        pass: true,
-      },
-      {
-        name: "Mercury (Hg)",
-        result: "0.05 mg/kg",
-        limit: "< 0.1 mg/kg",
-        pass: true,
-      },
-      {
-        name: "Total Plate Count",
-        result: "4.8×10³ CFU/g",
-        limit: "< 1×10⁴",
-        pass: true,
-      },
-      {
-        name: "Yeast & Mould",
-        result: "1.2×10² CFU/g",
-        limit: "< 1×10²",
-        pass: false,
-      },
-      {
-        name: "Salmonella",
-        result: "Not detected",
-        limit: "Absent",
-        pass: true,
-      },
-    ],
-    reviewNote: "",
-    reviewedAt: null,
-  },
-  {
-    id: "br3",
-    productName: "Zobo Immune Blend",
-    producerName: "ZoboFresh Ltd",
-    batchNo: "B2024-11R",
-    labName: "NaijaLab",
-    testedAt: "2025-06-15",
-    submittedAt: "2025-06-16",
-    reviewStatus: "SUBMITTED",
-    coaFileName: "COA_Zobo_B2024-11R.pdf",
-    parameters: [
-      {
-        name: "Lead (Pb)",
-        result: "0.5 mg/kg",
-        limit: "< 2 mg/kg",
-        pass: true,
-      },
-      {
-        name: "Total Plate Count",
-        result: "6.1×10³ CFU/g",
-        limit: "< 1×10⁴",
-        pass: true,
-      },
-      { name: "E. coli", result: "Not detected", limit: "Absent", pass: true },
-      { name: "Moisture Content", result: "5.8%", limit: "< 8%", pass: true },
-    ],
-    reviewNote: "",
-    reviewedAt: null,
-  },
-];
+// const INITIAL_BATCHES: BatchReview[] = [
+//   {
+//     id: "br1",
+//     productName: "Moringa Gold Capsules",
+//     producerName: "GreenHealth NG",
+//     batchNo: "B2024-12",
+//     labName: "Spectralab NG",
+//     testedAt: "2025-06-10",
+//     submittedAt: "2025-06-12",
+//     reviewStatus: "SUBMITTED",
+//     coaFileName: "COA_Moringa_B2024-12.pdf",
+//     parameters: [
+//       {
+//         name: "Lead (Pb)",
+//         result: "0.8 mg/kg",
+//         limit: "< 2 mg/kg",
+//         pass: true,
+//       },
+//       {
+//         name: "Mercury (Hg)",
+//         result: "0.02 mg/kg",
+//         limit: "< 0.1 mg/kg",
+//         pass: true,
+//       },
+//       {
+//         name: "Arsenic (As)",
+//         result: "0.15 mg/kg",
+//         limit: "< 1 mg/kg",
+//         pass: true,
+//       },
+//       {
+//         name: "Total Plate Count",
+//         result: "2.1×10² CFU/g",
+//         limit: "< 1×10⁴",
+//         pass: true,
+//       },
+//       { name: "E. coli", result: "Not detected", limit: "Absent", pass: true },
+//       { name: "Moisture Content", result: "4.2%", limit: "< 8%", pass: true },
+//     ],
+//     reviewNote: "",
+//     reviewedAt: null,
+//   },
+//   {
+//     id: "br2",
+//     productName: "Bitter Leaf Tonic",
+//     producerName: "HerbalNaija",
+//     batchNo: "B2024-10",
+//     labName: "PharmAnalytics Ltd",
+//     testedAt: "2025-06-08",
+//     submittedAt: "2025-06-09",
+//     reviewStatus: "UNDER_REVIEW",
+//     coaFileName: "COA_BitterLeaf_B2024-10.pdf",
+//     parameters: [
+//       {
+//         name: "Lead (Pb)",
+//         result: "1.4 mg/kg",
+//         limit: "< 2 mg/kg",
+//         pass: true,
+//       },
+//       {
+//         name: "Mercury (Hg)",
+//         result: "0.05 mg/kg",
+//         limit: "< 0.1 mg/kg",
+//         pass: true,
+//       },
+//       {
+//         name: "Total Plate Count",
+//         result: "4.8×10³ CFU/g",
+//         limit: "< 1×10⁴",
+//         pass: true,
+//       },
+//       {
+//         name: "Yeast & Mould",
+//         result: "1.2×10² CFU/g",
+//         limit: "< 1×10²",
+//         pass: false,
+//       },
+//       {
+//         name: "Salmonella",
+//         result: "Not detected",
+//         limit: "Absent",
+//         pass: true,
+//       },
+//     ],
+//     reviewNote: "",
+//     reviewedAt: null,
+//   },
+//   {
+//     id: "br3",
+//     productName: "Zobo Immune Blend",
+//     producerName: "ZoboFresh Ltd",
+//     batchNo: "B2024-11R",
+//     labName: "NaijaLab",
+//     testedAt: "2025-06-15",
+//     submittedAt: "2025-06-16",
+//     reviewStatus: "SUBMITTED",
+//     coaFileName: "COA_Zobo_B2024-11R.pdf",
+//     parameters: [
+//       {
+//         name: "Lead (Pb)",
+//         result: "0.5 mg/kg",
+//         limit: "< 2 mg/kg",
+//         pass: true,
+//       },
+//       {
+//         name: "Total Plate Count",
+//         result: "6.1×10³ CFU/g",
+//         limit: "< 1×10⁴",
+//         pass: true,
+//       },
+//       { name: "E. coli", result: "Not detected", limit: "Absent", pass: true },
+//       { name: "Moisture Content", result: "5.8%", limit: "< 8%", pass: true },
+//     ],
+//     reviewNote: "",
+//     reviewedAt: null,
+//   },
+// ];
 
-// ── Config ─────────────────────────────────────────────────────────────────
+//── Config ─────
 const flagSeverityConfig: Record<
   FlagSeverity,
   { badge: string; border: string; bg: string; dot: string }
@@ -436,14 +450,21 @@ function BatchReviewModal({
   const [decision, setDecision] = useState<"APPROVED" | "REJECTED" | null>(
     null,
   );
+  const [noteError, setNoteError] = useState<string | null>(null);
 
-  const failedParams = batch.parameters.filter((p) => !p.pass);
+  // const failedParams = batch.parameters.filter((p) => !p.pass);
+  const fileName = batch.coaFileUrl ? batch.coaFileUrl.split("/").pop() : null;
 
   async function confirm(d: "APPROVED" | "REJECTED") {
+    if (d === "REJECTED" && !note.trim()) {
+      setNoteError("A note is required so the producer knows what to fix.");
+      return;
+    }
+    setNoteError(null);
     setSaving(true);
     setDecision(d);
-    await new Promise((r) => setTimeout(r, 1000));
-    onDecision(batch.id, d, note);
+    // await new Promise((r) => setTimeout(r, 1000));
+    onDecision(batch.id, d, note.trim());
     setSaving(false);
   }
 
@@ -481,87 +502,71 @@ function BatchReviewModal({
           {/* COA link */}
           <div className="flex items-center gap-3 p-3.5 rounded-xl bg-white/4 border border-white/[0.07]">
             <FileText size={16} className="text-white/40" />
-            <span className="text-[13px] text-white flex-1">
-              {batch.coaFileName}
+            <span className="text-[13px] text-white flex-1 truncate">
+              {fileName ?? "No COA file on record"}
             </span>
-            <button className="flex items-center gap-1.5 text-[12px] text-(--green-pale) hover:text-white transition-colors">
-              <ExternalLink size={12} /> View
-            </button>
+            {batch.coaFileUrl ? (
+              <a
+                href={batch.coaFileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-[12px] text-(--green-pale) hover:text-white transition-colors shrink-0"
+              >
+                <ExternalLink size={12} /> View
+              </a>
+            ) : (
+              <span className="flex items-center gap-1.5 text-[12px] text-white/25 shrink-0">
+                <AlertTriangle size={12} /> Missing
+              </span>
+            )}
           </div>
 
-          {/* Failed parameters alert */}
-          {failedParams.length > 0 && (
-            <div className="flex items-start gap-3 p-3.5 rounded-xl bg-red-500/8 border border-red-500/20">
+          {!batch.coaFileUrl && (
+            <div className="flex items-start gap-3 p-3.5 rounded-xl bg-amber-500/8 border border-amber-500/20">
               <AlertTriangle
                 size={14}
-                className="text-red-400 shrink-0 mt-0.5"
+                className="text-amber-400 shrink-0 mt-0.5"
               />
-              <div>
-                <p className="text-[13px] font-semibold text-white mb-1">
-                  {failedParams.length} parameter
-                  {failedParams.length > 1 ? "s" : ""} out of spec
-                </p>
-                {failedParams.map((p) => (
-                  <p key={p.name} className="text-[12px] text-red-300">
-                    {p.name}: {p.result} (limit: {p.limit})
-                  </p>
-                ))}
-              </div>
+              <p className="text-[12px] text-amber-300">
+                This submission has no COA file attached. Reject it and ask the
+                producer to resubmit with the document.
+              </p>
             </div>
           )}
 
-          {/* Parameters table */}
-          <div>
-            <p className="text-[11px] text-white/35 uppercase tracking-wider mb-2">
-              COA Parameters
-            </p>
-            <div className="rounded-xl border border-white/[0.07] overflow-hidden">
-              <div className="grid grid-cols-[1fr_auto_auto_auto] text-[10px] text-white/30 uppercase tracking-wider px-4 py-2 border-b border-white/5">
-                <span>Parameter</span>
-                <span>Result</span>
-                <span className="ml-4">Limit</span>
-                <span className="ml-4">Pass</span>
-              </div>
-              {batch.parameters.map((p) => (
-                <div
-                  key={p.name}
-                  className={`grid grid-cols-[1fr_auto_auto_auto] px-4 py-2.5 text-[12px] border-b border-white/4 last:border-0 ${!p.pass ? "bg-red-500/5" : ""}`}
-                >
-                  <span className="text-white/70">{p.name}</span>
-                  <span
-                    className={`font-medium ${p.pass ? "text-white" : "text-red-400"}`}
-                  >
-                    {p.result}
-                  </span>
-                  <span className="text-white/35 ml-4">{p.limit}</span>
-                  <span className="ml-4">
-                    {p.pass ? (
-                      <CheckCircle size={13} className="text-green-400" />
-                    ) : (
-                      <XCircle size={13} className="text-red-400" />
-                    )}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
+
+          <p className="text-[12px] text-white/40">
+            Tested by <span className="text-white/70">{batch.labName}</span>
+            {batch.testedAt !== "—" && (
+              <>
+                {" "}
+                on <span className="text-white/70">{batch.testedAt}</span>
+              </>
+            )}
+            . Submitted {batch.submittedAt}.
+          </p>
 
           {/* Review note */}
           <div>
             <p className="text-[11px] text-white/35 uppercase tracking-wider mb-1.5">
-              Review Note (sent to producer)
+              Review Note{" "}
+              <span className="normal-case text-white/25">
+                (sent to producer — required when rejecting)
+              </span>
             </p>
             <textarea
               value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder={
-                failedParams.length > 0
-                  ? "e.g. Yeast & Mould count exceeds acceptable limit. Please remediate and resubmit with fresh COA."
-                  : "e.g. All parameters within acceptable limits. Approved for Tier 2 marketplace listing."
-              }
+              onChange={(e) => {
+                setNote(e.target.value);
+                if (noteError) setNoteError(null);
+              }}
+              placeholder="e.g. Yeast &amp; Mould count exceeds acceptable limit per the attached COA. Please remediate and resubmit."
               rows={3}
-              className={`${inputCls} h-auto py-3 resize-none`}
+              className={`${inputCls} h-auto py-3 resize-none ${noteError ? "border-red-500/40" : ""}`}
             />
+            {noteError && (
+              <p className="text-[11px] text-red-400 mt-1">{noteError}</p>
+            )}
           </div>
 
           <div className="flex gap-3">
@@ -580,7 +585,7 @@ function BatchReviewModal({
             <button
               onClick={() => confirm("APPROVED")}
               disabled={
-                (saving && decision === "APPROVED") || failedParams.length > 0
+                (saving && decision === "APPROVED") || !batch.coaFileUrl
               }
               className="flex-1 h-11 bg-green-500/15 hover:bg-green-500/25 border border-green-500/20 text-green-400 hover:text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-40"
             >
@@ -589,13 +594,13 @@ function BatchReviewModal({
               ) : (
                 <CheckCircle size={14} />
               )}
-              {failedParams.length > 0 ? "Cannot Approve" : "Approve"}
+              Approve
             </button>
           </div>
-          {failedParams.length > 0 && (
+
+          {!batch.coaFileUrl && (
             <p className="text-[11px] text-white/25 text-center -mt-2">
-              Approval blocked — {failedParams.length} out-of-spec parameter
-              {failedParams.length > 1 ? "s" : ""}
+              Approval blocked — no COA file to review.
             </p>
           )}
         </div>
@@ -608,7 +613,7 @@ function BatchReviewModal({
 export function FlaggedItemsPage() {
   const [activeTab, setActiveTab] = useState<"flags" | "batches">("flags");
   const [flags, setFlags] = useState<FlaggedItem[]>(INITIAL_FLAGS);
-  const [batches, setBatches] = useState<BatchReview[]>(INITIAL_BATCHES);
+  // const [batches, setBatches] = useState<BatchReview[] | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [actionModal, setActionModal] = useState<FlaggedItem | null>(null);
   const [batchModal, setBatchModal] = useState<BatchReview | null>(null);
@@ -617,7 +622,52 @@ export function FlaggedItemsPage() {
     "ALL",
   );
 
+  // Real batch submissions
+  const {
+    data: batchData,
+    loading: batchesLoading,
+    mutate: refetchBatches,
+  } = useAdminBatches();
+  const [batches, setBatches] = useState<BatchReview[]>([]);
+  const [batchesSynced, setBatchesSynced] = useState(false);
+  if (batchData?.batches && !batchesSynced) {
+    const shaped: BatchReview[] = batchData.batches.map((b: AdminBatch) => ({
+      id: b.id ?? "",
+      productName: b.product?.name ?? "Unknown product",
+      producerName:
+        b.product?.producerProfile?.businessName ?? "Unknown producer",
+      batchNo: b.batchNo ?? "",
+      labName: b.labName ?? "—",
+      testedAt: b.testedAt
+        ? new Date(b.testedAt).toLocaleDateString("en-NG")
+        : "—",
+      submittedAt: b.createdAt
+        ? new Date(b.createdAt).toLocaleDateString("en-NG")
+        : "—",
+      reviewStatus: (b.reviewStatus as BatchStatus) ?? "SUBMITTED",
+      coaFileUrl: b.coaFileUrl ?? "",
+      reviewNote: b.reviewNotes ?? "",
+      reviewedAt:
+        b.reviewStatus === "APPROVED" || b.reviewStatus === "REJECTED"
+          ? b.updatedAt
+            ? new Date(b.updatedAt).toLocaleString("en-NG")
+            : null
+          : null,
+    }));
+    setBatches(shaped);
+    setBatchesSynced(true);
+  }
+  // Poll so a batch a producer submits while an admin has this tab open
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setBatchesSynced(false);
+      refetchBatches();
+    }, 20_000);
+    return () => clearInterval(interval);
+  }, [refetchBatches]);
+
   function applyFlagAction(id: string, action: FlagAction, note: string) {
+    // Optimistic update
     setFlags((prev) =>
       prev.map((f) =>
         f.id === id
@@ -635,16 +685,18 @@ export function FlaggedItemsPage() {
     // Sync to API
     const flag = flags.find((f) => f.id === id);
     if (flag) {
-      adminApi.takeFlagAction({
-        targetType: flag.targetType,
-        targetId: id,
-        action: action.toUpperCase(),
-        reason: note,
-      });
+      adminApi
+        .takeFlagAction({
+          targetType: flag.targetType,
+          targetId: id,
+          action: action.toUpperCase(),
+          reason: note,
+        })
+        .catch(() => {});
     }
   }
 
-  function applyBatchDecision(
+  async function applyBatchDecision(
     id: string,
     status: "APPROVED" | "REJECTED",
     note: string,
@@ -662,10 +714,14 @@ export function FlaggedItemsPage() {
       ),
     );
     setBatchModal(null);
-    // Sync to API
-    adminApi
-      .reviewBatch({ batchId: id, decision: status, reviewNote: note })
-      .catch(() => {});
+    try {
+      adminApi.reviewBatch({ batchId: id, decision: status, reviewNote: note });
+      // Re-Sync from the server so we reflect the true saved
+      setBatchesSynced(false);
+      await refetchBatches();
+    } catch {
+      setBatchesSynced(false);
+    }
   }
 
   const pendingFlags = flags.filter((f) => !f.action).length;
@@ -770,7 +826,7 @@ export function FlaggedItemsPage() {
         </button>
         <button
           onClick={() => setActiveTab("batches")}
-          className={`px-5 py-2 rounded-lg text-[13px] font-medium transition-all flex items-center gap-2 ${activeTab === "batches" ? "bg-[(--green-mid)] text-white shadow" : "text-white/50 hover:text-white"}`}
+          className={`px-5 py-2 rounded-lg text-[13px] font-medium transition-all flex items-center gap-2 ${activeTab === "batches" ? "bg-(--green-mid) text-white shadow" : "text-white/50 hover:text-white"}`}
         >
           <FlaskConical size={14} /> Batch Review Queue
           {pendingBatches > 0 && (
@@ -961,22 +1017,24 @@ export function FlaggedItemsPage() {
 
       {/* ── Batch Review Queue ── */}
       {activeTab === "batches" && (
-        <div className="space-y-3">
-          {batches.map((batch, i) => {
-            const cfg = batchStatusConfig[batch.reviewStatus];
-            const isExpanded = expanded === `b-${batch.id}`;
-            const failCount = batch.parameters.filter((p) => !p.pass).length;
-            const isDone =
-              batch.reviewStatus === "APPROVED" ||
-              batch.reviewStatus === "REJECTED";
+       <div className="space-y-3">
+          {batchesLoading && batches.length === 0 ? (
+            <div className="p-5 rounded-2xl border border-white/8 bg-white/3 text-[13px] text-white/40 text-center">
+              Loading batch submissions…
+            </div>
+          ) : batches.length === 0 ? (
+            <div className="p-5 rounded-2xl border border-white/8 bg-white/3 text-[13px] text-white/40 text-center">
+              No batch submissions waiting for review.
+            </div>
+          ) : batches.map((batch, i) => {
+            const cfg = batchStatusConfig[batch.reviewStatus]
+            const isExpanded = expanded === `b-${batch.id}`
+            const isDone     = batch.reviewStatus === 'APPROVED' || batch.reviewStatus === 'REJECTED'
+            const missingFile = !batch.coaFileUrl
 
             return (
-              <motion.div
-                key={batch.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className={`rounded-2xl border overflow-hidden ${isDone ? "border-white/[0.07] bg-white/2 opacity-75" : "border-white/10 bg-white/4"}`}
+              <motion.div key={batch.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+                className={`rounded-2xl border overflow-hidden ${isDone ? 'border-white/[0.07] bg-white/2 opacity-75' : 'border-white/10 bg-white/4'}`}
               >
                 <div className="flex items-center gap-4 p-5">
                   <div className="w-10 h-10 rounded-xl bg-white/[0.07] flex items-center justify-center shrink-0">
@@ -984,41 +1042,28 @@ export function FlaggedItemsPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                      <p className="text-[14px] font-semibold text-white">
-                        {batch.productName}
-                      </p>
-                      <span
-                        className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${cfg.badge}`}
-                      >
+                      <p className="text-[14px] font-semibold text-white">{batch.productName}</p>
+                      <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${cfg.badge}`}>
                         {cfg.icon} {cfg.label}
                       </span>
-                      {failCount > 0 && !isDone && (
+                      {missingFile && !isDone && (
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/15 text-red-400">
-                          {failCount} FAIL
+                          NO COA FILE
                         </span>
                       )}
                     </div>
                     <p className="text-[12px] text-white/40">
-                      {batch.producerName} · Batch {batch.batchNo} ·{" "}
-                      {batch.labName} · Submitted {batch.submittedAt}
+                      {batch.producerName} · Batch {batch.batchNo} · {batch.labName} · Submitted {batch.submittedAt}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={() =>
-                        setExpanded(isExpanded ? null : `b-${batch.id}`)
-                      }
+                    <button onClick={() => setExpanded(isExpanded ? null : `b-${batch.id}`)}
                       className="w-8 h-8 rounded-lg bg-white/6 hover:bg-white/12 flex items-center justify-center text-white/40 hover:text-white transition-all"
                     >
-                      {isExpanded ? (
-                        <ChevronUp size={14} />
-                      ) : (
-                        <ChevronDown size={14} />
-                      )}
+                      {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                     </button>
                     {!isDone && (
-                      <button
-                        onClick={() => setBatchModal(batch)}
+                      <button onClick={() => setBatchModal(batch)}
                         className="inline-flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 transition-colors"
                       >
                         <Eye size={12} /> Review COA
@@ -1029,50 +1074,33 @@ export function FlaggedItemsPage() {
 
                 <AnimatePresence>
                   {isExpanded && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}
                       className="overflow-hidden"
                     >
-                      <div className="px-5 pb-5 border-t border-white/6 pt-4">
-                        <div className="grid grid-cols-3 gap-2 mb-4">
-                          {batch.parameters.slice(0, 3).map((p) => (
-                            <div
-                              key={p.name}
-                              className={`p-3 rounded-xl border text-center ${p.pass ? "border-green-500/15 bg-green-500/5" : "border-red-500/20 bg-red-500/8"}`}
+                      <div className="px-5 pb-5 border-t border-white/6 pt-4 space-y-3">
+                        <div className="flex items-center gap-3 p-3.5 rounded-xl bg-white/4 border border-white/[0.07]">
+                          <FileText size={16} className="text-white/40 shrink-0" />
+                          <span className="text-[13px] text-white flex-1 truncate">
+                            {batch.coaFileUrl ? batch.coaFileUrl.split('/').pop() : 'No COA file on record'}
+                          </span>
+                          {batch.coaFileUrl && (
+                            <a href={batch.coaFileUrl} target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 text-[12px] text-(--green-pale) hover:text-white transition-colors shrink-0"
                             >
-                              <p className="text-[10px] text-white/35 mb-1">
-                                {p.name}
-                              </p>
-                              <p
-                                className={`text-[12px] font-semibold ${p.pass ? "text-green-400" : "text-red-400"}`}
-                              >
-                                {p.result}
-                              </p>
-                            </div>
-                          ))}
+                              <ExternalLink size={12} /> View
+                            </a>
+                          )}
                         </div>
                         {batch.reviewNote && (
                           <div className="p-3 rounded-xl bg-white/4 border border-white/[0.07]">
-                            <p className="text-[11px] text-white/35 uppercase tracking-wider mb-1">
-                              Review Note
-                            </p>
-                            <p className="text-[12px] text-white/60">
-                              {batch.reviewNote}
-                            </p>
-                            {batch.reviewedAt && (
-                              <p className="text-[11px] text-white/25 mt-1">
-                                {batch.reviewedAt}
-                              </p>
-                            )}
+                            <p className="text-[11px] text-white/35 uppercase tracking-wider mb-1">Review Note</p>
+                            <p className="text-[12px] text-white/60">{batch.reviewNote}</p>
+                            {batch.reviewedAt && <p className="text-[11px] text-white/25 mt-1">{batch.reviewedAt}</p>}
                           </div>
                         )}
                         {!isDone && (
-                          <button
-                            onClick={() => setBatchModal(batch)}
-                            className="mt-3 inline-flex items-center gap-1.5 text-[12px] font-medium px-4 py-2 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/20 transition-colors"
+                          <button onClick={() => setBatchModal(batch)}
+                            className="inline-flex items-center gap-1.5 text-[12px] font-medium px-4 py-2 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/20 transition-colors"
                           >
                             <Eye size={12} /> Open Full COA Review
                           </button>
@@ -1082,7 +1110,7 @@ export function FlaggedItemsPage() {
                   )}
                 </AnimatePresence>
               </motion.div>
-            );
+            )
           })}
         </div>
       )}

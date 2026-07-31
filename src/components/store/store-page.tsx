@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, X } from "lucide-react";
 import { ProductCard } from "./product-card";
-import { products, productCategories } from "@/data/products";
+// import { products,  } from "@/data/products";
+import type { Product } from "@/types";
 import { cn } from "@/lib/utils";
 
 type SortOption = "featured" | "price-asc" | "price-desc" | "rating" | "newest";
@@ -18,10 +19,42 @@ const sortOptions: { value: SortOption; label: string }[] = [
 ];
 
 export function StorePage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState("All Products");
   const [sort, setSort] = useState<SortOption>("featured");
   const [query, setQuery] = useState("");
   //   const [showFilters, setShowFilters] = useState(false)
+
+  useEffect(() => {
+    async function loadProducts() {
+      try {
+        const res = await fetch("/api/store/products", {
+          cache: "no-store",
+        });
+
+        if (!res.ok) throw new Error("Failed to load products");
+
+        const json = await res.json();
+
+        setProducts(json.products ?? []);
+      } catch (err) {
+        console.error(err);
+        setProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadProducts();
+  }, []);
+
+  const productCategories = useMemo(() => {
+    return [
+      "All Products",
+      ...Array.from(new Set(products.map((p) => p.category).filter(Boolean))),
+    ];
+  }, [products]);
 
   const filtered = useMemo(() => {
     let result = [...products];
@@ -37,8 +70,8 @@ export function StorePage() {
       result = result.filter(
         (p) =>
           p.name.toLowerCase().includes(q) ||
-          p.shortDesc.toLowerCase().includes(q) ||
-          p.tags.some((t) => t.toLowerCase().includes(q)),
+          (p.shortDesc ?? "").toLowerCase().includes(q) ||
+          (p.tags ?? []).some((t) => t.toLowerCase().includes(q)),
       );
     }
 
@@ -47,15 +80,23 @@ export function StorePage() {
       case "price-asc":
         result.sort((a, b) => a.price - b.price);
         break;
+
       case "price-desc":
         result.sort((a, b) => b.price - a.price);
         break;
+
       case "rating":
         result.sort((a, b) => b.rating - a.rating);
         break;
+
       case "newest":
-        result.sort((a, b) => b.reviews - a.reviews);
+        result.sort(
+          (a, b) =>
+            new Date(b.createdAt ?? 0).getTime() -
+            new Date(a.createdAt ?? 0).getTime(),
+        );
         break;
+
       case "featured":
       default:
         result.sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0));
@@ -63,7 +104,18 @@ export function StorePage() {
     }
 
     return result;
-  }, [category, sort, query]);
+  }, [products, category, sort, query]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-(--cream) flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-10 h-10 mx-auto mb-4 border-4 border-(--green-mid) border-t-transparent rounded-full animate-spin" />
+          <p className="text-(--text-muted)">Loading products...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-(--cream)">

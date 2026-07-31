@@ -3,8 +3,8 @@ import { prisma }       from '@/lib/prisma'
 
 // Minimal user shape expected on session.user
 interface SessionUser { id: string }
-import { requireAuth, ok, created, badRequest, serverError } from '@/lib/api-helpers'
-import { notFound } from 'next/navigation'
+import { requireAuth, ok, created, badRequest, serverError,notFound } from '@/lib/api-helpers'
+import { EMAIL_RE, NG_PHONE_RE } from '@/lib/vaildation'
 
 // GET /api/dashboard/producer/verification
 export async function GET(req: NextRequest) {
@@ -65,6 +65,22 @@ export async function POST(req: NextRequest) {
     if (!businessName || !businessEmail || !businessPhone || !rcNumber) {
       return badRequest('businessName, businessEmail, businessPhone, and rcNumber are required')
     }
+    if (businessName.trim().length < 2 || businessName.trim().length > 150) {
+      return badRequest('businessName must be between 2 and 150 characters')
+    }
+    if (!EMAIL_RE.test(businessEmail.trim())) {
+      return badRequest('businessEmail must be a valid email address')
+    }
+    if (!NG_PHONE_RE.test(businessPhone.replace(/[\s-]/g, ''))) {
+      return badRequest('businessPhone must be a valid Nigerian phone number')
+    }
+    if (rcNumber.trim().length < 2 || rcNumber.trim().length > 40) {
+      return badRequest('rcNumber must be between 2 and 40 characters')
+    }
+    if (website && !/^https?:\/\/.+/.test(website.trim())) {
+      return badRequest('website must be a valid URL starting with http:// or https://')
+    }
+
     const data = {
       businessName, businessEmail, businessPhone, rcNumber, nafdacNumber,
       state, website,

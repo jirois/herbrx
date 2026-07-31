@@ -1,6 +1,6 @@
 import { NextRequest }          from 'next/server'
 import { prisma }               from '@/lib/prisma'
-import { requireAuth, ok, created, badRequest, serverError, notFound } from '@/lib/api-helpers'
+import { requireAuth, ok, created, badRequest, serverError, notFound, slugify } from '@/lib/api-helpers'
 
 type AuthUser = {
   id: string
@@ -58,8 +58,7 @@ export async function POST(req: NextRequest) {
     const { name, category, type, emoji, price, description,
             ingredients, warnings, nafdacNo, imageUrl } = body
 
-          console.log("POST image length:", imageUrl?.length);
-console.log("POST preview:", imageUrl?.substring(0, 100));
+      const slug = await generateUniqueSlug(name)
 
     if (!name || !category || !price || !description) {
       return badRequest('name, category, price, and description are required')
@@ -68,6 +67,7 @@ console.log("POST preview:", imageUrl?.substring(0, 100));
     // Upsert producer profile (created automatically on first product)
     let profile = await prisma.producerProfile.findUnique({ where: { userId } })
     if (!profile) {
+    
       profile = await prisma.producerProfile.create({
         data: { userId, businessName: `${user.firstName ?? 'Producer'}'s Business` },
       })
@@ -77,6 +77,7 @@ console.log("POST preview:", imageUrl?.substring(0, 100));
       data: {
            producerProfileId: profile.id,
         name,
+        slug,
         category: category ?? type,
         status:   'DRAFT',
         description,
@@ -95,11 +96,6 @@ console.log("POST preview:", imageUrl?.substring(0, 100));
       include: { meta: true, batchSubmissions: true },
     })
 
-
-    console.log(
-  "Saved image length:",
-  product.meta?.imageUrl?.length
-);
 
     return created({ product })
     
@@ -138,7 +134,7 @@ export async function PATCH(req: NextRequest) {
     const product = await prisma.producerProduct.update({
       where: { id: productId },
       data: {
-        ...(name        !== undefined ? { name }        : {}),
+        ...(name        !== undefined ? { name, slug: await generateUniqueSlug(name) }   : {}),
         ...(category     !== undefined ? { category }     : {}),
         ...(description !== undefined ? { description } : {}),
         meta: {
@@ -204,4 +200,20 @@ export async function DELETE(req: NextRequest) {
   } catch (e) {
     return serverError(e)
   }
+}
+
+
+// slug helper function
+async function generateUniqueSlug(name: string) {
+  const base = slugify(name);
+  let slug = base;
+  let count = 1;
+  while (
+    await prisma.producerProduct.findUnique({
+      where: { slug },
+    })
+  ) {
+    slug = `${base}-${count++}`;
+  }
+  return slug;
 }

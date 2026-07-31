@@ -1,6 +1,6 @@
 import type { Product } from '@/types'
 
-export const products: Product[] = [
+export const products = [
   {
     id: 'liver-cleanse-blend',
     name: 'Liver Cleanse Blend',
@@ -209,16 +209,16 @@ export const productCategories = [
   'Supplements',
 ]
 
-export function getProductBySlug(slug: string): Product | undefined {
-  return products.find((p) => p.slug === slug)
-}
+// export function getProductBySlug(slug: string): Product | undefined {
+//   return products.find((p) => p.slug === slug)
+// }
 
-export function getRelatedProducts(product: Product, limit = 4): Product[] {
-  return products
-    .filter((p) => p.id !== product.id && p.category === product.category)
-    .slice(0, limit)
-}
+// export function getRelatedProducts(product: Product, limit = 4): Product[] {
+//   return products
+//     .filter((p) => p.id !== product.id && p.category === product.category)
+//     .slice(0, limit)
+// }
 
-export function getFeaturedProducts(limit = 4): Product[] {
-  return products.filter((p) => p.featured).slice(0, limit)
-}
+// export function getFeaturedProducts(limit = 4): Product[] {
+//   return products.filter((p) => p.featured).slice(0, limit)
+// }

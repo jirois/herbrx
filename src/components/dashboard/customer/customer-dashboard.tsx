@@ -13,45 +13,60 @@ import {
 } from "lucide-react";
 import { useSafetyAlerts, useConsultations } from "@/hooks/dashboard-hooks";
 
-const mockAlerts = [
-  {
-    id: "1",
-    severity: "DANGER",
-    title: "Counterfeit Moringa Capsules Detected",
-    productName: "SuperGreen Moringa 500mg",
-    publishedAt: "2 hours ago",
-  },
-  {
-    id: "2",
-    severity: "WARNING",
-    title: "St. John's Wort — Drug Interaction Warning",
-    productName: "St. John\'s Wort Extract', publishedAt: '1 day ago",
-  },
-  {
-    id: "3",
-    severity: "INFO",
-    title: "Recommended: New Turmeric Safety Guide",
-    productName: "General Advisory",
-    publishedAt: "3 days ago",
-  },
-];
+// const mockAlerts = [
+//   {
+//     id: "1",
+//     severity: "DANGER",
+//     title: "Counterfeit Moringa Capsules Detected",
+//     productName: "SuperGreen Moringa 500mg",
+//     publishedAt: "2 hours ago",
+//   },
+//   {
+//     id: "2",
+//     severity: "WARNING",
+//     title: "St. John's Wort — Drug Interaction Warning",
+//     productName: "St. John\'s Wort Extract', publishedAt: '1 day ago",
+//   },
+//   {
+//     id: "3",
+//     severity: "INFO",
+//     title: "Recommended: New Turmeric Safety Guide",
+//     productName: "General Advisory",
+//     publishedAt: "3 days ago",
+//   },
+// ];
 
-const mockConsultations = [
-  {
-    id: "1",
-    type: "HERBALIST",
-    status: "CONFIRMED",
-    scheduledAt: "Thu 26 Jun · 10:00 AM",
-    practitioner: "Dr. Adaeze Okonkwo",
-  },
-  {
-    id: "2",
-    type: "PHARMACIST",
-    status: "REQUESTED",
-    scheduledAt: "Pending assignment",
-    practitioner: "—",
-  },
-];
+// const mockConsultations = [
+//   {
+//     id: "1",
+//     type: "HERBALIST",
+//     status: "CONFIRMED",
+//     scheduledAt: "Thu 26 Jun · 10:00 AM",
+//     practitioner: "Dr. Adaeze Okonkwo",
+//   },
+//   {
+//     id: "2",
+//     type: "PHARMACIST",
+//     status: "REQUESTED",
+//     scheduledAt: "Pending assignment",
+//     practitioner: "—",
+//   },
+// ];
+
+type Alert = {
+  id: string;
+  severity: string;
+  title: string;
+  productName: string;
+  publishedAt: string;
+};
+type ConsultationRow = {
+  id: string;
+  type: string;
+  status: string;
+  scheduledAt: string;
+  practitioner: string;
+};
 
 const severityColor: Record<string, string> = {
   DANGER: "bg-red-500/10 border-red-500/20 text-red-400",
@@ -75,12 +90,16 @@ interface Props {
 }
 
 export function CustomerDashboard({ user }: Props) {
-  const { data: alertsData } = useSafetyAlerts("ACTIVE");
-  const { data: consultationsData } = useConsultations();
+  const { data: alertsData, loading: alertsLoading } =
+    useSafetyAlerts("ACTIVE");
+  const { data: consultationsData, loading: consultationsLoading } =
+    useConsultations();
 
-  const liveAlerts = alertsData?.alerts ?? mockAlerts;
-  const liveConsultations =
-    consultationsData?.consultations ?? mockConsultations;
+  // meaning every brand-new account saw a fabricated "counterfeit product"
+  // warning and fake confirmed consultation the moment they logged in.
+  const liveAlerts: Alert[] = (alertsData?.alerts ?? []) as Alert[];
+  const liveConsultations: ConsultationRow[] =
+    (consultationsData?.consultations ?? []) as ConsultationRow[];
 
   const hour = new Date().getHours();
   const greeting =
@@ -158,34 +177,47 @@ export function CustomerDashboard({ user }: Props) {
             </h2>
             <Link
               href="/dashboard/customer/alerts"
-              className="text-[12px] text-(--green-pale) hover:text-white flex items-center gap-1"
+              className="text-[12px] text-green-pale hover:text-white flex items-center gap-1"
             >
               View all <ArrowRight size={12} />
             </Link>
           </div>
           <div className="space-y-3">
-            {(liveAlerts as typeof mockAlerts).map((alert, i) => (
-              <motion.div
-                key={alert.id}
-                initial={{ opacity: 0, x: -12 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 + i * 0.06 }}
-                className={`flex items-start gap-3.5 p-4 rounded-2xl border ${severityColor[alert.severity]}`}
-              >
-                <span className="text-[20px] shrink-0 mt-0.5">
-                  {severityIcon[alert.severity]}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[14px] font-medium text-white mb-0.5">
-                    {alert.title}
-                  </p>
-                  <p className="text-[12px] opacity-70">{alert.productName}</p>
-                </div>
-                <span className="text-[11px] opacity-60 shrink-0 whitespace-nowrap">
-                  {alert.publishedAt}
-                </span>
-              </motion.div>
-            ))}
+            {alertsLoading ? (
+              <div className="p-4 rounded-2xl border border-white/8 bg-white/3 text-[13px] text-white/40">
+                Loading alerts…
+              </div>
+            ) : liveAlerts.length === 0 ? (
+              <div className="p-4 rounded-2xl border border-white/8 bg-white/3 text-[13px] text-white/40">
+                No active safety alerts right now. We&oos;ll notify you here if
+                anything comes up.
+              </div>
+            ) : (
+              liveAlerts.map((alert, i) => (
+                <motion.div
+                  key={alert.id}
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.1 + i * 0.06 }}
+                  className={`flex items-start gap-3.5 p-4 rounded-2xl border ${severityColor[alert.severity]}`}
+                >
+                  <span className="text-[20px] shrink-0 mt-0.5">
+                    {severityIcon[alert.severity]}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[14px] font-medium text-white mb-0.5">
+                      {alert.title}
+                    </p>
+                    <p className="text-[12px] opacity-70">
+                      {alert.productName}
+                    </p>
+                  </div>
+                  <span className="text-[11px] opacity-60 shrink-0 whitespace-nowrap">
+                    {alert.publishedAt}
+                  </span>
+                </motion.div>
+              ))
+            )}
           </div>
 
           {/* Interaction engine teaser */}
@@ -226,39 +258,49 @@ export function CustomerDashboard({ user }: Props) {
             </h2>
             <Link
               href="/dashboard/customer/consultations"
-              className="text-[12px] text-(--green-pale) hover:text-white flex items-center gap-1"
+              className="text-[12px] text-r(--green-pale) hover:text-white flex items-center gap-1"
             >
               Book new <ArrowRight size={12} />
             </Link>
           </div>
 
           <div className="space-y-3 mb-4">
-            {(liveConsultations as typeof mockConsultations).map((c, i) => (
-              <motion.div
-                key={c.id}
-                initial={{ opacity: 0, x: 12 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.15 + i * 0.08 }}
-                className="bg-white/5 border border-white/8 rounded-2xl p-4"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[12px] font-semibold text-white/70 uppercase tracking-wider">
-                    {c.type}
-                  </span>
-                  <span
-                    className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${statusBadge[c.status]}`}
-                  >
-                    {c.status}
-                  </span>
-                </div>
-                <p className="text-[14px] font-medium text-white mb-1">
-                  {c.practitioner}
-                </p>
-                <p className="text-[12px] text-white/45 flex items-center gap-1.5">
-                  <Clock size={11} /> {c.scheduledAt}
-                </p>
-              </motion.div>
-            ))}
+            {consultationsLoading ? (
+              <div className="bg-white/5 border border-white/8 rounded-2xl p-4 text-[13px] text-white/40">
+                Loading consultations…
+              </div>
+            ) : liveConsultations.length === 0 ? (
+              <div className="bg-white/5 border border-white/8 rounded-2xl p-4 text-[13px] text-white/40">
+                No consultations booked yet.
+              </div>
+            ) : (
+              liveConsultations.map((c, i) => (
+                <motion.div
+                  key={c.id}
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.15 + i * 0.08 }}
+                  className="bg-white/5 border border-white/8 rounded-2xl p-4"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[12px] font-semibold text-white/70 uppercase tracking-wider">
+                      {c.type}
+                    </span>
+                    <span
+                      className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${statusBadge[c.status]}`}
+                    >
+                      {c.status}
+                    </span>
+                  </div>
+                  <p className="text-[14px] font-medium text-white mb-1">
+                    {c.practitioner}
+                  </p>
+                  <p className="text-[12px] text-white/45 flex items-center gap-1.5">
+                    <Clock size={11} /> {c.scheduledAt}
+                  </p>
+                </motion.div>
+              ))
+            )}
           </div>
 
           {/* Telehealth CTA */}
@@ -278,13 +320,19 @@ export function CustomerDashboard({ user }: Props) {
             </Link>
           </div>
 
-          {/* Safe-use stats */}
+          {/* Safe-use stats — reflects real account activity. "Herbs Checked"
+              and "Interactions Found" need a small backend aggregate over
+              InteractionQuery to populate properly; until that's wired they
+              show 0 rather than a fabricated number. */}
           <div className="mt-4 grid grid-cols-2 gap-3">
             {[
-              { label: "Herbs Checked", value: "12" },
-              { label: "Interactions Found", value: "2" },
-              { label: "Consultations", value: "3" },
-              { label: "Alerts Read", value: "7" },
+              { label: "Herbs Checked", value: "0" },
+              { label: "Interactions Found", value: "0" },
+              {
+                label: "Consultations",
+                value: String(liveConsultations.length),
+              },
+              { label: "Active Alerts", value: String(liveAlerts.length) },
             ].map((stat) => (
               <div
                 key={stat.label}

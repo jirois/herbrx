@@ -37,53 +37,53 @@ interface Alert {
 }
 
 // Fallback mock while API loads
-const MOCK_ALERTS: Alert[] = [
-  {
-    id: "a1",
-    severity: "DANGER",
-    status: "ACTIVE",
-    title: "Counterfeit Moringa Capsules Detected in Lagos Markets",
-    body: 'Multiple batches of counterfeit "SuperGreen Moringa 500mg" identified in Lagos Island and Alaba markets. Lab analysis reveals lead levels of 12.4 mg/kg — over 6× the safe limit. Do not consume. Dispose of immediately.',
-    productName: "SuperGreen Moringa 500mg",
-    batchNo: "B2024-FAKE-01",
-    publishedAt: "2 hours ago",
-  },
-  {
-    id: "a2",
-    severity: "WARNING",
-    status: "ACTIVE",
-    title: "St. John's Wort + SSRI Antidepressants — Interaction Warning",
-    body: "Significant risk of serotonin syndrome when combining St. John's Wort with SSRI antidepressants (sertraline, fluoxetine, citalopram). Stop St. John's Wort immediately if you take SSRIs and consult your doctor.",
-    productName: "St. John's Wort Extract",
-    publishedAt: "1 day ago",
-  },
-  {
-    id: "a3",
-    severity: "WARNING",
-    status: "ACTIVE",
-    title: "High-Dose Bitter Leaf — Hypoglycaemia Risk in Diabetics",
-    body: "High-dose Bitter Leaf preparations (>500mg/day) may cause additive blood sugar-lowering effects alongside metformin or glibenclamide. Monitor glucose closely if combining these.",
-    publishedAt: "3 days ago",
-  },
-  {
-    id: "a4",
-    severity: "DANGER",
-    status: "RESOLVED",
-    title: "Shea Butter Adulteration — Kano Batch B2024-11 Recalled",
-    body: 'Batch B2024-11 of "PureShea Body Butter" failed microbial screening. All units have been recalled. The producer has been suspended from the marketplace.',
-    productName: "PureShea Body Butter",
-    batchNo: "B2024-11",
-    publishedAt: "1 month ago",
-  },
-  {
-    id: "a5",
-    severity: "INFO",
-    status: "RESOLVED",
-    title: "Updated Safety Guidelines: Bitter Leaf (Vernonia amygdalina)",
-    body: "Revised dosage guidelines and interaction warnings for Bitter Leaf now available in the Herb Directory and Safety Guides.",
-    publishedAt: "2 months ago",
-  },
-];
+// const MOCK_ALERTS: Alert[] = [
+//   {
+//     id: "a1",
+//     severity: "DANGER",
+//     status: "ACTIVE",
+//     title: "Counterfeit Moringa Capsules Detected in Lagos Markets",
+//     body: 'Multiple batches of counterfeit "SuperGreen Moringa 500mg" identified in Lagos Island and Alaba markets. Lab analysis reveals lead levels of 12.4 mg/kg — over 6× the safe limit. Do not consume. Dispose of immediately.',
+//     productName: "SuperGreen Moringa 500mg",
+//     batchNo: "B2024-FAKE-01",
+//     publishedAt: "2 hours ago",
+//   },
+//   {
+//     id: "a2",
+//     severity: "WARNING",
+//     status: "ACTIVE",
+//     title: "St. John's Wort + SSRI Antidepressants — Interaction Warning",
+//     body: "Significant risk of serotonin syndrome when combining St. John's Wort with SSRI antidepressants (sertraline, fluoxetine, citalopram). Stop St. John's Wort immediately if you take SSRIs and consult your doctor.",
+//     productName: "St. John's Wort Extract",
+//     publishedAt: "1 day ago",
+//   },
+//   {
+//     id: "a3",
+//     severity: "WARNING",
+//     status: "ACTIVE",
+//     title: "High-Dose Bitter Leaf — Hypoglycaemia Risk in Diabetics",
+//     body: "High-dose Bitter Leaf preparations (>500mg/day) may cause additive blood sugar-lowering effects alongside metformin or glibenclamide. Monitor glucose closely if combining these.",
+//     publishedAt: "3 days ago",
+//   },
+//   {
+//     id: "a4",
+//     severity: "DANGER",
+//     status: "RESOLVED",
+//     title: "Shea Butter Adulteration — Kano Batch B2024-11 Recalled",
+//     body: 'Batch B2024-11 of "PureShea Body Butter" failed microbial screening. All units have been recalled. The producer has been suspended from the marketplace.',
+//     productName: "PureShea Body Butter",
+//     batchNo: "B2024-11",
+//     publishedAt: "1 month ago",
+//   },
+//   {
+//     id: "a5",
+//     severity: "INFO",
+//     status: "RESOLVED",
+//     title: "Updated Safety Guidelines: Bitter Leaf (Vernonia amygdalina)",
+//     body: "Revised dosage guidelines and interaction warnings for Bitter Leaf now available in the Herb Directory and Safety Guides.",
+//     publishedAt: "2 months ago",
+//   },
+// ];
 
 const severityConfig: Record<
   AlertSeverity,
@@ -124,12 +124,15 @@ const severityConfig: Record<
 
 export function CustomerAlertsPage() {
   const { data, loading } = useSafetyAlerts("ALL");
-  const alerts = (data?.alerts as Alert[] | undefined) ?? MOCK_ALERTS;
+  //Real alerts only -
+  const alerts = (data?.alerts as Alert[] | undefined) ?? [];
 
   const [search, setSearch] = useState("");
+
   const [severityFilter, setSeverityFilter] = useState<AlertSeverity | "ALL">(
     "ALL",
   );
+
   const [statusFilter, setStatusFilter] = useState<AlertStatus | "ALL">(
     "ACTIVE",
   );

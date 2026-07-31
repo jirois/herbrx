@@ -121,6 +121,13 @@ export function useAdminUsers(role?: string, search?: string) {
   )
 }
 
+export function useAdminBatches(status?: string) {
+  const qs = status ? `?status=${status}` : ''
+  return useFetch<{ batches: Record<string, unknown>[] }>(
+    `/api/dashboard/admin/batches${qs}`
+  )
+}
+
 // ── Mutation helpers ──────────
 
 /** Generic POST helper */

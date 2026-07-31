@@ -39,6 +39,7 @@ model User {
   adminActions          AdminAction[]
   incubationSubmissions IncubationSubmission[]
   interactionFeedback   InteractionFeedback[]
+  productReviews        ProductReview[]
 
   @@index([email])
   @@index([role])
@@ -177,12 +178,13 @@ model HealthProfile {
 
 // Customer: Saved Medications (for interaction Engine)
 model SavedMedication {
-  id        String   @id @default(cuid())
-  userId    String
-  name      String
-  dose      String?
-  frequency String?
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String
+  name       String
+  normalised String? // Lowercase for deduplication lookups
+  dose       String?
+  frequency  String?
+  createdAt  DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -192,17 +194,18 @@ model SavedMedication {
 // Customer: Telehealth Consultations
 
 model Consultation {
-  id             String             @id @default(cuid())
-  userId         String
-  practitionerId String?
-  type           ConsultationType
-  status         ConsultationStatus @default(REQUESTED)
-  scheduledAt    DateTime?
-  notes          String?            @db.Text
-  meetingUrl     String?
-  amount         Int?
-  paystackRef    String?            @unique
-  paymentStatus  ConsultPayStatus   @default(PENDING)
+  id               String             @id @default(cuid())
+  userId           String
+  practitionerId   String?
+  practitionerName String? // snapshot at booking time — practitioner list is currently static, not a DB table
+  type             ConsultationType
+  status           ConsultationStatus @default(REQUESTED)
+  scheduledAt      DateTime?
+  notes            String?            @db.Text
+  meetingUrl       String?
+  amount           Int?
+  paystackRef      String?            @unique
+  paymentStatus    ConsultPayStatus   @default(PENDING)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -321,6 +324,7 @@ enum VerificationStatus {
 // Producer Products
 model ProducerProduct {
   id                String        @id @default(cuid())
+  slug              String        @unique
   producerProfileId String
   name              String
   description       String?       @db.Text
@@ -355,6 +359,7 @@ model BatchSubmission {
   coaFileUrl   String // URL to uploaded COA document
   labName      String?
   testedAt     DateTime?
+  supplyChain  Json? // [{stage, location, date}]
   reviewStatus BatchStatus @default(SUBMITTED)
   reviewedBy   String?
   reviewNotes  String?     @db.Text
@@ -503,19 +508,25 @@ enum PressType {
 }
 
 model ProductMeta {
-  id          String  @id @default(cuid())
-  productId   String  @unique
-  price       Int     @default(0) // kobo
-  emoji       String  @default("🌿")
-  imageUrl    String? @db.MediumText // primary product image, compressed to ≤100KB by client
-  productType String  @default("")
+  id          String   @id @default(cuid())
+  productId   String   @unique
+  price       Int      @default(0) // kobo
+  emoji       String   @default("🌿")
+  imageUrl    String?  @db.MediumText // primary product image, compressed to ≤100KB by client
+  productType String   @default("")
   ingredients Json? // string[]
   warnings    Json? // string[]
   nafdacNo    String?
-  inStore     Boolean @default(false)
-  stock       Int     @default(0)
-  sales       Int     @default(0)
-  revenue     Int     @default(0) // kobo
+  inStore     Boolean  @default(false)
+  stock       Int      @default(0)
+  sales       Int      @default(0)
+  revenue     Int      @default(0) // kobo
+  rating      Float    @default(0)
+  reviewCount Int      @default(0)
+  featured    Boolean  @default(false)
+  unit        String   @default("pack")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   product ProducerProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
@@ -694,4 +705,46 @@ model InteractionFeedback {
   @@index([interactionId])
   @@index([type])
   @@index([verified])
+}
+
+// ── Newsletter (public, no account required) ───────────────────────────────
+model NewsletterSubscriber {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  source         String? // page/section the signup came from, e.g. "homepage"
+  subscribedAt   DateTime  @default(now())
+  unsubscribedAt DateTime?
+
+  @@index([subscribedAt])
+}
+
+model ProductReview {
+  id               String   @id @default(cuid())
+  productId        String
+  userId           String
+  rating           Int // 1–5
+  title            String
+  body             String   @db.Text
+  verifiedPurchase Boolean  @default(false)
+  helpfulCount     Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  helpfulVotes ReviewHelpfulVote[]
+
+  @@unique([productId, userId]) // one review per customer per product
+  @@index([productId])
+  @@index([productId, rating])
+}
+
+model ReviewHelpfulVote {
+  id        String   @id @default(cuid())
+  reviewId  String
+  userId    String
+  createdAt DateTime @default(now())
+
+  review ProductReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, userId]) // one helpful vote per user per review
 }
