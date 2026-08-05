@@ -5,6 +5,8 @@ import type { Session } from 'next-auth'
 import { authOptions }  from '@/lib/auth'
 import { ok, created, badRequest, serverError } from '@/lib/api-helpers'
 import { initializeTransaction, generateReference, } from '@/lib/paystack'
+import { validateConsultantSlot } from '@/lib/consultant-booking'
+import { notifyConsultant } from '@/lib/consultant-notify'
 
 type PaystackMetadata = {
   consultation_id: string
@@ -31,15 +33,30 @@ const CONSULTATION_PRICES: Record<string, number> = {
 
 // POST /api/booking
 //
-// Previously this auto-confirmed every booking (logged in or guest) the
-// instant it was called, handing back a fake meeting link with no
+//Consultations are paid sessions — this now mirrors
+// the dashboard booking flow: it creates a REQUESTED/PENDING consultation,
+// initializes a real Paystack transaction, and returns the checkout URL
+// for the browser to redirect to. The consultation only becomes CONFIRMED
+// (and only then receives a real meeting link) once payment is verified
+// via /api/dashboard/customer/consultations/verify or the Paystack webhook.
+//
+// Guest (not-logged-in) checkout for a paid, identity-bound consultation
+// needs proper design (capturing the email Paystack should redirect/email
+// receipts to, account linking after payment, etc.) — rather than fake a
+// "confirmed" guest booking with no payment, we now require sign-in first.
+//
+// Consultant selection is now real: `consultantId` must reference an
+// ACTIVE ConsultantProfile matching `type`, and the exact slot is
+// re-validated against existing bookings for that consultant right here —
+// see lib/consultant-booking.ts (shared with
+// /api/dashboard/customer/consultations, the other booking entry point).
 
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     const body    = await req.json()
 
-    const { practitionerId, practitionerName, type, scheduledAt, notes } = body
+    const { practitionerId, practitionerName, consultantId, type, scheduledAt, notes } = body
 
     if (!type || !scheduledAt) {
       return badRequest('type and scheduledAt are required')
@@ -56,17 +73,26 @@ export async function POST(req: NextRequest) {
 
     const { id: userId, email } = (session as BookingSession).user
 
+    const slotDate = new Date(scheduledAt)
+    if (isNaN(slotDate.getTime())) return
+    badRequest('scheduledAt must be a valid date')
+
+    const validation = await validateConsultantSlot(consultantId, type, slotDate)
+    if (!validation.ok) return badRequest(validation.message)
+   
+
     const priceNaira = CONSULTATION_PRICES[type]
     const reference   = generateReference('CONSULT')
 
     const consultation = await prisma.consultation.create({
       data: {
         userId,
+        consultantId: validation.consultant.id,
         practitionerId:   practitionerId ?? null,
         practitionerName: practitionerName ?? null,
         type,
         status:        'REQUESTED',
-        scheduledAt:   new Date(scheduledAt),
+        scheduledAt:   slotDate,
         notes:         notes ?? null,
         meetingUrl:    null,
         amount:        priceNaira * 100,
@@ -77,20 +103,15 @@ export async function POST(req: NextRequest) {
 
     let paystackRes
     try {
-      const paystackMetadata: PaystackMetadata = {
-        consultation_id: consultation.id,
-        type,
-        cancel_action: `${process.env.NEXTAUTH_URL ?? 'http://localhost:3000'}/booking`,
-        orderId: consultation.id,
-        customer_name: email,
-        items_summary: `${type} consultation`,
-      }
-
       paystackRes = await initializeTransaction({
         email,
         amount:    priceNaira,
         reference,
-        metadata: paystackMetadata,
+        metadata: ({
+          consultation_id: consultation.id,
+          type,
+          cancel_action:  `${process.env.NEXTAUTH_URL ?? 'http://localhost:3000'}/booking`,
+        } as unknown) as PaystackMetadata,
         callback_url: `${process.env.NEXTAUTH_URL ?? 'http://localhost:3000'}/dashboard/customer/consultations?ref=${reference}`,
       })
     } catch (paystackErr: unknown) {
@@ -103,6 +124,18 @@ export async function POST(req: NextRequest) {
       await prisma.consultation.delete({ where: { id: consultation.id } }).catch(() => {})
       return serverError(new Error(paystackRes.message ?? 'Paystack initialization failed'))
     }
+
+    // Consultant gets notified as soon as the booking exists (REQUESTED),
+    // not only once paid — lets them see it coming in their queue. The
+    // "confirmed" framing can wait for a future reminder-on-payment pass;
+    // for now the NEW_BOOKING copy is accurate either way ("booked a session").
+    await notifyConsultant({
+      consultantId: validation.consultant.id,
+      consultationId: consultation.id,
+      type: 'NEW_BOOKING',
+      clientName: (session.user as {name: string})?.name,
+      scheduledAt: slotDate,
+    })
 
     return created({
       consultation,

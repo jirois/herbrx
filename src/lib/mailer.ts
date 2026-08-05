@@ -1,10 +1,17 @@
 import nodemailer from 'nodemailer'
+import { emailShell } from './shell'
 
 // ── Transport (Hostinger SMTP) ────────────────────────────────────────────
 // Hostinger mail settings:
 //   Host: smtp.hostinger.com  Port: 465 (SSL) or 587 (TLS)
 //   Username: your full email e.g. hello@herbrx.ng
 //   Password: your email account password
+
+const SPECIALIZATION_LABEL: Record<string, string> = {
+  HERBALIST: 'Herbalist', NATUROPATH: 'Naturopath',
+  TOXICOLOGIST: 'Toxicologist', PHARMACIST: 'Pharmacist',
+}
+
 const transporter = nodemailer.createTransport({
   host:   process.env.SMTP_HOST     ?? 'smtp.hostinger.com',
   port:   Number(process.env.SMTP_PORT ?? 465),
@@ -344,3 +351,108 @@ export async function sendProductStatusEmail(opts: {
     text:    `Hi ${opts.firstName}, ${cfg.detail}${opts.reason ? ` Reason: ${opts.reason}` : ''} Visit ${dashUrl} to manage your products.`,
   })
 }
+
+
+export async function sendConsultationConfirmationEmail(args: {
+  clientEmail: string
+  clientFirstName: string
+  consultantName: string
+  specialization: string
+  scheduledAt: Date | string | null
+  meetingUrl: string
+}) {
+  const when = args.scheduledAt
+    ? new Date(args.scheduledAt).toLocaleString('en-NG', { dateStyle: 'full', timeStyle: 'short' })
+    : 'a time to be confirmed'
+
+  const body = `
+    <h1 style="font-family:Georgia,serif;font-size:22px;color:#1A3A2A;margin:0 0 8px;">Consultation Confirmed 🩺</h1>
+    <p style="font-size:14px;line-height:1.6;margin:0 0 24px;">
+      Hi ${args.clientFirstName}, your payment went through and your session is booked.
+    </p>
+
+    <div style="background:#FAF7EF;border-radius:10px;padding:18px 20px;margin-bottom:22px;">
+      <table role="presentation" width="100%">
+        <tr>
+          <td style="padding:4px 0;font-size:12px;color:#8A8577;text-transform:uppercase;letter-spacing:0.06em;width:110px;">Consultant</td>
+          <td style="padding:4px 0;font-size:14px;font-weight:bold;">${args.consultantName} · ${SPECIALIZATION_LABEL[args.specialization] ?? args.specialization}</td>
+        </tr>
+        <tr>
+          <td style="padding:4px 0;font-size:12px;color:#8A8577;text-transform:uppercase;letter-spacing:0.06em;">When</td>
+          <td style="padding:4px 0;font-size:14px;">${when}</td>
+        </tr>
+      </table>
+    </div>
+
+    <a href="${args.meetingUrl}"
+      style="display:inline-block;background-color:#1A3A2A;color:#ffffff;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:bold;padding:13px 26px;border-radius:999px;margin-bottom:8px;">
+      Join Meeting
+    </a>
+    <p style="font-size:12px;color:#8A8577;margin:14px 0 0;word-break:break-all;">
+      Or copy this link: ${args.meetingUrl}
+    </p>
+  `
+
+  return transporter.sendMail({
+    to: args.clientEmail,
+    subject: `Consultation Confirmed with ${args.consultantName} · HerbRx`,
+    html: emailShell(body, `Your consultation with ${args.consultantName} is confirmed for ${when}.`),
+  })
+}
+
+
+// export async function sendOrderConfirmationEmail(order: Order) {
+//   const itemRows = order.items.map(item => `
+//     <tr>
+//       <td style="padding:10px 0;border-bottom:1px solid #F0EBDD;font-size:14px;">
+//         ${item.product.name} <span style="color:#8A8577;">× ${item.quantity}</span>
+//       </td>
+//       <td style="padding:10px 0;border-bottom:1px solid #F0EBDD;font-size:14px;text-align:right;white-space:nowrap;">
+//         ${formatNairaEmail(item.product.price * item.quantity)}
+//       </td>
+//     </tr>`).join('')
+
+//   const body = `
+//     <h1 style="font-family:Georgia,serif;font-size:22px;color:#1A3A2A;margin:0 0 8px;">Order Confirmed 🌿</h1>
+//     <p style="font-size:14px;line-height:1.6;margin:0 0 24px;">
+//       Hi ${order.customer.firstName}, thanks for your order! We've received your payment and your order is being prepared.
+//     </p>
+
+//     <table role="presentation" width="100%" style="margin-bottom:20px;">
+//       ${itemRows}
+//       <tr>
+//         <td style="padding:10px 0;font-size:14px;color:#8A8577;">Subtotal</td>
+//         <td style="padding:10px 0;font-size:14px;text-align:right;">${formatNairaEmail(order.subtotal)}</td>
+//       </tr>
+//       <tr>
+//         <td style="padding:2px 0 10px;font-size:14px;color:#8A8577;">Shipping</td>
+//         <td style="padding:2px 0 10px;font-size:14px;text-align:right;">${order.shipping === 0 ? 'Free' : formatNairaEmail(order.shipping)}</td>
+//       </tr>
+//       <tr>
+//         <td style="padding-top:12px;border-top:2px solid #1A3A2A;font-family:Georgia,serif;font-size:17px;font-weight:600;color:#1A3A2A;">Total</td>
+//         <td style="padding-top:12px;border-top:2px solid #1A3A2A;font-family:Georgia,serif;font-size:17px;font-weight:600;color:#1A3A2A;text-align:right;">${formatNairaEmail(order.total)}</td>
+//       </tr>
+//     </table>
+
+//     <div style="background:#FAF7EF;border-radius:10px;padding:16px 18px;margin-bottom:20px;">
+//       <p style="font-size:12px;color:#8A8577;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 6px;">Delivery Address</p>
+//       <p style="font-size:14px;margin:0;line-height:1.5;">
+//         ${order.customer.address}<br />
+//         ${order.customer.city}, ${order.customer.state}<br />
+//         ${order.customer.phone}
+//       </p>
+//     </div>
+
+//     <p style="font-size:13px;color:#8A8577;margin:0;">
+//       Order reference: <strong style="color:#3A3A3A;">${order.paystackRef ?? order.id}</strong>
+//     </p>
+//   `
+
+//   return transporter.sendMail({
+//     to: order.customer.email,
+//     subject: `Order Confirmed — ${formatNairaEmail(order.total)} · HerbRx`,
+//     html: emailShell(body, `Your HerbRx order for ${formatNairaEmail(order.total)} has been confirmed.`),
+//   })
+// }
+
+

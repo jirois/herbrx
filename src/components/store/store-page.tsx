@@ -1,12 +1,16 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, X } from "lucide-react";
 import { ProductCard } from "./product-card";
-// import { products,  } from "@/data/products";
-import type { Product } from "@/types";
+import { products, productCategories } from "@/data/products";
+import { useReviewSummaries } from "@/hooks/review-hooks";
 import { cn } from "@/lib/utils";
+import { Product } from "@/types";
+
+// derive ProductType from the products data to ensure correct typing
+type ProductType = Product;
 
 type SortOption = "featured" | "price-asc" | "price-desc" | "rating" | "newest";
 
@@ -19,42 +23,11 @@ const sortOptions: { value: SortOption; label: string }[] = [
 ];
 
 export function StorePage() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState("All Products");
   const [sort, setSort] = useState<SortOption>("featured");
   const [query, setQuery] = useState("");
-  //   const [showFilters, setShowFilters] = useState(false)
-
-  useEffect(() => {
-    async function loadProducts() {
-      try {
-        const res = await fetch("/api/store/products", {
-          cache: "no-store",
-        });
-
-        if (!res.ok) throw new Error("Failed to load products");
-
-        const json = await res.json();
-
-        setProducts(json.products ?? []);
-      } catch (err) {
-        console.error(err);
-        setProducts([]);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadProducts();
-  }, []);
-
-  const productCategories = useMemo(() => {
-    return [
-      "All Products",
-      ...Array.from(new Set(products.map((p) => p.category).filter(Boolean))),
-    ];
-  }, [products]);
+  // const [showFilters, setShowFilters] = useState(false)
+  const { data: reviewData } = useReviewSummaries(products.map((p) => p.id));
 
   const filtered = useMemo(() => {
     let result = [...products];
@@ -70,8 +43,8 @@ export function StorePage() {
       result = result.filter(
         (p) =>
           p.name.toLowerCase().includes(q) ||
-          (p.shortDesc ?? "").toLowerCase().includes(q) ||
-          (p.tags ?? []).some((t) => t.toLowerCase().includes(q)),
+          p.shortDesc.toLowerCase().includes(q) ||
+          p.tags.some((t) => t.toLowerCase().includes(q)),
       );
     }
 
@@ -80,23 +53,19 @@ export function StorePage() {
       case "price-asc":
         result.sort((a, b) => a.price - b.price);
         break;
-
       case "price-desc":
         result.sort((a, b) => b.price - a.price);
         break;
-
       case "rating":
-        result.sort((a, b) => b.rating - a.rating);
-        break;
-
-      case "newest":
         result.sort(
           (a, b) =>
-            new Date(b.createdAt ?? 0).getTime() -
-            new Date(a.createdAt ?? 0).getTime(),
+            (reviewData?.summaries[b.id]?.average ?? b.rating) -
+            (reviewData?.summaries[a.id]?.average ?? a.rating),
         );
         break;
-
+      case "newest":
+        result.sort((a, b) => b.reviews - a.reviews);
+        break;
       case "featured":
       default:
         result.sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0));
@@ -104,18 +73,7 @@ export function StorePage() {
     }
 
     return result;
-  }, [products, category, sort, query]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-(--cream) flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-10 h-10 mx-auto mb-4 border-4 border-(--green-mid) border-t-transparent rounded-full animate-spin" />
-          <p className="text-(--text-muted)">Loading products...</p>
-        </div>
-      </div>
-    );
-  }
+  }, [category, sort, query, reviewData]);
 
   return (
     <div className="min-h-screen bg-(--cream)">
@@ -234,7 +192,12 @@ export function StorePage() {
                   className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5"
                 >
                   {filtered.map((product, i) => (
-                    <ProductCard key={product.id} product={product} index={i} />
+                    <ProductCard
+                      key={product.id}
+                      product={product as ProductType}
+                      index={i}
+                      liveSummary={reviewData?.summaries[product.id] ?? null}
+                    />
                   ))}
                 </motion.div>
               ) : (

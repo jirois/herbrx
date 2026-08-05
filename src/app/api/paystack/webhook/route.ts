@@ -1,16 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyWebhookSignature } from '@/lib/paystack'
 import { getOrderByRef, updateOrder } from '@/lib/orders'
+import { prisma } from '@/lib/prisma'
+import { generateMeetingLink } from '@/lib/meeting-link'
+import { sendOrderConfirmationEmail, sendConsultationConfirmationEmail } from '@/lib/mailer'
 
-interface PaystackWebhookData {
-  reference?: string
-  id?: string
-  [key: string]: unknown
-}
-
-interface PaystackWebhookEvent {
-  event: string
-  data: PaystackWebhookData
+type OrderWithDetails = {
+  id: string | number
+  paymentStatus?: string
+  email?: string
+  customerEmail?: string
+  firstName?: string
+  customerFirstName?: string
+  items?: Array<{
+    name?: string
+    emoji?: string
+    quantity?: number
+    price?: number
+  }>
+  total?: number
 }
 
 /**
@@ -23,6 +31,12 @@ interface PaystackWebhookEvent {
  *   charge.success   — payment successful
  *   charge.failed    — payment failed
  *   transfer.success — bank transfer confirmed
+ *
+ * References are namespaced by prefix (see lib/paystack.ts generateReference):
+ *   HRX-...      → product order payments
+ *   CONSULT-...  → consultation booking payments
+ * This handler checks both stores so either payment type, regardless of
+ * which page the user was on, gets confirmed from the same webhook.
  */
 export async function POST(req: NextRequest) {
   const signature = req.headers.get('x-paystack-signature') ?? ''
@@ -35,9 +49,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 
-  let event: PaystackWebhookEvent
+  let event: { event: string; data: { reference?: string; id?: string; [key: string]: unknown } }
   try {
-    event = JSON.parse(rawBody) as PaystackWebhookEvent
+    event = JSON.parse(rawBody)
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
@@ -51,24 +65,101 @@ export async function POST(req: NextRequest) {
       const reference = data?.reference
       if (!reference) break
 
-      const order = getOrderByRef(reference)
+      // ── Consultation payment ──────────────────────────────────────
+      // Include user + consultant here (wasn't fetched before) — the
+      // confirmation email needs the client's name/email and the
+      // consultant's name/specialization, neither of which the bare
+      // paystackRef lookup gave us.
+      const consultation = await prisma.consultation.findUnique({
+        where: { paystackRef: reference },
+        include: {
+          user: { select: { firstName: true, email: true } },
+          consultant: { include: { user: { select: { firstName: true, lastName: true } } } },
+        },
+      }).catch(() => null)
+
+      if (consultation) {
+        if (consultation.paymentStatus !== 'PAID') {
+          const meetingUrl = generateMeetingLink(consultation.id)
+          await prisma.consultation.update({
+            where: { id: consultation.id },
+            data: {
+              paymentStatus: 'PAID',
+              status:        'CONFIRMED',
+              meetingUrl,
+            },
+          })
+          console.log(`[Webhook] Consultation ${consultation.id} marked as paid and confirmed`)
+
+          if (consultation.user?.email) {
+            const consultant = consultation.consultant as { user: { firstName: string; lastName: string } } | null
+            const consultantName = consultant
+              ? `${consultant.user.firstName} ${consultant.user.lastName}`
+              : 'your consultant'
+            await sendConsultationConfirmationEmail({
+              clientEmail: consultation.user.email,
+              clientFirstName: consultation.user.firstName,
+              consultantName,
+              specialization: consultation.type,
+              scheduledAt: consultation.scheduledAt,
+              meetingUrl,
+            }).catch(err => console.error('[Webhook] Failed to send consultation confirmation email:', err))
+          }
+        }
+        break
+      }
+
+      // ── Product order payment ───────────────────────────────────────
+      const order = getOrderByRef(reference) as OrderWithDetails | null
       if (order && order.paymentStatus !== 'paid') {
-        updateOrder(order.id, {
+        updateOrder(String(order.id), {
           paymentStatus:  'paid',
           status:         'confirmed',
           paystackTxId:   data.id ? Number(data.id) : undefined,
         })
         console.log(`[Webhook] Order ${order.id} marked as paid`)
 
-        // TODO: Send confirmation email via your email provider
-        // await sendOrderConfirmationEmail(order)
+        const orderEmail = order.email ?? order.customerEmail ?? ''
+        const orderFirstName = order.firstName ?? order.customerFirstName ?? ''
+        const orderItems = (order.items ?? []).map((item) => ({
+          name: item.name ?? 'Item',
+          emoji: item.emoji ?? '📦',
+          quantity: item.quantity ?? 1,
+          price: item.price ?? 0,
+        }))
+
+        await sendOrderConfirmationEmail({
+          to: orderEmail,
+          firstName: orderFirstName,
+          orderId: String(order.id),
+          total: order.total ?? 0,
+          items: orderItems,
+        }).catch(err => console.error('[Webhook] Failed to send order confirmation email:', err))
       }
+
+      // Mirror the same status onto the durable Prisma record (see
+      // /api/paystack/initialize) so verified-purchase checks — e.g. who's
+      // allowed to leave a product review — reflect real payment status.
+      await prisma.order.updateMany({
+        where: { paystackRef: reference, paymentStatus: { not: 'PAID' } },
+        data:  { paymentStatus: 'PAID', status: 'CONFIRMED', paystackTxId: data.id === undefined ? undefined : Number(data.id) },
+      }).catch(err => console.error('[Webhook] Failed to update DB order:', err))
       break
     }
 
     case 'charge.failed': {
       const reference = data?.reference
       if (!reference) break
+
+      const consultation = await prisma.consultation.findUnique({ where: { paystackRef: reference } }).catch(() => null)
+      if (consultation) {
+        await prisma.consultation.update({
+          where: { id: consultation.id },
+          data:  { paymentStatus: 'FAILED', status: 'CANCELLED' },
+        })
+        console.log(`[Webhook] Consultation ${consultation.id} payment failed`)
+        break
+      }
 
       const order = getOrderByRef(reference)
       if (order) {
@@ -78,6 +169,10 @@ export async function POST(req: NextRequest) {
         })
         console.log(`[Webhook] Order ${order.id} payment failed`)
       }
+      await prisma.order.updateMany({
+        where: { paystackRef: reference },
+        data:  { paymentStatus: 'FAILED', status: 'CANCELLED' },
+      }).catch(err => console.error('[Webhook] Failed to update DB order:', err))
       break
     }
 

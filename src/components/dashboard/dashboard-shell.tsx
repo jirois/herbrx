@@ -168,15 +168,27 @@ const adminNav: NavSection[] = [
   },
 ];
 
+const consultantNav: NavSection[] = [
+  {
+    label: "Consultations",
+    items: [{ href: "/dashboard", icon: LayoutDashboard, label: "Overview" }],
+  },
+];
+
+
 const roleLabel: Record<string, string> = {
   CUSTOMER: "Customer",
   PRODUCER: "Producer",
   ADMIN: "Admin",
+  CONSULTANT: "Consultant",
+
 };
 const roleBadgeColor: Record<string, string> = {
   CUSTOMER: "bg-[var(--green-mid)]/30 text-[var(--green-pale)]",
   PRODUCER: "bg-amber-500/20 text-amber-300",
   ADMIN: "bg-red-500/20 text-red-300",
+  CONSULTANT: "bg-blue-500/20 text-blue-300",
+
 };
 
 interface DashboardShellProps {
@@ -219,11 +231,15 @@ export function DashboardShell({
       ? adminNav
       : role === "PRODUCER"
         ? producerNav
+      : role === "CONSULTANT"
+        ? consultantNav
         : customerNav;
 
-  const initials = user
-    ? `${user.firstName?.[0] ?? ""}${user.lastName?.[0] ?? ""}`.toUpperCase()
+
+  const initials = session?.user
+    ? `${(session.user as {firstName: string}).firstName?.[0] ?? ""}${(session.user as {lastName: string}).lastName?.[0] ?? ""}`.toUpperCase()
     : "HX";
+
 
   const Sidebar = (
     <aside

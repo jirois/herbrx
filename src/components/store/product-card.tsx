@@ -2,20 +2,28 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { ProductImage } from "@/components/ui/product-image";
 import { motion } from "framer-motion";
 import { ShoppingCart, Star, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatNaira } from "@/lib/utils";
 import { useCart } from "@/context/cart-context";
 import type { Product } from "@/types";
-import { ProductImage } from "../ui/product-image";
 
 interface ProductCardProps {
   product: Product;
   index?: number;
+  /** Real review data for this product, if the parent grid fetched it via
+   *  useReviewSummaries. Falls back to the static catalog's placeholder
+   *  rating when not provided (e.g. while the batched fetch is loading). */
+  liveSummary?: { average: number; count: number } | null;
 }
 
-export function ProductCard({ product, index = 0 }: ProductCardProps) {
+export function ProductCard({
+  product,
+  index = 0,
+  liveSummary,
+}: ProductCardProps) {
   const { addItem } = useCart();
   const [added, setAdded] = useState(false);
 
@@ -38,7 +46,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
         <div className="border border-(--cream-dark) rounded-2xl overflow-hidden bg-(--cream) hover:-translate-y-1.5 hover:shadow-[0_12px_32px_rgba(26,58,42,0.10)] transition-all duration-300 flex flex-col h-full">
           {/* Thumbnail */}
           <div
-            className="h-45 flex items-center justify-center text-[52px] relative overflow-hidden"
+            className="h-45 flex items-center justify-center relative overflow-hidden"
             style={{
               background: `linear-gradient(135deg, ${product.gradientFrom}, ${product.gradientTo})`,
             }}
@@ -51,14 +59,13 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
               />
             ) : (
               <span
-                className="select-none transition-transform duration-300 group-hover:scale-110"
+                className="text-[52px] select-none transition-transform duration-300 group-hover:scale-110"
                 role="img"
                 aria-label={product.name}
               >
                 {product.emoji}
               </span>
             )}
-
             <div className="absolute top-3 left-3">
               <Badge variant={product.badgeVariant} size="sm">
                 {product.badge}
@@ -83,13 +90,31 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
 
             {/* Rating */}
             <div className="flex items-center gap-1.5 mb-3">
-              <Star size={12} className="fill-(--gold) text-(--gold)" />
-              <span className="text-[12px] font-medium text-(--text-dark)">
-                {product.rating}
-              </span>
-              <span className="text-[12px] text-(--text-muted)">
-                ({product.reviews})
-              </span>
+              {liveSummary && liveSummary.count > 0 ? (
+                <>
+                  <Star size={12} className="fill-(--gold) text-(--gold)" />
+                  <span className="text-[12px] font-medium text-(--text-dark)">
+                    {liveSummary.average.toFixed(1)}
+                  </span>
+                  <span className="text-[12px] text-(--text-muted)">
+                    ({liveSummary.count})
+                  </span>
+                </>
+              ) : liveSummary ? (
+                <span className="text-[11px] text-(--text-muted)">
+                  No reviews yet
+                </span>
+              ) : (
+                <>
+                  <Star size={12} className="fill-(--gold) text-(--gold)" />
+                  <span className="text-[12px] font-medium text-(--text-dark)">
+                    {product.rating}
+                  </span>
+                  <span className="text-[12px] text-(--text-muted)">
+                    ({product.reviews})
+                  </span>
+                </>
+              )}
             </div>
 
             {/* Price + CTA */}

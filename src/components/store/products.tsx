@@ -8,7 +8,12 @@ import { ProductCard } from "./product-card";
 import { SectionTitle } from "@/components/ui/section-title";
 import { Button } from "@/components/ui/button";
 import { products, productCategories } from "@/data/products";
+import { useReviewSummaries } from "@/hooks/review-hooks";
 import { cn } from "@/lib/utils";
+import { Product } from "@/types";
+
+// derive ProductType from the products data to ensure correct typing
+type ProductType = Product;
 
 export function Products() {
   const [activeCategory, setActiveCategory] = useState("All Products");
@@ -18,6 +23,7 @@ export function Products() {
   });
   const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
   const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
+  const { data: reviewData } = useReviewSummaries(products.map((p) => p.id));
 
   const filtered =
     activeCategory === "All Products"
@@ -62,7 +68,12 @@ export function Products() {
         {/* Desktop grid */}
         <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-5">
           {filtered.slice(0, 8).map((product, i) => (
-            <ProductCard key={product.id} product={product} index={i} />
+            <ProductCard
+              key={product.id}
+              product={product as ProductType}
+              index={i}
+              liveSummary={reviewData?.summaries[product.id] ?? null}
+            />
           ))}
         </div>
 
@@ -79,7 +90,11 @@ export function Products() {
                   className="embla__slide"
                   style={{ flex: "0 0 80%", minWidth: 0 }}
                 >
-                  <ProductCard product={product} index={i} />
+                  <ProductCard
+                    product={product as ProductType}
+                    index={i}
+                    liveSummary={reviewData?.summaries[product.id] ?? null}
+                  />
                 </div>
               ))}
             </div>

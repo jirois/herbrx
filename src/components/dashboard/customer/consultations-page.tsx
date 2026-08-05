@@ -1,14 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
-import { useConsultations, customerApi } from "@/hooks/dashboard-hooks";
+import {
+  useConsultations,
+  customerApi,
+  useConsultantDirectory,
+  useConsultantAvailability,
+} from "@/hooks/dashboard-hooks";
+import { BOOKABLE_DAYS_AHEAD, isWorkingDay } from "@/lib/booking-config";
 import {
   Calendar,
   Clock,
-  X,
-  ChevronRight,
   Video,
   Star,
   ArrowRight,
@@ -21,8 +26,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import type { ConsultationType, ConsultationStatus } from "@/types";
-import { useRouter } from "next/navigation";
-import { useSearchParams } from "next/navigation";
+import { BookingFlow } from "@/components/ui/booking-step";
 
 // ── Types ─────
 interface Practitioner {
@@ -39,6 +43,8 @@ interface Practitioner {
   price: number;
   initials: string;
   color: string;
+  licenseNumber?: string;
+  yearsExperience?: number;
 }
 
 interface Booking {
@@ -65,116 +71,28 @@ interface ConsultationRecord {
   createdAt?: string;
 }
 
-// ── Mock data ─────
-const PRACTITIONERS: Practitioner[] = [
-  {
-    id: "p1",
-    name: "Dr. Adaeze Okonkwo",
-    title: "B.Pharm, MSc Pharmacognosy",
-    type: "HERBALIST",
-    specialties: [
-      "Herbal Safety",
-      "Drug-Herb Interactions",
-      "Nigerian Medicinal Plants",
-    ],
-    rating: 4.9,
-    reviewCount: 127,
-    languages: ["English", "Igbo"],
-    bio: "12 years evaluating Nigerian medicinal plants. Specialist in herbal safety assessments and drug-herb interaction counselling.",
-    nextAvailable: "Thu 26 Jun · 10:00 AM",
-    price: 5000,
-    initials: "AO",
-    color: "bg-[#C8DABB] text-[#2D5A3D]",
-  },
-  {
-    id: "p2",
-    name: "Dr. Emeka Nwosu",
-    title: "MBChB, Dip. Naturopathic Medicine",
-    type: "NATUROPATH",
-    specialties: ["Integrative Medicine", "Gut Health", "Hormonal Balance"],
-    rating: 4.7,
-    reviewCount: 84,
-    languages: ["English", "Yoruba"],
-    bio: "Integrative medicine physician combining conventional diagnostics with evidence-based naturopathic protocols.",
-    nextAvailable: "Fri 27 Jun · 2:00 PM",
-    price: 6500,
-    initials: "EN",
-    color: "bg-[#F5E8CE] text-[#B8832A]",
-  },
-  {
-    id: "p3",
-    name: "Dr. Fatimah Al-Hassan",
-    title: "PhD Toxicology (ABU)",
-    type: "TOXICOLOGIST",
-    specialties: [
-      "Herb Toxicology",
-      "Poisoning Management",
-      "Adulteration Detection",
-    ],
-    rating: 4.8,
-    reviewCount: 56,
-    languages: ["English", "Hausa"],
-    bio: "Toxicology PhD from ABU Zaria. Expert in herbal product contamination, adverse reactions, and emergency protocols.",
-    nextAvailable: "Mon 30 Jun · 9:00 AM",
-    price: 50,
-    initials: "FA",
-    color: "bg-[#C2DDD5] text-[#1A6B5A]",
-  },
-  {
-    id: "p4",
-    name: "Pharm. Segun Adeleke",
-    title: "B.Pharm, MPCN",
-    type: "PHARMACIST",
-    specialties: [
-      "Prescription Review",
-      "Herbal Supplements",
-      "Self-Medication Safety",
-    ],
-    rating: 4.6,
-    reviewCount: 211,
-    languages: ["English", "Yoruba", "Pidgin"],
-    bio: "Registered pharmacist with 8 years in clinical practice. Specialises in counselling patients on safe supplement use alongside prescription medications.",
-    nextAvailable: "Thu 26 Jun · 3:30 PM",
-    price: 3500,
-    initials: "SA",
-    color: "bg-[#DDD0C8] text-[#5A3A2A]",
-  },
+const AVATAR_COLORS = [
+  "bg-[#C8DABB] text-[#2D5A3D]",
+  "bg-[#F5E8CE] text-[#B8832A]",
+  "bg-[#C2DDD5] text-[#1A6B5A]",
+  "bg-[#DDD0C8] text-[#5A3A2A]",
 ];
+const CONSULTATION_PRICES: Record<ConsultationType, number> = {
+  HERBALIST: 5000,
+  NATUROPATH: 6500,
+  TOXICOLOGIST: 7500,
+  PHARMACIST: 8500,
+};
 
-const AVAILABLE_SLOTS = [
-  "Thu 26 Jun · 10:00 AM",
-  "Thu 26 Jun · 11:30 AM",
-  "Thu 26 Jun · 3:30 PM",
-  "Fri 27 Jun · 9:00 AM",
-  "Fri 27 Jun · 2:00 PM",
-  "Mon 30 Jun · 9:00 AM",
-  "Mon 30 Jun · 11:00 AM",
-  "Mon 30 Jun · 3:00 PM",
-];
-
-const INITIAL_BOOKINGS: Booking[] = [
-  {
-    id: "bk1",
-    practitionerId: "p1",
-    practitionerName: "Dr. Adaeze Okonkwo",
-    type: "HERBALIST",
-    status: "CONFIRMED",
-    scheduledAt: "Thu 26 Jun · 10:00 AM",
-    meetingUrl: "https://meet.herbrx.ng/session/bk1",
-    bookedAt: "2025-06-20",
-  },
-  {
-    id: "bk2",
-    practitionerId: "p4",
-    practitionerName: "Pharm. Segun Adeleke",
-    type: "PHARMACIST",
-    status: "COMPLETED",
-    scheduledAt: "Mon 16 Jun · 9:30 AM",
-    notes:
-      "Reviewed interaction between Metformin and Bitter Leaf extract. Advised caution and glucose monitoring.",
-    bookedAt: "2025-06-14",
-  },
-];
+function initials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase();
+}
 
 // ── Config ──
 const typeConfig: Record<
@@ -241,12 +159,13 @@ export function ConsultationsPage() {
   const { data: consultData, mutate: refetchConsults } = useConsultations();
   const [hasSynced, setHasSynced] = useState(false);
   const [tab, setTab] = useState<"upcoming" | "browse">("upcoming");
-  const [bookings, setBookings] = useState<Booking[]>(INITIAL_BOOKINGS);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [selected, setSelected] = useState<Practitioner | null>(null);
   const [bookingStep, setBookingStep] = useState<BookingStep>("browse");
-  const [selectedSlot, setSelectedSlot] = useState<string>("");
-  const [bookingNotes, setBookingNotes] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [selectedSlotIso, setSelectedSlotIso] = useState<string>("");
+  // const [bookingNotes, setBookingNotes] = useState("");
+  // const [submitting, setSubmitting] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<ConsultationType | "ALL">("ALL");
   // Verifying-payment overlay state, shown while we confirm a return from
@@ -254,16 +173,43 @@ export function ConsultationsPage() {
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
 
+  const { data: directoryData, loading: directoryLoading } =
+    useConsultantDirectory(filterType !== "ALL" ? filterType : undefined);
+  const filteredPractitioners: Practitioner[] = (directoryData?.consultants ??
+    []) as unknown as Practitioner[];
+
+  const bookableDays = useMemo(() => {
+    const out: Date[] = [];
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 1);
+    while (out.length < BOOKABLE_DAYS_AHEAD) {
+      if (isWorkingDay(d)) out.push(new Date(d));
+      d.setDate(d.getDate() + 1);
+    }
+    return out;
+  }, []);
+
+  const dateISO = selectedDay ? selectedDay.toISOString().slice(0, 10) : null;
+  const { data: availData } = useConsultantAvailability(
+    selected?.id ?? null,
+    dateISO,
+  );
+  const slots = availData?.slots ?? [];
+
+  // Sync real DB consultations into local state on load, and again after
+  // every mutation (hasSynced reset to false before each refetch).
+
   if (consultData?.consultations && !hasSynced) {
     const shaped: Booking[] = (
-      consultData.consultations as unknown as ConsultationRecord[]
+      consultData.consultations as unknown as Array<
+        ConsultationRecord & { consultantId?: string; consultantName?: string }
+      >
     ).map((c) => ({
       id: c.id,
-      practitionerId: c.practitionerId ?? "",
+      practitionerId: c.consultantId ?? c.practitionerId ?? "",
       practitionerName:
-        c.practitionerName ??
-        PRACTITIONERS.find((p) => p.id === c.practitionerId)?.name ??
-        "Practitioner",
+        c.consultantName ?? c.practitionerName ?? "Practitioner",
       type: c.type,
       status: c.status,
       scheduledAt: c.scheduledAt
@@ -285,16 +231,17 @@ export function ConsultationsPage() {
     setHasSynced(true);
   }
 
+  // ── Handle return from Paystack checkout ───
+  // Paystack's callback_url points back here with ?ref=<reference>.
+
   useEffect(() => {
     const ref = searchParams.get("ref");
     if (!ref) return;
-
-    // avoid synchronous setState during render by deferring state updates
-    setTimeout(() => {
+    // Schedule state updates asynchronously to avoid synchronous setState inside effect
+    Promise.resolve().then(() => {
       setVerifying(true);
       setVerifyError(null);
-    }, 0);
-
+    });
     customerApi
       .verifyConsultationPayment(ref)
       .then(() => {
@@ -311,116 +258,22 @@ export function ConsultationsPage() {
       .catch((err: unknown) => {
         console.error("[Payment verify]", err);
         setVerifying(false);
-        const message =
-          err instanceof Error
-            ? err.message
-            : typeof err === "string"
-              ? err
-              : "We could not confirm your payment. If you were charged, please contact support.";
-        setVerifyError(message);
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        setVerifyError(
+          errorMessage ||
+            "We could not confirm your payment. If you were charged, please contact support.",
+        );
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  const filteredPractitioners =
-    filterType === "ALL"
-      ? PRACTITIONERS
-      : PRACTITIONERS.filter((p) => p.type === filterType);
-
   function startBooking(p: Practitioner) {
     setSelected(p);
+    setSelectedDay(bookableDays[0]);
+    setSelectedSlotIso("");
     setBookingStep("slot");
     setTab("browse");
     setBookingError(null);
-  }
-
-  async function confirmBooking() {
-    if (!selected || !selectedSlot) return;
-    setSubmitting(true);
-    setBookingError(null);
-    try {
-      //  1. Create a baseline date object matching right now
-      let baseDate = new Date();
-
-      try {
-        // Attempt to extract times if format looks like "14:30" or "09:15"
-        const [hours, minutes] = selectedSlot.split(":");
-        if (hours && minutes) {
-          baseDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
-        } else {
-          // If it's a structural format like "10:00 AM", handle regular expressions
-          const match = selectedSlot.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
-          if (match) {
-            let h = parseInt(match[1], 10);
-            const m = parseInt(match[2], 10);
-            const ampm = match[3].toUpperCase();
-            if (ampm === "PM" && h < 12) h += 12;
-            if (ampm === "AM" && h === 12) h = 0;
-            baseDate.setHours(h, m, 0, 0);
-          } else {
-            // Attempt standard JavaScript fallback parsing
-            const backupParse = new Date(selectedSlot);
-            if (!isNaN(backupParse.getTime())) {
-              baseDate = backupParse;
-            }
-          }
-        }
-      } catch (parseErr) {
-        console.warn(
-          "Could not parse selectedSlot layout, defaulting safely to current time.",
-          parseErr,
-        );
-      }
-
-      // 🎯 2. Absolute Security Layer: If baseDate is STILL an invalid value, force it to 'Now'
-      if (isNaN(baseDate.getTime())) {
-        baseDate = new Date();
-      }
-
-      const finalDateString = baseDate.toISOString();
-
-      const result = await customerApi.bookConsultation({
-        practitionerId: selected.id,
-        practionerName: selected.name,
-        type: selected.type,
-        scheduledAt: finalDateString,
-        notes: bookingNotes,
-      });
-      console.log("[confirmBooking] RAW API RESPONSE:", result);
-
-      // 2. Extract string
-      const targetUrl = result?.authorizationUrl?.authorization_url;
-
-      if (!targetUrl || typeof targetUrl !== "string") {
-        console.error(
-          "[confirmBooking] Failed to extract target checkout string:",
-          result,
-        );
-        throw new Error(
-          "Payment could not be started. Invalid authorization URL payload configuration.",
-        );
-      }
-
-      // window.location.href = result.authorizationUrl;
-      window.location.href = targetUrl;
-    } catch (err: unknown) {
-      console.error("[confirmBooking]", err);
-      setSubmitting(false);
-      const message =
-        err instanceof Error
-          ? err.message
-          : typeof err === "string"
-            ? err
-            : "Could not start payment. Please try again.";
-      setBookingError(message);
-    }
-  }
-  function resetBooking() {
-    setSelected(null);
-    setBookingStep("browse");
-    setSelectedSlot("");
-    setBookingNotes("");
-    setTab("upcoming");
   }
 
   return (
@@ -428,221 +281,9 @@ export function ConsultationsPage() {
       heading="Consultations"
       subheading="Book micro-consultations with certified herbalists, naturopaths, toxicologists, and pharmacists."
     >
-      <AnimatePresence>
-        {selected && bookingStep !== "browse" && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) resetBooking();
-            }}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 16 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96 }}
-              transition={{ duration: 0.2 }}
-              className="bg-[#1A2030] border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl"
-            >
-              <>
-                {/* Modal header */}
-                <div className="flex items-center gap-3 p-5 border-b border-white/[0.07]">
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-[14px] shrink-0 ${selected.color}`}
-                  >
-                    {selected.initials}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[14px] font-semibold text-white">
-                      {selected.name}
-                    </p>
-                    <p className="text-[12px] text-white/40">
-                      {selected.title}
-                    </p>
-                  </div>
-                  <button
-                    onClick={resetBooking}
-                    className="text-white/30 hover:text-white"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
+      <BookingFlow />
 
-                <div className="p-5">
-                  {/* Step: pick slot */}
-                  {bookingStep === "slot" && (
-                    <div>
-                      <p className="text-[13px] text-white/50 mb-4">
-                        Select an available time slot for your 30-minute
-                        session.
-                      </p>
-                      <div className="grid grid-cols-2 gap-2 mb-5">
-                        {AVAILABLE_SLOTS.map((slot) => (
-                          <button
-                            key={slot}
-                            onClick={() => setSelectedSlot(slot)}
-                            className={`text-left p-3 rounded-xl border text-[13px] transition-all ${selectedSlot === slot ? "border-(--green-mid) bg-(--green-mid)/15 text-white" : "border-white/8 bg-white/3 text-white/60 hover:border-white/20 hover:text-white"}`}
-                          >
-                            <Calendar size={12} className="mb-1 opacity-60" />
-                            {slot}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="flex items-center justify-between text-[13px] text-white/40 mb-5">
-                        <span className="flex items-center gap-1.5">
-                          <Clock size={13} /> 30-minute session
-                        </span>
-                        <span className="font-semibold text-white">
-                          ₦{selected.price.toLocaleString()}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => setBookingStep("notes")}
-                        disabled={!selectedSlot}
-                        className="w-full h-11 bg-(--green-mid) hover:bg-(--green-light) disabled:opacity-30 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
-                      >
-                        Continue <ChevronRight size={15} />
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Step: notes */}
-                  {bookingStep === "notes" && (
-                    <div>
-                      <p className="text-[13px] text-white/50 mb-4">
-                        Let <span className="text-white">{selected.name}</span>{" "}
-                        know what you&apos;d like to discuss.
-                      </p>
-                      <textarea
-                        value={bookingNotes}
-                        onChange={(e) => setBookingNotes(e.target.value)}
-                        placeholder="e.g. I'm taking Metformin for Type 2 diabetes and want to understand if I can safely use Bitter Leaf extract alongside it…"
-                        rows={5}
-                        className="w-full px-4 py-3 bg-white/6 border border-white/10 rounded-xl text-[14px] text-white placeholder:text-white/25 outline-none focus:border-(--green-mid) resize-none transition-colors"
-                      />
-                      <p className="text-[11px] text-white/30 mt-2 mb-5">
-                        This is shared privately with your practitioner before
-                        the session.
-                      </p>
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => setBookingStep("slot")}
-                          className="h-11 px-5 border border-white/10 text-white/50 hover:text-white rounded-xl text-[14px] transition-colors"
-                        >
-                          ← Back
-                        </button>
-                        <button
-                          onClick={() => setBookingStep("confirm")}
-                          className="flex-1 h-11 bg-(--green-mid) hover:bg-(--green-light) text-white font-medium rounded-xl transition-colors"
-                        >
-                          Review Booking →
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step: confirm */}
-                  {bookingStep === "confirm" && (
-                    <div>
-                      <p className="text-[13px] text-white/50 mb-4">
-                        Confirm your booking details.
-                      </p>
-                      <div className="space-y-3 mb-5">
-                        {[
-                          {
-                            label: "Practitioner",
-                            value: `${selected.name} · ${selected.title}`,
-                          },
-                          {
-                            label: "Specialty",
-                            value: typeConfig[selected.type].label,
-                          },
-                          { label: "Date & Time", value: selectedSlot },
-                          {
-                            label: "Duration",
-                            value: "30 minutes · Video call",
-                          },
-                          {
-                            label: "Fee",
-                            value: `₦${selected.price.toLocaleString()}`,
-                          },
-                        ].map((f) => (
-                          <div
-                            key={f.label}
-                            className="flex items-start justify-between gap-4 py-2 border-b border-white/5"
-                          >
-                            <span className="text-[12px] text-white/35">
-                              {f.label}
-                            </span>
-                            <span className="text-[13px] text-white font-medium text-right">
-                              {f.value}
-                            </span>
-                          </div>
-                        ))}
-                        {bookingNotes && (
-                          <div className="pt-1">
-                            <p className="text-[12px] text-white/35 mb-1">
-                              Your Notes
-                            </p>
-                            <p className="text-[13px] text-white/60 leading-relaxed">
-                              {bookingNotes}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                      {bookingError && (
-                        <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 mb-4">
-                          <AlertTriangle
-                            size={15}
-                            className="text-red-400 shrink-0 mt-0.5"
-                          />
-                          <p className="text-[13px] text-red-300">
-                            {bookingError}
-                          </p>
-                        </div>
-                      )}
-
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => setBookingStep("notes")}
-                          className="h-11 px-5 border border-white/10 text-white/50 hover:text-white rounded-xl text-[14px] transition-colors"
-                        >
-                          ← Back
-                        </button>
-                        <button
-                          onClick={confirmBooking}
-                          disabled={submitting}
-                          className="flex-1 h-11 bg-(--green-deep) hover:bg-(--green-mid) disabled:opacity-60 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
-                        >
-                          {submitting ? (
-                            <>
-                              <Loader2 size={14} className="animate-spin" />{" "}
-                              Redirecting to payment…
-                            </>
-                          ) : (
-                            <>
-                              Continue to Payment — ₦
-                              {selected.price.toLocaleString()}
-                            </>
-                          )}
-                        </button>
-                      </div>
-                      <p className="text-[11px] text-white/25 text-center mt-3">
-                        You&apos;ll be redirected to Paystack&apos;s secure
-                        checkout. Your session is only confirmed, and your
-                        meeting link generated, once payment succeeds.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      {/*  // ── Booking flow overlay ───── */}
+      {/* Verifying payment overlay — shown immediately on return from Paystack checkout */}
       <AnimatePresence>
         {verifying && (
           <motion.div
@@ -718,9 +359,6 @@ export function ConsultationsPage() {
           ) : (
             <div className="space-y-4">
               {bookings.map((b, i) => {
-                const practitioner = PRACTITIONERS.find(
-                  (p) => p.id === b.practitionerId,
-                );
                 const sc = statusConfig[b.status];
                 const tc = typeConfig[b.type];
                 return (
@@ -733,9 +371,13 @@ export function ConsultationsPage() {
                   >
                     <div className="flex items-start gap-4 p-5">
                       <div
-                        className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-[15px] shrink-0 ${practitioner?.color ?? "bg-white/10 text-white"}`}
+                        className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-[15px] shrink-0 ${b.practitionerName ? AVATAR_COLORS[i % AVATAR_COLORS.length] : "bg-white/10 text-white"}`}
                       >
-                        {practitioner?.initials ?? <User size={18} />}
+                        {b.practitionerName ? (
+                          initials(b.practitionerName)
+                        ) : (
+                          <User size={18} />
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -763,7 +405,7 @@ export function ConsultationsPage() {
                         </div>
                         {b.notes && (
                           <p className="mt-2 text-[13px] text-white/50 leading-relaxed italic">
-                            &qout;{b.notes}&qout;
+                            &rdquo{b.notes}&ldquo
                           </p>
                         )}
                       </div>
@@ -822,94 +464,90 @@ export function ConsultationsPage() {
           </div>
 
           <div className="grid sm:grid-cols-2 gap-4">
-            {filteredPractitioners.map((p, i) => {
-              const tc = typeConfig[p.type];
-              return (
-                <motion.div
-                  key={p.id}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.07 }}
-                  className="bg-white/4 border border-white/8 rounded-2xl p-6 flex flex-col hover:border-white/20 transition-all"
-                >
-                  {/* Header */}
-                  <div className="flex items-start gap-3 mb-4">
-                    <div
-                      className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-[15px] shrink-0 ${p.color}`}
-                    >
-                      {p.initials}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[15px] font-semibold text-white">
-                        {p.name}
-                      </p>
-                      <p className="text-[12px] text-white/40">{p.title}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Stars rating={p.rating} />
-                        <span className="text-[11px] text-white/35">
-                          {p.rating} ({p.reviewCount} reviews)
-                        </span>
+            {directoryLoading && filteredPractitioners.length === 0 ? (
+              <div className="sm:col-span-2 py-16 text-center text-white/40 text-[13px]">
+                <Loader2 size={18} className="animate-spin inline-block mr-2" />{" "}
+                Loading practitioners…
+              </div>
+            ) : filteredPractitioners.length === 0 ? (
+              <div className="sm:col-span-2 py-16 text-center text-white/40 text-[13px]">
+                No practitioners available for this specialty right now.
+              </div>
+            ) : (
+              filteredPractitioners.map((p, i) => {
+                const tc = typeConfig[p.type];
+                return (
+                  <motion.div
+                    key={p.id}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.07 }}
+                    className="bg-white/4 border border-white/8 rounded-2xl p-6 flex flex-col hover:border-white/20 transition-all"
+                  >
+                    {/* Header */}
+                    <div className="flex items-start gap-3 mb-4">
+                      <div
+                        className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-[15px] shrink-0 ${AVATAR_COLORS[i % AVATAR_COLORS.length]}`}
+                      >
+                        {initials(p.name)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[15px] font-semibold text-white">
+                          {p.name}
+                        </p>
+                        <p className="text-[12px] text-white/40">
+                          {p.licenseNumber ? p.licenseNumber : tc.label}
+                        </p>
+                        {p.rating != null && (
+                          <div className="flex items-center gap-2 mt-1">
+                            <Stars rating={p.rating} />
+                            <span className="text-[11px] text-white/35">
+                              {p.rating.toFixed(1)} ({p.reviewCount} reviews)
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
 
-                  {/* Type badge */}
-                  <span
-                    className={`inline-flex items-center gap-1.5 text-[11px] font-medium self-start px-2.5 py-1 rounded-full bg-white/6 ${tc.color} mb-3`}
-                  >
-                    {tc.icon} {tc.label}
-                  </span>
+                    {/* Type badge */}
+                    <span
+                      className={`inline-flex items-center gap-1.5 text-[11px] font-medium self-start px-2.5 py-1 rounded-full bg-white/6 ${tc.color} mb-3`}
+                    >
+                      {tc.icon} {tc.label}
+                    </span>
 
-                  <p className="text-[13px] text-white/50 leading-relaxed mb-4 flex-1">
-                    {p.bio}
-                  </p>
+                    <p className="text-[13px] text-white/50 leading-relaxed mb-4 flex-1">
+                      {p.bio ?? "Verified HerbRx consultant."}
+                    </p>
 
-                  {/* Specialties */}
-                  <div className="flex flex-wrap gap-1.5 mb-4">
-                    {p.specialties.map((s) => (
-                      <span
-                        key={s}
-                        className="text-[11px] text-white/40 bg-white/5 border border-white/[0.07] px-2 py-0.5 rounded-lg"
-                      >
-                        {s}
-                      </span>
-                    ))}
-                  </div>
+                    {p.yearsExperience != null && (
+                      <div className="flex items-center gap-1.5 text-[12px] text-white/35 mb-4">
+                        {p.yearsExperience} years of experience
+                      </div>
+                    )}
 
-                  {/* Languages */}
-                  <div className="flex items-center gap-1.5 text-[12px] text-white/35 mb-4">
-                    🗣 {p.languages.join(", ")}
-                  </div>
-
-                  {/* Footer */}
-                  <div className="flex items-center justify-between pt-4 border-t border-white/6">
-                    <div>
-                      <p className="text-[11px] text-white/30">
-                        Next available
-                      </p>
-                      <p className="text-[12px] text-(--green-pale) font-medium">
-                        {p.nextAvailable}
-                      </p>
+                    {/* Footer */}
+                    <div className="flex items-center justify-end pt-4 border-t border-white/6">
+                      <div className="text-right">
+                        <p className="text-[11px] text-white/30">
+                          30-min session
+                        </p>
+                        <p className="text-[15px] font-semibold text-white">
+                          ₦{CONSULTATION_PRICES[p.type].toLocaleString()}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-[11px] text-white/30">
-                        30-min session
-                      </p>
-                      <p className="text-[15px] font-semibold text-white">
-                        ₦{p.price.toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
 
-                  <button
-                    onClick={() => startBooking(p)}
-                    className="mt-4 w-full h-10 bg-(--green-mid) hover:bg-(--green-light) text-white text-[13px] font-medium rounded-xl transition-colors flex items-center justify-center gap-1.5"
-                  >
-                    <Video size={14} /> Book Session
-                  </button>
-                </motion.div>
-              );
-            })}
+                    <button
+                      onClick={() => startBooking(p)}
+                      className="mt-4 w-full h-10 bg-(--green-mid) hover:bg-(--green-light) text-white text-[13px] font-medium rounded-xl transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <Video size={14} /> Book Session
+                    </button>
+                  </motion.div>
+                );
+              })
+            )}
           </div>
         </div>
       )}

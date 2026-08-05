@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession }          from 'next-auth'
+import { authOptions }               from '@/lib/auth'
 import { initializeTransaction, generateReference } from '@/lib/paystack'
 import { saveOrder } from '@/lib/orders'
+import { prisma }    from '@/lib/prisma'
 import type { Order, OrderCustomer, CartItem } from '@/types'
 
 export async function POST(req: NextRequest) {
@@ -68,19 +71,61 @@ export async function POST(req: NextRequest) {
     }
     saveOrder(order)
 
+    // Also persist durably to the database, keyed to the logged-in user
+    // when there is one. The in-memory store above resets on every
+    // deploy/restart and has no userId at all, which made it unusable as
+    // a source of truth for anything that needs to survive — like knowing
+    // whether someone actually bought a product (used by the review
+    // system's "verified purchase" gate). This runs best-effort so a DB
+    // hiccup here never blocks checkout.
+    const session = await getServerSession(authOptions).catch(() => null)
+    try {
+      await prisma.order.create({
+        data: {
+          id:            orderId,
+          userId:        session?.user?.id ?? null,
+          paystackRef:   reference,
+          custFirstName: customer.firstName,
+          custLastName:  customer.lastName,
+          custEmail:     customer.email,
+          custPhone:     customer.phone,
+          custAddress:   customer.address,
+          custCity:      customer.city,
+          custState:     customer.state,
+          subtotal,
+          shipping,
+          total,
+          paymentMethod: 'CARD',
+          paymentStatus: 'PENDING',
+          status:        'PENDING',
+          items: {
+            create: items.map(i => ({
+              productId:    i.product.id,
+              productName:  i.product.name,
+              productEmoji: i.product.emoji,
+              price:        i.product.price,
+              quantity:     i.quantity,
+            })),
+          },
+        },
+      })
+    } catch (dbErr) {
+      console.error('[Paystack Initialize] Failed to persist order to DB:', dbErr)
+    }
+
     return NextResponse.json({
       orderId,
       reference,
       authorizationUrl:  paystackRes.data.authorization_url,
       accessCode:        paystackRes.data.access_code,
     })
-  } catch (error: unknown) {
-    console.error('[Paystack Initialize]', error)
-    const message =
-      error instanceof Error ? error.message : 'Internal server error'
+  } catch (err: unknown) {
+    console.error('[Paystack Initialize]', err)
+    const errorMessage =
+      err instanceof Error ? err.message : typeof err === 'string' ? err : 'Internal server error'
 
     return NextResponse.json(
-      { error: message },
+      { error: errorMessage },
       { status: 500 }
     )
   }

@@ -13,7 +13,8 @@ export function Newsletter() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    const trimmed = email.trim();
+    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
       setStatus("error");
       setMessage("Please enter a valid email address.");
       return;
@@ -21,12 +22,30 @@ export function Newsletter() {
 
     setStatus("loading");
 
-    // Replace with your actual API call (Mailchimp, MailerLite, etc.)
-    await new Promise((r) => setTimeout(r, 1200));
+    try {
+      const res = await fetch("/api/newsletter/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmed, source: "homepage_newsletter" }),
+      });
+      const data = await res.json().catch(() => ({}));
 
-    setStatus("success");
-    setMessage("You're subscribed! Check your inbox for a welcome email.");
-    setEmail("");
+      if (!res.ok) {
+        setStatus("error");
+        setMessage(data?.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+
+      setStatus("success");
+      setMessage(
+        data?.message ??
+          "You're subscribed! Check your inbox for a welcome email.",
+      );
+      setEmail("");
+    } catch {
+      setStatus("error");
+      setMessage("Network error — please check your connection and try again.");
+    }
   }
 
   return (

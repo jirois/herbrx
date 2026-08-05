@@ -40,6 +40,7 @@ model User {
   incubationSubmissions IncubationSubmission[]
   interactionFeedback   InteractionFeedback[]
   productReviews        ProductReview[]
+  consultantProfile     ConsultantProfile?
 
   @@index([email])
   @@index([role])
@@ -49,6 +50,7 @@ enum UserRole {
   CUSTOMER
   PRODUCER
   ADMIN
+  CONSULTANT
 }
 
 // OTP codes
@@ -198,6 +200,7 @@ model Consultation {
   userId           String
   practitionerId   String?
   practitionerName String? // snapshot at booking time — practitioner list is currently static, not a DB table
+  consultantId     String?
   type             ConsultationType
   status           ConsultationStatus @default(REQUESTED)
   scheduledAt      DateTime?
@@ -207,14 +210,27 @@ model Consultation {
   paystackRef      String?            @unique
   paymentStatus    ConsultPayStatus   @default(PENDING)
 
+  // platformFeeRate snapshot at completion time so historical earnings
+  // don't shift if the platform fee percentage changes later.
+  platformFeeRate Float? // e.g 0.15 = platform keeps 15%
+  payoutStatus    PayoutStatus @default(NONE)
+
+  // Client rates the consultant after COMPLETED — powers the consultant
+  rating   Int? // 1-5
+  feedback String?   @db.Text
+  ratedAt  DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  consultant    ConsultantProfile?       @relation(fields: [consultantId], references: [id])
+  notifications ConsultantNotification[]
 
   @@index([userId])
   @@index([status])
   @@index([paystackRef])
+  @@index([consultantId])
 }
 
 enum ConsultationType {
@@ -235,6 +251,70 @@ enum ConsultPayStatus {
   PENDING
   PAID
   FAILED
+}
+
+enum PayoutStatus {
+  NONE
+  PENDING
+  PAID
+}
+
+model ConsultantProfile {
+  id                String           @id @default(cuid())
+  userId            String           @unique
+  specialization    ConsultationType // reuses the existing enum — it already
+  bio               String?          @db.Text
+  licenseNumber     String? // pharmacist/toxicologist license, optional for herbalists
+  yearsExperience   Int?
+  avatarUrl         String?
+  status            ConsultantStatus @default(ACTIVE)
+  // Set true on creation; cleared once the consultant changes their admin-
+  mustResetPassword Boolean          @default(true)
+  createdBy         String // Admin user id who provisioned this account
+  deactivatedAt     DateTime?
+  deactivatedBy     String? // Admin user id
+  deactivationNote  String?          @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user          User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  consultations Consultation[]
+  notifications ConsultantNotification[]
+
+  @@index([status])
+  @@index([specialization])
+}
+
+enum ConsultantStatus {
+  ACTIVE
+  INACTIVE
+}
+
+// ── Consultant Notifications ────
+model ConsultantNotification {
+  id             String               @id @default(cuid())
+  consultantId   String
+  consultationId String?
+  type           ConsultantNotifyType
+  title          String
+  body           String               @db.Text
+  isRead         Boolean              @default(false)
+  createdAt      DateTime             @default(now())
+
+  consultant   ConsultantProfile @relation(fields: [consultantId], references: [id], onDelete: Cascade)
+  consultation Consultation?     @relation(fields: [consultationId], references: [id], onDelete: SetNull)
+
+  @@index([consultantId])
+  @@index([consultantId, isRead])
+  @@index([createdAt])
+}
+
+enum ConsultantNotifyType {
+  NEW_BOOKING
+  CANCELLED
+  RESCHEDULED
+  REMINDER
 }
 
 // Customer: Safety Alert Subscriptions

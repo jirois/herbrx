@@ -8,6 +8,7 @@ import { CartItem } from "./cart-item";
 import { Button } from "@/components/ui/button";
 import { ProductCard } from "@/components/store/product-card";
 import { getFeaturedProducts } from "@/data/products";
+import { useReviewSummaries } from "@/hooks/review-hooks";
 import { formatNaira } from "@/lib/utils";
 
 const SHIPPING_THRESHOLD = 15000;
@@ -17,6 +18,9 @@ export function CartPage() {
   const suggestions = getFeaturedProducts(4)
     .filter((p) => !items.find((i) => i.product.id === p.id))
     .slice(0, 4);
+  const { data: suggestionReviewData } = useReviewSummaries(
+    suggestions.map((p) => p.id),
+  );
   const amountToFree = Math.max(0, SHIPPING_THRESHOLD - subtotal);
 
   return (
@@ -37,7 +41,7 @@ export function CartPage() {
           </div>
           <Link
             href="/store"
-            className="flex items-center gap-1.5 text-[14px] text-(--text-muted) hover:text-(--green-mid) transition-colors"
+            className="flex items-center gap-1.5 text-[14px] text-(--text-muted) hover:text-(--green-mid)] transition-colors"
           >
             <ArrowLeft size={15} />
             Continue Shopping
@@ -158,7 +162,12 @@ export function CartPage() {
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               {suggestions.map((p, i) => (
-                <ProductCard key={p.id} product={p} index={i} />
+                <ProductCard
+                  key={p.id}
+                  product={p}
+                  index={i}
+                  liveSummary={suggestionReviewData?.summaries[p.id] ?? null}
+                />
               ))}
             </div>
           </div>

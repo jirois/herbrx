@@ -1,51 +1,50 @@
-import {   StoreProductsResponse, StoreProductResponse } from "@/types";
-import { useFetch } from "@/lib/api-helpers";
+// import {   StoreProductsResponse, StoreProductResponse } from "@/types";
 
-export function useStoreProducts(params?: {
-    category?: string
-    search?: string
-}){
-    const query = new URLSearchParams()
+// export function useStoreProducts(params?: {
+//     category?: string
+//     search?: string
+// }){
+//     const query = new URLSearchParams()
 
-    if (params?.category)
-        query.set("category", params.category)
+//     if (params?.category)
+//         query.set("category", params.category)
 
-    if (params?.search)
-        query.set("search", params.search)
+//     if (params?.search)
+//         query.set("search", params.search)
 
-    const qs = query.toString()
+//     const qs = query.toString()
 
-    return useFetch<StoreProductsResponse>(
-    `/api/store/products${qs ? `?${qs}` : ""}`
-  )
-}
-/**
- * Product Detail
- *
- * const { data } = useStoreProduct(slug)
- */
-export function useStoreProduct(slug?: string) {
-    const url = slug 
-       ? `/api/store/products/${slug}`
-       : null;
+//     return useFetch<StoreProductsResponse>(
+//     `/api/store/products${qs ? `?${qs}` : ""}`
+//   )
+// }
+// /**
+//  * Product Detail
+//  *
+//  * const { data } = useStoreProduct(slug)
+//  */
+// export function useStoreProduct(slug?: string) {
+//     const url = slug 
+//        ? `/api/store/products/${slug}`
+//        : null;
 
-     return useFetch<StoreProductResponse>(url)
-}
+//      return useFetch<StoreProductResponse>(url)
+// }
 
-/**
- * Category Products
- */
-export function useCategoryProducts(category: string) {
-    return useFetch<StoreProductResponse>(
-        `/api/store/products?category=${encodeURIComponent(category)}`
-    )
-}
+// /**
+//  * Category Products
+//  */
+// export function useCategoryProducts(category: string) {
+//     return useFetch<StoreProductResponse>(
+//         `/api/store/products?category=${encodeURIComponent(category)}`
+//     )
+// }
 
-/**
- * Search Products
- */
-export function useSearchProducts(search: string) {
-    return useFetch<StoreProductsResponse>(
-        `/api/store/products?search=${encodeURIComponent(search)}`
-    )
-}
+// /**
+//  * Search Products
+//  */
+// export function useSearchProducts(search: string) {
+//     return useFetch<StoreProductsResponse>(
+//         `/api/store/products?search=${encodeURIComponent(search)}`
+//     )
+// }

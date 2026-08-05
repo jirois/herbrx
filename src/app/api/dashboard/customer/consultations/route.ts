@@ -2,6 +2,9 @@ import { NextRequest }  from 'next/server'
 import { prisma }       from '@/lib/prisma'
 import { requireAuth, ok, created, badRequest, serverError } from '@/lib/api-helpers'
 import { initializeTransaction, generateReference } from '@/lib/paystack'
+import { validateConsultantSlot } from '@/lib/consultant-booking'
+import { notifyConsultant } from '@/lib/consultant-notify'
+
 
 // Pricing must match what's shown to the user in the booking UI.
 // In production this should live in a Practitioner DB table rather than
@@ -11,7 +14,7 @@ import { initializeTransaction, generateReference } from '@/lib/paystack'
 const CONSULTATION_PRICES: Record<string, number> = {
   HERBALIST:    5000,
   NATUROPATH:   6500,
-  TOXICOLOGIST: 50,
+  TOXICOLOGIST: 7500,
   PHARMACIST:   8500,
 }
 
@@ -26,9 +29,17 @@ export async function GET(req: NextRequest) {
     const consultations = await prisma.consultation.findMany({
       where:   { userId },
       orderBy: { createdAt: 'desc' },
+      include: {
+        consultant: { include: { user: { select: { firstName: true, lastName: true } } } },
+      },
     })
 
-    return ok({ consultations })
+    return ok({
+      consultations: consultations.map(c => ({
+        ...c,
+        consultantName: c.consultant ? `${c.consultant.user.firstName} ${c.consultant.user.lastName}` : c.practitionerName,
+      })),
+    })
   } catch (e) {
     return serverError(e)
   }
@@ -49,11 +60,12 @@ export async function POST(req: NextRequest) {
   if (error) return error
 
   try {
-    const userId = (session!.user as { id: string }).id
-    const email  = (session!.user as { email: string }).email
+    const user = session!.user as { id: string; email: string; firstName?: string; lastName?: string }
+    const userId = user.id
+    const email  = user.email
     const body   = await req.json()
 
-    const { type, scheduledAt, notes, practitionerId, practionerName } = body
+    const { type, scheduledAt, notes, consultantId } = body
 
     if (!type || !scheduledAt) {
       return badRequest('type and scheduledAt are required')
@@ -68,18 +80,26 @@ export async function POST(req: NextRequest) {
     if (!validTypes.includes(type)) {
       return badRequest(`type must be one of: ${validTypes.join(', ')}`)
     }
+    const slotDate = new Date(scheduledAt)
+    if (isNaN(slotDate.getTime())) return badRequest('scheduledAt must be a valid date')
 
+    const validation = await validateConsultantSlot(consultantId, type, slotDate)
+    if (!validation.ok) {
+      return badRequest(validation.message)
+    }
+
+    const consultant = validation.consultant
     const priceNaira = CONSULTATION_PRICES[type]
     const reference  = generateReference('CONSULT')
 
     const consultation = await prisma.consultation.create({
       data: {
         userId,
-        practitionerId: practitionerId ?? null,
+        consultantId: consultant.id,
         // practitionerName: practionerName ?? null,
         type,
         status:      'REQUESTED',
-        scheduledAt: new Date(scheduledAt),
+        scheduledAt: slotDate,
         notes:       notes ?? null,
         meetingUrl:  null, // not set yet 
         amount:   priceNaira * 100, // Kobo
@@ -124,10 +144,18 @@ export async function POST(req: NextRequest) {
       return serverError(new Error(paystackRes.message ?? 'Paystack initialization failed'))
     }
 
+     await notifyConsultant({
+      consultantId: validation.consultant.id,
+      consultationId: consultation.id,
+      type: 'NEW_BOOKING',
+      clientName: `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim(),
+      scheduledAt: slotDate,
+    })
+
 
     return created({ 
       consultation,
-      authorizationUrl: paystackRes.data,
+      authorizationUrl: paystackRes.data.authorization_url,
       // authorization_uri,
       reference,
 

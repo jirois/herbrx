@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
@@ -18,13 +18,18 @@ import {
   Pill,
   User,
   Mail,
-  Phone,
   MessageSquare,
   ArrowLeft,
   Shield,
   BadgeCheck,
-  Globe,
+  AlertCircle,
 } from "lucide-react";
+import {
+  useConsultantDirectory,
+  useConsultantAvailability,
+  bookingApi,
+} from "@/hooks/dashboard-hooks";
+import { BOOKABLE_DAYS_AHEAD, isWorkingDay } from "@/lib/booking-config";
 
 // ── Types ─────────
 type ConsultationType =
@@ -43,18 +48,29 @@ type BookingStep =
 interface Practitioner {
   id: string;
   name: string;
-  title: string;
+  title?: string;
   type: ConsultationType;
-  specialties: string[];
-  rating: number;
-  reviewCount: number;
-  bio: string;
-  languages: string[];
-  nextAvailable: string;
-  price: number;
-  initials: string;
-  color: string;
+  specialties?: string[];
+  rating?: number;
+  reviewCount?: number;
+  bio?: string;
+  languages?: string[];
+  nextAvailable?: string;
+  price?: number;
+  initials?: string;
+  color?: string;
+  licenseNumber?: string;
+  yearsExperience?: number;
 }
+
+// interface BookingSessionUser {
+//   firstName?: string;
+//   lastName?: string;
+//   email?: string;
+// }
+
+const SLOT_TAKEN_MESSAGE =
+  "This time slot has already been reserved. Please select a different time or date.";
 
 // ── Data ───────────────────
 const CONSULTATION_TYPES = [
@@ -104,96 +120,6 @@ const CONSULTATION_TYPES = [
   },
 ];
 
-const PRACTITIONERS: Practitioner[] = [
-  {
-    id: "p1",
-    name: "Dr. Adaeze Okonkwo",
-    title: "B.Pharm, MSc Pharmacognosy",
-    type: "HERBALIST",
-    specialties: [
-      "Nigerian Medicinal Plants",
-      "Herbal Safety",
-      "Drug-Herb Interactions",
-    ],
-    rating: 4.9,
-    reviewCount: 127,
-    languages: ["English", "Igbo"],
-    bio: "12 years evaluating Nigerian medicinal plants. Specialist in herbal safety assessments and drug-herb interaction counselling for everyday Nigerians.",
-    nextAvailable: "Thu 26 Jun · 10:00 AM",
-    price: 5000,
-    initials: "AO",
-    color: "bg-[#C8DABB] text-[#2D5A3D]",
-  },
-  {
-    id: "p2",
-    name: "Dr. Emeka Nwosu",
-    title: "MBChB, Dip. Naturopathic Medicine",
-    type: "NATUROPATH",
-    specialties: ["Integrative Medicine", "Gut Health", "Hormonal Balance"],
-    rating: 4.7,
-    reviewCount: 84,
-    languages: ["English", "Yoruba"],
-    bio: "Integrative medicine physician blending conventional diagnostics with evidence-based naturopathic protocols for long-term wellness.",
-    nextAvailable: "Fri 27 Jun · 2:00 PM",
-    price: 6500,
-    initials: "EN",
-    color: "bg-[#F5E8CE] text-[#B8832A]",
-  },
-  {
-    id: "p3",
-    name: "Dr. Fatimah Al-Hassan",
-    title: "PhD Toxicology (ABU Zaria)",
-    type: "TOXICOLOGIST",
-    specialties: [
-      "Herb Toxicology",
-      "Poisoning Management",
-      "Adverse Reactions",
-    ],
-    rating: 4.8,
-    reviewCount: 56,
-    languages: ["English", "Hausa"],
-    bio: "Toxicology PhD from Ahmadu Bello University. Expert in herbal product contamination, adverse reactions, and emergency safety protocols.",
-    nextAvailable: "Mon 30 Jun · 9:00 AM",
-    price: 7500,
-    initials: "FA",
-    color: "bg-[#C2DDD5] text-[#1A6B5A]",
-  },
-  {
-    id: "p4",
-    name: "Pharm. Segun Adeleke",
-    title: "B.Pharm, MPCN",
-    type: "PHARMACIST",
-    specialties: [
-      "Prescription Review",
-      "Herbal Supplements",
-      "Self-Medication Safety",
-    ],
-    rating: 4.6,
-    reviewCount: 211,
-    languages: ["English", "Yoruba", "Pidgin"],
-    bio: "Registered pharmacist with 8 years in clinical practice. Nigeria's most-reviewed herbal-pharmaceutical interaction specialist.",
-    nextAvailable: "Thu 26 Jun · 3:30 PM",
-    price: 3500,
-    initials: "SA",
-    color: "bg-[#DDD0C8] text-[#5A3A2A]",
-  },
-];
-
-const SLOTS = [
-  "Thu 26 Jun · 10:00 AM",
-  "Thu 26 Jun · 11:30 AM",
-  "Thu 26 Jun · 3:30 PM",
-  "Fri 27 Jun · 9:00 AM",
-  "Fri 27 Jun · 2:00 PM",
-  "Mon 30 Jun · 9:00 AM",
-  "Mon 30 Jun · 11:00 AM",
-  "Mon 30 Jun · 3:00 PM",
-  "Tue 1 Jul · 10:00 AM",
-  "Tue 1 Jul · 2:00 PM",
-  "Wed 2 Jul · 9:00 AM",
-  "Wed 2 Jul · 4:00 PM",
-];
-
 const STEPS: { key: BookingStep; label: string }[] = [
   { key: "type", label: "Service" },
   { key: "practitioner", label: "Practitioner" },
@@ -202,14 +128,32 @@ const STEPS: { key: BookingStep; label: string }[] = [
   { key: "confirm", label: "Confirm" },
 ];
 
+const CONSULTATION_PRICES: Record<ConsultationType, number> = {
+  HERBALIST: 5000,
+  NATUROPATH: 6500,
+  TOXICOLOGIST: 7500,
+  PHARMACIST: 3500,
+};
+
+const AVATAR_COLORS = [
+  "bg-[#C8DABB] text-[#2D5A3D]",
+  "bg-[#F5E8CE] text-[#B8832A]",
+  "bg-[#C2DDD5] text-[#1A6B5A]",
+  "bg-[#DDD0C8] text-[#5A3A2A]",
+];
+
 const inputCls =
   "w-full h-11 px-4 bg-white/[0.06] border border-white/[0.1] rounded-xl text-[14px] text-white placeholder:text-white/30 outline-none focus:border-[var(--green-mid)] focus:bg-white/[0.08] transition-all";
 const labelCls = "block text-[13px] font-medium text-white/60 mb-1.5";
 
-interface BookingSessionUser {
-  firstName?: string;
-  lastName?: string;
-  email?: string;
+function initials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase();
 }
 
 function Stars({ rating }: { rating: number }) {
@@ -232,61 +176,121 @@ function Stars({ rating }: { rating: number }) {
 // ── Component ──────
 export function BookingPage() {
   const { data: session } = useSession();
-  const user = session?.user as BookingSessionUser | undefined;
   const [step, setStep] = useState<BookingStep>("type");
 
   const [selectedType, setSelectedType] = useState<ConsultationType | null>(
     null,
   );
-  const [selectedPractitioner, setSelectedPractitioner] =
+  const [selectedConsultant, setSelectedConsultant] =
     useState<Practitioner | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState("");
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [selectedSlotIso, setSelectedSlotIso] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [meetingUrl, setMeetingUrl] = useState("");
+  const [bookingError, setBookingError] = useState<string | null>(null);
 
-  // Guest fields
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
-  const [guestPhone, setGuestPhone] = useState("");
 
-  const filteredPractitioners = PRACTITIONERS.filter(
-    (p) => !selectedType || p.type === selectedType,
-  );
+  const { data: directoryData, loading: directoryLoading } =
+    useConsultantDirectory(selectedType ?? undefined);
+  const consultants = (directoryData?.consultants ??
+    []) as unknown as Practitioner[];
+
+  const days = useMemo(() => {
+    const out: Date[] = [];
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 1);
+    while (out.length < BOOKABLE_DAYS_AHEAD) {
+      if (isWorkingDay(d)) out.push(new Date(d));
+      d.setDate(d.getDate() + 1);
+    }
+    return out;
+  }, []);
+
+  const dateISO = selectedDay ? selectedDay.toISOString().slice(0, 10) : null;
+  const {
+    data: availData,
+    loading: availLoading,
+    mutate: refetchAvailability,
+  } = useConsultantAvailability(selectedConsultant?.id ?? null, dateISO);
+  const slots = availData?.slots ?? [];
+  const selectedSlot = slots.find((s) => s.iso === selectedSlotIso);
 
   const currentStepIndex = STEPS.findIndex((s) => s.key === step);
   const isGuest = !session?.user;
 
+  function chooseType(t: ConsultationType) {
+    setSelectedType(t);
+    setSelectedConsultant(null);
+    setStep("practitioner");
+  }
+
+  function choosePractitioner(p: Practitioner) {
+    setSelectedConsultant(p);
+    setSelectedDay(days[0]);
+    setSelectedSlotIso(null);
+    setStep("slot");
+  }
+
+  function pickDay(d: Date) {
+    setSelectedDay(d);
+    setSelectedSlotIso(null);
+    setBookingError(null);
+  }
+
+  function pickSlot(iso: string, available: boolean) {
+    if (!available) return; // greyed-out slots are unclickable, not just styled that way
+    setBookingError(null);
+    setSelectedSlotIso(iso);
+  }
+
   async function handleConfirm() {
+    if (!selectedConsultant || !selectedSlotIso || !selectedType) return;
+
+    // Client-side interception: if the slot we last fetched says taken,
+    // stop here — never call the API for a slot we already know is gone.
+    if (!selectedSlot || !selectedSlot.available) {
+      setBookingError(SLOT_TAKEN_MESSAGE);
+      refetchAvailability();
+      return;
+    }
+
     setSubmitting(true);
+    setBookingError(null);
     try {
-      const res = await fetch("/api/booking", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          practitionerId: selectedPractitioner?.id,
-          practitionerName: selectedPractitioner?.name,
-          type: selectedType,
-          scheduledAt: selectedSlot,
-          notes,
-          guestName: isGuest ? guestName : undefined,
-          guestEmail: isGuest ? guestEmail : undefined,
-          guestPhone: isGuest ? guestPhone : undefined,
-        }),
+      const result = await bookingApi.create({
+        consultantId: selectedConsultant.id,
+        type: selectedType,
+        scheduledAt: selectedSlotIso,
+        notes,
       });
-      const data = await res.json();
-      if (res.ok) {
-        setMeetingUrl(data.meetingUrl ?? "");
-        setStep("success");
+
+      if (!result?.authorizationUrl) {
+        throw new Error("Payment could not be started. Please try again.");
       }
-    } catch (e) {
-      console.error(e);
-    } finally {
+
+      // Redirect to the real Paystack checkout page — booking is only ever
+      // finalized once the user actually completes payment and it's
+      // verified on return (see /dashboard/customer/consultations) or via
+      // webhook. Previously this button just showed a fake success screen
+      // with no payment ever taking place.
+      window.location.href = result.authorizationUrl;
+    } catch (err: unknown) {
+      console.error("[handleConfirm]", err);
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "Could not start payment. Please try again.";
+      setBookingError(msg);
+      if (msg === SLOT_TAKEN_MESSAGE) refetchAvailability();
       setSubmitting(false);
     }
   }
 
   const canProceedDetails = isGuest ? !!(guestName && guestEmail) : true;
+  const price = selectedType ? CONSULTATION_PRICES[selectedType] : 0;
 
   return (
     <div className="min-h-screen bg-[#0F1117] text-white">
@@ -301,29 +305,27 @@ export function BookingPage() {
               HerbRx
             </span>
           </Link>
-          {step !== "success" && (
-            <div className="flex items-center gap-1 overflow-x-auto">
-              {STEPS.map((s, i) => {
-                const done = i < currentStepIndex;
-                const active = s.key === step;
-                return (
-                  <div key={s.key} className="flex items-center shrink-0">
-                    <div
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${active ? "bg-(--green-mid) text-white" : done ? "text-green-400" : "text-white/30"}`}
-                    >
-                      {done && <CheckCircle size={12} />}
-                      {s.label}
-                    </div>
-                    {i < STEPS.length - 1 && (
-                      <div
-                        className={`w-4 h-px mx-1 ${done ? "bg-green-500/40" : "bg-white/8"}`}
-                      />
-                    )}
+          <div className="flex items-center gap-1 overflow-x-auto">
+            {STEPS.map((s, i) => {
+              const done = i < currentStepIndex;
+              const active = s.key === step;
+              return (
+                <div key={s.key} className="flex items-center shrink-0">
+                  <div
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${active ? "bg-(--green-mid) text-white" : done ? "text-green-400" : "text-white/30"}`}
+                  >
+                    {done && <CheckCircle size={12} />}
+                    {s.label}
                   </div>
-                );
-              })}
-            </div>
-          )}
+                  {i < STEPS.length - 1 && (
+                    <div
+                      className={`w-4 h-px mx-1 ${done ? "bg-green-500/40" : "bg-white/8"}`}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </header>
 
@@ -352,10 +354,7 @@ export function BookingPage() {
                     key={ct.type}
                     whileHover={{ scale: 1.015 }}
                     whileTap={{ scale: 0.985 }}
-                    onClick={() => {
-                      setSelectedType(ct.type);
-                      setStep("practitioner");
-                    }}
+                    onClick={() => chooseType(ct.type)}
                     className={`text-left p-6 rounded-2xl border transition-all hover:shadow-lg ${ct.color} ${selectedType === ct.type ? "ring-2 ring-(--green-mid)" : ""}`}
                   >
                     <div
@@ -408,71 +407,82 @@ export function BookingPage() {
                 </div>
               </div>
 
-              <div className="grid sm:grid-cols-2 gap-4">
-                {filteredPractitioners.map((p) => (
-                  <motion.button
-                    key={p.id}
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.99 }}
-                    onClick={() => {
-                      setSelectedPractitioner(p);
-                      setStep("slot");
-                    }}
-                    className={`text-left p-6 rounded-2xl border transition-all hover:border-white/25 bg-white/4 ${selectedPractitioner?.id === p.id ? "border-(--green-mid) bg-(--green-mid)/8" : "border-white/8"}`}
-                  >
-                    <div className="flex items-start gap-3 mb-4">
-                      <div
-                        className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-[15px] shrink-0 ${p.color}`}
-                      >
-                        {p.initials}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[15px] font-semibold text-white">
-                          {p.name}
-                        </p>
-                        <p className="text-[12px] text-white/40">{p.title}</p>
-                        <div className="flex items-center gap-1.5 mt-1">
-                          <Stars rating={p.rating} />
-                          <span className="text-[11px] text-white/30">
-                            {p.rating} ({p.reviewCount})
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <p className="text-[13px] text-white/55 leading-relaxed mb-3">
-                      {p.bio}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 mb-3">
-                      {p.specialties.map((s) => (
-                        <span
-                          key={s}
-                          className="text-[11px] text-white/40 bg-white/6 border border-white/[0.07] px-2 py-0.5 rounded-lg"
+              {directoryLoading && consultants.length === 0 ? (
+                <div className="py-16 text-center text-white/40 text-[13px]">
+                  <Loader2
+                    size={18}
+                    className="animate-spin inline-block mr-2"
+                  />{" "}
+                  Loading practitioners…
+                </div>
+              ) : consultants.length === 0 ? (
+                <div className="py-16 text-center text-white/40 text-[13px]">
+                  No practitioners available for this specialty right now —
+                  please check back soon.
+                </div>
+              ) : (
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {(consultants as Practitioner[]).map((p, i) => (
+                    <motion.button
+                      key={p.id}
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
+                      onClick={() => choosePractitioner(p)}
+                      className={`text-left p-6 rounded-2xl border transition-all hover:border-white/25 bg-white/4 ${selectedConsultant?.id === p.id ? "border-(--green-mid) bg-(--green-mid)/8" : "border-white/8"}`}
+                    >
+                      <div className="flex items-start gap-3 mb-4">
+                        <div
+                          className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-[15px] shrink-0 ${AVATAR_COLORS[i % AVATAR_COLORS.length]}`}
                         >
-                          {s}
-                        </span>
-                      ))}
-                    </div>
-                    <div className="flex items-center justify-between pt-3 border-t border-white/6">
-                      <div className="text-[12px] text-white/35">
-                        🗣 {p.languages.join(", ")}
+                          {initials(p.name)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[15px] font-semibold text-white">
+                            {p.name}
+                          </p>
+                          <p className="text-[12px] text-white/40">
+                            {p.licenseNumber ??
+                              CONSULTATION_TYPES.find(
+                                (ct) => ct.type === p.type,
+                              )?.label}
+                          </p>
+                          {p.rating && (
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <Stars rating={p.rating} />
+                              <span className="text-[11px] text-white/30">
+                                {p.rating.toFixed(1)} ({p.reviewCount})
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-right">
+                      {p.bio && (
+                        <p className="text-[13px] text-white/55 leading-relaxed mb-3">
+                          {p.bio}
+                        </p>
+                      )}
+                      <div className="flex items-center justify-between pt-3 border-t border-white/6">
+                        <div className="text-[12px] text-white/35">
+                          {p.yearsExperience
+                            ? `${p.yearsExperience} years experience`
+                            : "Verified HerbRx consultant"}
+                        </div>
                         <div className="text-[14px] font-semibold text-white">
-                          ₦{p.price.toLocaleString()}
-                        </div>
-                        <div className="text-[11px] text-(--green-pale)">
-                          Next: {p.nextAvailable}
+                          ₦
+                          {CONSULTATION_PRICES[
+                            p.type as ConsultationType
+                          ]?.toLocaleString()}
                         </div>
                       </div>
-                    </div>
-                  </motion.button>
-                ))}
-              </div>
+                    </motion.button>
+                  ))}
+                </div>
+              )}
             </motion.div>
           )}
 
           {/* ── Step: Slot ── */}
-          {step === "slot" && (
+          {step === "slot" && selectedConsultant && (
             <motion.div
               key="slot"
               initial={{ opacity: 0, y: 16 }}
@@ -492,28 +502,84 @@ export function BookingPage() {
                     Pick a Time
                   </h2>
                   <p className="text-[13px] text-white/45 mt-0.5">
-                    With {selectedPractitioner?.name} · 30 min · ₦
-                    {selectedPractitioner?.price.toLocaleString()}
+                    With {selectedConsultant.name} · 30 min · ₦
+                    {price.toLocaleString()}
                   </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-6">
-                {SLOTS.map((slot) => (
-                  <button
-                    key={slot}
-                    onClick={() => setSelectedSlot(slot)}
-                    className={`p-3.5 rounded-xl border text-left text-[13px] transition-all ${selectedSlot === slot ? "border-(--green-mid) bg-(--green-mid)/15 text-white" : "border-white/8 bg-white/3 text-white/60 hover:border-white/20 hover:text-white"}`}
-                  >
-                    <Calendar size={12} className="mb-1.5 opacity-60" />
-                    {slot}
-                  </button>
-                ))}
+              <div className="flex gap-2 overflow-x-auto pb-1 mb-5">
+                {days.map((d) => {
+                  const active =
+                    selectedDay?.toDateString() === d.toDateString();
+                  return (
+                    <button
+                      key={d.toISOString()}
+                      onClick={() => pickDay(d)}
+                      className={`shrink-0 w-16 py-2.5 rounded-xl border text-center transition-colors ${active ? "bg-(--green-mid) border-(--green-mid) text-white" : "bg-white/3 border-white/8 text-white/60 hover:border-white/20"}`}
+                    >
+                      <span className="block text-[10px] uppercase tracking-wide opacity-70">
+                        {d.toLocaleDateString("en-NG", { weekday: "short" })}
+                      </span>
+                      <span className="block text-[15px] font-serif font-semibold">
+                        {d.getDate()}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
+
+              {availLoading ? (
+                <div className="py-8 text-center text-[13px] text-white/40">
+                  <Loader2
+                    size={16}
+                    className="animate-spin inline-block mr-2"
+                  />{" "}
+                  Checking availability…
+                </div>
+              ) : slots.length === 0 ? (
+                <p className="py-6 text-center text-[13px] text-white/40">
+                  {availData?.note ?? "No slots available this day."}
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-6">
+                  {slots.map((slot) => {
+                    const active = slot.iso === selectedSlotIso;
+                    return (
+                      <button
+                        key={slot.iso}
+                        disabled={!slot.available}
+                        onClick={() => pickSlot(slot.iso, slot.available)}
+                        title={!slot.available ? "Already booked" : undefined}
+                        className={`p-3.5 rounded-xl border text-left text-[13px] transition-all ${
+                          !slot.available
+                            ? "border-white/5 bg-white/1.5 text-white/20 cursor-not-allowed line-through"
+                            : active
+                              ? "border-(--green-mid) bg-(--green-mid)/15 text-white"
+                              : "border-white/8 bg-white/3 text-white/60 hover:border-white/20 hover:text-white"
+                        }`}
+                      >
+                        <Calendar size={12} className="mb-1.5 opacity-60" />
+                        {slot.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {bookingError && (
+                <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 mb-5">
+                  <AlertCircle
+                    size={15}
+                    className="text-red-400 shrink-0 mt-0.5"
+                  />
+                  <p className="text-[13px] text-red-300">{bookingError}</p>
+                </div>
+              )}
 
               <div className="mb-6">
                 <label className={labelCls}>
-                  Anything you&apos;d like to discuss? (optional)
+                  Anything you&pos;d like to discuss? (optional)
                 </label>
                 <textarea
                   value={notes}
@@ -529,7 +595,7 @@ export function BookingPage() {
 
               <button
                 onClick={() => setStep("details")}
-                disabled={!selectedSlot}
+                disabled={!selectedSlotIso}
                 className="w-full h-12 bg-(--green-mid) hover:bg-(--green-light) disabled:opacity-30 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
               >
                 Continue <ChevronRight size={16} />
@@ -558,40 +624,50 @@ export function BookingPage() {
                 </h2>
               </div>
 
-              {user ? (
+              {session?.user ? (
                 <div className="flex items-center gap-4 p-5 rounded-2xl bg-(--green-mid)/10 border border-(--green-mid)/25 mb-6">
                   <div className="w-11 h-11 rounded-full bg-(--green-mid)/40 flex items-center justify-center font-bold text-[14px] text-white shrink-0">
-                    {user.firstName?.[0]}
-                    {user.lastName?.[0]}
+                    {(session.user as { firstName: string }).firstName?.[0]}
+                    {(session.user as { lastName: string }).lastName?.[0]}
                   </div>
                   <div>
                     <p className="text-[15px] font-semibold text-white">
-                      {user.firstName} {user.lastName}
+                      {(session.user as { firstName: string }).firstName}{" "}
+                      {(session.user as { lastName: string }).lastName}
                     </p>
-                    <p className="text-[13px] text-white/50">{user.email}</p>
-                    <p className="text-[11px] text-(--green-pale) mt-0.5">
+                    <p className="text-[13px] text-white/50">
+                      {session.user.email}
+                    </p>
+                    <p className="text-[11px] text-(--green-pale)] mt-0.5">
                       ✓ Logged in — your booking will be saved to your account
                     </p>
                   </div>
                 </div>
               ) : (
                 <div className="space-y-4 mb-6">
-                  <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-500/8 border border-blue-500/15 mb-5">
+                  <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-500/8 border border-blue-500/15 mb-2">
                     <User size={15} className="text-blue-400 shrink-0 mt-0.5" />
                     <p className="text-[12px] text-white/50 leading-relaxed">
-                      Booking as a guest.{" "}
+                      Consultations require an account so we can confirm your
+                      booking and send your meeting link.{" "}
                       <Link
                         href="/login"
                         className="text-blue-400 hover:text-white transition-colors"
                       >
                         Sign in
                       </Link>{" "}
-                      to save sessions to your account and access them from your
-                      dashboard.
+                      or{" "}
+                      <Link
+                        href="/register"
+                        className="text-blue-400 hover:text-white transition-colors"
+                      >
+                        create an account
+                      </Link>{" "}
+                      to continue — your selected time will be saved.
                     </p>
                   </div>
                   <div>
-                    <label className={labelCls}>Full Name *</label>
+                    <label className={labelCls}>Full Name</label>
                     <div className="relative">
                       <User
                         size={14}
@@ -606,7 +682,7 @@ export function BookingPage() {
                     </div>
                   </div>
                   <div>
-                    <label className={labelCls}>Email Address *</label>
+                    <label className={labelCls}>Email Address</label>
                     <div className="relative">
                       <Mail
                         size={14}
@@ -620,21 +696,10 @@ export function BookingPage() {
                         className={`${inputCls} pl-9`}
                       />
                     </div>
-                  </div>
-                  <div>
-                    <label className={labelCls}>Phone Number (optional)</label>
-                    <div className="relative">
-                      <Phone
-                        size={14}
-                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30"
-                      />
-                      <input
-                        value={guestPhone}
-                        onChange={(e) => setGuestPhone(e.target.value)}
-                        placeholder="+234 800 000 0000"
-                        className={`${inputCls} pl-9`}
-                      />
-                    </div>
+                    <p className="text-[11px] text-white/30 mt-1.5">
+                      You&pos;ll be asked to confirm this when you sign in to
+                      pay.
+                    </p>
                   </div>
                 </div>
               )}
@@ -650,7 +715,7 @@ export function BookingPage() {
           )}
 
           {/* ── Step: Confirm ── */}
-          {step === "confirm" && (
+          {step === "confirm" && selectedConsultant && (
             <motion.div
               key="confirm"
               initial={{ opacity: 0, y: 16 }}
@@ -670,26 +735,27 @@ export function BookingPage() {
                 </h2>
               </div>
 
-              {/* Summary card */}
               <div className="bg-white/4 border border-white/8 rounded-2xl overflow-hidden mb-5">
-                {/* Practitioner header */}
                 <div className="flex items-center gap-4 p-5 border-b border-white/6">
                   <div
-                    className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-[15px] shrink-0 ${selectedPractitioner?.color}`}
+                    className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-[15px] shrink-0 ${AVATAR_COLORS[0]}`}
                   >
-                    {selectedPractitioner?.initials}
+                    {initials(selectedConsultant.name)}
                   </div>
                   <div>
                     <p className="text-[15px] font-semibold text-white">
-                      {selectedPractitioner?.name}
+                      {selectedConsultant.name}
                     </p>
                     <p className="text-[12px] text-white/45">
-                      {selectedPractitioner?.title}
+                      {
+                        CONSULTATION_TYPES.find(
+                          (ct) => ct.type === selectedType,
+                        )?.label
+                      }
                     </p>
                   </div>
                 </div>
 
-                {/* Booking details */}
                 <div className="p-5 space-y-3">
                   {[
                     {
@@ -703,7 +769,7 @@ export function BookingPage() {
                     {
                       icon: <Calendar size={13} />,
                       label: "Date & Time",
-                      value: selectedSlot,
+                      value: selectedSlot?.label ?? "",
                     },
                     {
                       icon: <Clock size={13} />,
@@ -714,11 +780,6 @@ export function BookingPage() {
                       icon: <Video size={13} />,
                       label: "Format",
                       value: "Video call (link sent after payment)",
-                    },
-                    {
-                      icon: <Globe size={13} />,
-                      label: "Languages",
-                      value: selectedPractitioner?.languages.join(", ") ?? "",
                     },
                   ].map((f) => (
                     <div
@@ -735,11 +796,10 @@ export function BookingPage() {
                   ))}
                 </div>
 
-                {/* Price */}
                 <div className="flex items-center justify-between px-5 py-4 bg-white/3 border-t border-white/6">
                   <span className="text-[13px] text-white/50">Total</span>
                   <span className="text-[22px] font-serif font-semibold text-white">
-                    ₦{selectedPractitioner?.price.toLocaleString()}
+                    ₦{price.toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -761,7 +821,16 @@ export function BookingPage() {
                 </div>
               )}
 
-              {/* Trust badges */}
+              {bookingError && (
+                <div className="flex items-start gap-2.5 p-4 rounded-xl bg-red-500/10 border border-red-500/20 mb-5">
+                  <AlertCircle
+                    size={15}
+                    className="text-red-400 shrink-0 mt-0.5"
+                  />
+                  <p className="text-[13px] text-red-300">{bookingError}</p>
+                </div>
+              )}
+
               <div className="flex gap-3 flex-wrap mb-6">
                 {[
                   {
@@ -790,107 +859,17 @@ export function BookingPage() {
               >
                 {submitting ? (
                   <>
-                    <Loader2 size={16} className="animate-spin" /> Processing…
+                    <Loader2 size={16} className="animate-spin" /> Redirecting
+                    to payment…
                   </>
                 ) : (
-                  <>
-                    Confirm & Pay ₦
-                    {selectedPractitioner?.price.toLocaleString()} →
-                  </>
+                  <>Confirm & Pay ₦{price.toLocaleString()} →</>
                 )}
               </button>
               <p className="text-[11px] text-white/25 text-center mt-3">
                 Payment processed securely via Paystack. No subscription — pay
                 per session.
               </p>
-            </motion.div>
-          )}
-
-          {/* ── Step: Success ── */}
-          {step === "success" && (
-            <motion.div
-              key="success"
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="max-w-md mx-auto text-center py-8"
-            >
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring", stiffness: 200, damping: 14 }}
-                className="w-20 h-20 rounded-full bg-green-500/15 border-2 border-green-500/30 flex items-center justify-center mx-auto mb-6"
-              >
-                <CheckCircle size={36} className="text-green-400" />
-              </motion.div>
-
-              <h2 className="font-serif text-[28px] font-semibold text-white mb-2">
-                Booking Confirmed!
-              </h2>
-              <p className="text-[15px] text-white/50 mb-1">
-                Your session with{" "}
-                <span className="text-white font-medium">
-                  {selectedPractitioner?.name}
-                </span>{" "}
-                is set.
-              </p>
-              <p className="text-[15px] text-(--green-pale) font-medium mb-8">
-                {selectedSlot}
-              </p>
-
-              {meetingUrl && (
-                <div className="flex items-center gap-3 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 mb-6 text-left">
-                  <Video size={18} className="text-blue-400 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-semibold text-white mb-0.5">
-                      Your Video Session Link
-                    </p>
-                    <a
-                      href={meetingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[12px] text-blue-400 hover:text-white transition-colors truncate block"
-                    >
-                      {meetingUrl}
-                    </a>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-start gap-3 p-4 rounded-xl bg-white/4 border border-white/[0.07] mb-8 text-left">
-                <Mail size={15} className="text-white/40 shrink-0 mt-0.5" />
-                <p className="text-[13px] text-white/55 leading-relaxed">
-                  A confirmation email with the meeting link and calendar invite
-                  has been sent to{" "}
-                  <span className="text-white">
-                    {session?.user?.email ?? guestEmail}
-                  </span>
-                  .
-                </p>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                {session?.user ? (
-                  <Link
-                    href="/dashboard/customer/consultations"
-                    className="inline-flex items-center justify-center gap-2 h-11 px-6 bg-(--green-mid) hover:bg-(--green-light) text-white font-semibold rounded-xl transition-colors"
-                  >
-                    View in Dashboard →
-                  </Link>
-                ) : (
-                  <Link
-                    href="/login"
-                    className="inline-flex items-center justify-center gap-2 h-11 px-6 bg-(--green-mid) hover:bg-(--green-light) text-white font-semibold rounded-xl transition-colors"
-                  >
-                    Create Account to Track Sessions →
-                  </Link>
-                )}
-                <Link
-                  href="/"
-                  className="inline-flex items-center justify-center gap-2 h-11 px-6 border border-white/10] text-white/60 hover:text-white rounded-xl transition-colors"
-                >
-                  Back to Home
-                </Link>
-              </div>
             </motion.div>
           )}
         </AnimatePresence>

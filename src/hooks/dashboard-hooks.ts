@@ -12,13 +12,14 @@ type FetchState<T> = {
   mutate:  () => Promise<void>
 }
 
-function useFetch<T>(url: string): FetchState<T> {
+function useFetch<T>(url: string | null): FetchState<T> {
   const [data,    setData]    = useState<T | null>(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState<string | null>(null)
   const [tick,    ]    = useState(0)
 
   const fetchNow = useCallback(async () => {
+    if (!url) return
     setLoading(true)
     try {
       const res = await fetch(url)
@@ -39,6 +40,7 @@ function useFetch<T>(url: string): FetchState<T> {
   // const mutate = useCallback(() => setTick(t => t + 1), [])
 
   useEffect(() => {
+    if (!url) return
     let cancelled = false
   
     fetch(url)
@@ -75,7 +77,7 @@ export function useSafetyAlerts(status = 'ACTIVE') {
   return useFetch<{ alerts: Record<string, unknown>[] }>(
     `/api/dashboard/customer/alerts?status=${status}`
   )
-}
+} 
 
 export function usePublicAlerts(params?: {severity?: string; status?: string}){
   const queryParams = new URLSearchParams()
@@ -233,6 +235,77 @@ export function useAdminProducts(status?: string, search?: string) {
   if (search) params.set('search', search)
   const qs = params.toString()
   return useFetch<{ products: Record<string, unknown>[] }>(`/api/dashboard/admin/products${qs ? `?${qs}` : ''}`)
+}
+
+// ── Public consultant directory (booking flows) ────────────────────────────
+export function useConsultantDirectory(type?: string) {
+  const qs = type ? `?type=${type}` : ''
+  return useFetch<{ consultants: Record<string, unknown>[] }>(`/api/consultants${qs}`)
+}
+
+export function useConsultantAvailability(consultantId: string | null, dateISO: string | null) {
+  const url = consultantId && dateISO ? `/api/consultants/${consultantId}/availability?date=${dateISO}` : null
+  return useFetch<{ date: string; slots: { iso: string; label: string; available: boolean }[]; note?: string }>(url)
+}
+
+
+// ── Admin: Consultant management ───────────────────────────────────────────
+export function useAdminConsultants(status?: string, search?: string) {
+  const params = new URLSearchParams()
+  if (status && status !== 'ALL') params.set('status', status)
+  if (search) params.set('search', search)
+  const qs = params.toString()
+  return useFetch<{ consultants: Record<string, unknown>[]; total: number }>(
+    `/api/dashboard/admin/consultants${qs ? `?${qs}` : ''}`
+  )
+}
+
+export const consultantAdminApi = {
+  create: (body: unknown) => apiPost('/api/dashboard/admin/consultants', body),
+  update: (body: unknown) => apiPatch('/api/dashboard/admin/consultants', body),
+  deactivate: (consultantId: string, deactivationNote?: string) =>
+    apiPatch('/api/dashboard/admin/consultants', { consultantId, status: 'INACTIVE', deactivationNote }),
+  activate: (consultantId: string) =>
+    apiPatch('/api/dashboard/admin/consultants', { consultantId, status: 'ACTIVE' }),
+}
+
+// ── Consultant dashboard ───────
+export function useConsultantOverview() {
+  return useFetch<{
+    profile: Record<string, unknown>
+    queue: { today: number }
+    notifications: { items: unknown[]; unreadCount: number }
+    earnings: { thisMonthKobo: number; pendingKobo: number; totalPaidOutKobo: number }
+    rating: { average: number | null; count: number; recentFeedback: unknown[] }
+  }>('/api/dashboard/consultant/overview')
+}
+
+export function useConsultantNotifications(status?: 'UNREAD') {
+  const qs = status ? `?status=${status}` : ''
+  return useFetch<{ notifications: unknown[] }>(`/api/dashboard/consultant/notifications${qs}`)
+}
+
+export function useConsultantQueue(scope: 'today' | 'upcoming' | 'all' = 'upcoming') {
+  return useFetch<{ queue: Record<string, unknown>[]; count: number }>(`/api/dashboard/consultant/queue?scope=${scope}`)
+}
+
+export function useConsultantEarnings() {
+  return useFetch<{
+    totalPaidOutKobo: number
+    pendingBalanceKobo: number
+    thisMonthKobo: number
+    totalCompletedSessions: number
+    trend: { label: string; netKobo: number; sessions: number }[]
+  }>('/api/dashboard/consultant/earnings')
+}
+
+export const consultantApi = {
+  markNotificationRead: (id: string) => apiPatch('/api/dashboard/consultant/notifications', { id }),
+  markAllNotificationsRead: () => apiPatch('/api/dashboard/consultant/notifications', { all: true }),
+  updateQueueItem: (consultationId: string, action: 'CONFIRM' | 'COMPLETE' | 'CANCEL' | 'RESCHEDULE', scheduledAt?: string) =>
+    apiPatch('/api/dashboard/consultant/queue', { consultationId, action, scheduledAt }),
+  updateProfile: (body: { bio?: string; avatarUrl?: string; newPassword?: string }) =>
+    apiPatch('/api/dashboard/consultant/profile', body),
 }
 
 // ── Incubation hooks ───

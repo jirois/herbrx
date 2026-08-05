@@ -19,8 +19,10 @@ import { ProductCard } from "@/components/store/product-card";
 import { useCart } from "@/context/cart-context";
 import { formatNaira } from "@/lib/utils";
 import { getRelatedProducts } from "@/data/products";
-import { ProductImage } from "../ui/product-image";
+import { useProductReviews } from "@/hooks/review-hooks";
+import { ProductReviewsSection } from "@/components/product/reviews/product-review-section";
 import type { Product } from "@/types";
+import Image from "next/image";
 
 type Tab = "description" | "ingredients" | "how-to-use" | "warnings";
 
@@ -36,8 +38,14 @@ export function ProductDetail({ product }: { product: Product }) {
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("description");
+  const { data: reviewData, loading: reviewsLoading } = useProductReviews(
+    product.id,
+  );
 
   const related = getRelatedProducts(product, 4);
+  const { data: relatedReviewData } = useReviewSummaries(
+    related.map((p) => p.id),
+  );
 
   function handleAddToCart() {
     addItem(product, qty);
@@ -77,21 +85,20 @@ export function ProductDetail({ product }: { product: Product }) {
             transition={{ duration: 0.5 }}
           >
             <div
-              className="w-full aspect-square rounded-3xl flex items-center justify-center text-[120px] relative overflow-hidden"
+              className="w-full aspect-square rounded-3xl relative overflow-hidden flex items-center justify-center"
               style={{
                 background: `linear-gradient(135deg, ${product.gradientFrom}, ${product.gradientTo})`,
               }}
             >
-              {" "}
               {product.imageUrl ? (
-                <ProductImage
+                <Image
                   src={product.imageUrl}
                   alt={product.name}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  className="w-full h-full object-cover"
                 />
               ) : (
                 <span
-                  className="select-none transition-transform duration-300 group-hover:scale-110"
+                  className="text-[120px] select-none"
                   role="img"
                   aria-label={product.name}
                 >
@@ -150,25 +157,42 @@ export function ProductDetail({ product }: { product: Product }) {
 
             {/* Rating */}
             <div className="flex items-center gap-2 mb-4">
-              <div className="flex items-center gap-0.5">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <Star
-                    key={s}
-                    size={15}
-                    className={
-                      s <= Math.round(product.rating)
-                        ? "fill-(--gold) text-(--gold)"
-                        : "text-(--cream-dark) fill-(--cream-dark)"
-                    }
-                  />
-                ))}
-              </div>
-              <span className="text-[14px] font-medium text-(--text-dark)">
-                {product.rating}
-              </span>
-              <span className="text-[14px] text-(--text-muted)">
-                ({product.reviews} reviews)
-              </span>
+              {reviewsLoading && !reviewData ? (
+                <div className="h-5 w-32 bg-(--cream-dark) rounded animate-pulse" />
+              ) : (reviewData?.summary.count ?? 0) > 0 ? (
+                <>
+                  <div className="flex items-center gap-0.5">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star
+                        key={s}
+                        size={15}
+                        className={
+                          s <= Math.round(reviewData!.summary.average)
+                            ? "fill-(--gold) text-(--gold)"
+                            : "text-(--cream-dark) fill-(--cream-dark)"
+                        }
+                      />
+                    ))}
+                  </div>
+                  <span className="text-[14px] font-medium text-(--text-dark)">
+                    {reviewData!.summary.average.toFixed(1)}
+                  </span>
+                  <a
+                    href="#reviews"
+                    className="text-[14px] text-(--text-muted) hover:text-(--green-mid) transition-colors"
+                  >
+                    ({reviewData!.summary.count} review
+                    {reviewData!.summary.count !== 1 ? "s" : ""})
+                  </a>
+                </>
+              ) : (
+                <a
+                  href="#reviews"
+                  className="text-[13px] text-(--text-muted) hover:text-(--green-mid) transition-colors"
+                >
+                  No reviews yet — be the first to review
+                </a>
+              )}
             </div>
 
             <p className="text-[15px] text-(--text-body) leading-relaxed font-light mb-6">
@@ -306,13 +330,18 @@ export function ProductDetail({ product }: { product: Product }) {
                     key={w}
                     className="flex items-start gap-2.5 text-[14px] text-(--text-body)"
                   >
-                    <span className="text-orange-500 mt-0.5 shrink-0">⚠️</span>
+                    <span className="text-orange-500 mt-0.shrink-0">⚠️</span>
                     {w}
                   </li>
                 ))}
               </ul>
             )}
           </div>
+        </div>
+
+        {/* Reviews */}
+        <div id="reviews">
+          <ProductReviewsSection productId={product.id} />
         </div>
 
         {/* Related products */}
@@ -323,7 +352,12 @@ export function ProductDetail({ product }: { product: Product }) {
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               {related.map((p, i) => (
-                <ProductCard key={p.id} product={p} index={i} />
+                <ProductCard
+                  key={p.id}
+                  product={p}
+                  index={i}
+                  liveSummary={relatedReviewData?.summaries[p.id] ?? null}
+                />
               ))}
             </div>
           </div>
