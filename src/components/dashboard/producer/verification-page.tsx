@@ -1026,7 +1026,7 @@ export function VerificationPage() {
                         size={13}
                         className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30"
                       />
-                      <select
+                      {/* <select
                         value={business.state}
                         onChange={(e) =>
                           updateBusiness({ state: e.target.value })
@@ -1037,6 +1037,36 @@ export function VerificationPage() {
                         <option value="">Select state…</option>
                         {NIGERIAN_STATES.map((s) => (
                           <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select> */}
+                      {/* Select Field */}
+                      <select
+                        value={business.state}
+                        onChange={(e) =>
+                          updateBusiness({ state: e.target.value })
+                        }
+                        onBlur={() => touchBusiness("state")}
+                        className={`
+                      ${inputCls}
+                      w-full appearance-none pl-9 pr-9 cursor-pointer transition-colors
+                      ${showBusinessError("state") ? "border-red-500/70 bg-red-500/5 focus:border-red-500" : ""}
+                    `}
+                      >
+                        <option
+                          value=""
+                          disabled
+                          className="bg-neutral-900 text-white/50"
+                        >
+                          Select state…
+                        </option>
+                        {NIGERIAN_STATES.map((s) => (
+                          <option
+                            key={s}
+                            value={s}
+                            className="bg-neutral-900 text-white py-1"
+                          >
                             {s}
                           </option>
                         ))}
@@ -1078,7 +1108,11 @@ export function VerificationPage() {
                       className={`${inputCls} cursor-pointer`}
                     >
                       {EMPLOYEE_RANGES.map((r) => (
-                        <option key={r} value={r}>
+                        <option
+                          key={r}
+                          value={r}
+                          className="bg-neutral-900 text-white py-1"
+                        >
                           {r}
                         </option>
                       ))}

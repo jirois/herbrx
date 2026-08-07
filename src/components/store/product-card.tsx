@@ -8,10 +8,12 @@ import { ShoppingCart, Star, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatNaira } from "@/lib/utils";
 import { useCart } from "@/context/cart-context";
-import type { Product } from "@/types";
+import type { StoreProduct, Product } from "@/types";
+
+const DEFAULT_GRADIENT: [string, string] = ['#C8DABB', '#A8C999']
 
 interface ProductCardProps {
-  product: Product;
+  product: StoreProduct;
   index?: number;
   /** Real review data for this product, if the parent grid fetched it via
    *  useReviewSummaries. Falls back to the static catalog's placeholder
@@ -30,10 +32,12 @@ export function ProductCard({
   function handleAddToCart(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    addItem(product, 1);
+    // product is a StoreProduct (subset). Force-cast to Product for cart API
+    addItem(product as unknown as Product, 1);
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   }
+const [gradientFrom, gradientTo] = DEFAULT_GRADIENT
 
   return (
     <motion.div
@@ -48,7 +52,7 @@ export function ProductCard({
           <div
             className="h-45 flex items-center justify-center relative overflow-hidden"
             style={{
-              background: `linear-gradient(135deg, ${product.gradientFrom}, ${product.gradientTo})`,
+              background: `linear-gradient(135deg, ${gradientFrom}, ${gradientTo})`,
             }}
           >
             {product.imageUrl ? (
@@ -84,9 +88,11 @@ export function ProductCard({
             <p className="font-serif text-[17px] font-semibold text-(--green-deep) mb-0.5 leading-snug">
               {product.name}
             </p>
-            <p className="text-[11px] text-(--text-muted) uppercase tracking-[0.06em] mb-2">
-              {product.type}
-            </p>
+            {product.type && (
+              <p className="text-[11px] text-(--text-muted) uppercase tracking-[0.06em] mb-2">
+                {product.type}
+              </p>
+            )}
 
             {/* Rating */}
             <div className="flex items-center gap-1.5 mb-3">

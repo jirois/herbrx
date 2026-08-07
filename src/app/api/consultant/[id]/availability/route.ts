@@ -4,7 +4,9 @@ import { ok, badRequest, notFound, serverError } from '@/lib/api-helpers'
 import { buildDailySlotTemplate, isWorkingDay } from '@/lib/booking-config'
 
 // GET /api/consultants/[id]/availability?date=YYYY-MM-DD
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest,
+  { params }: { params: Promise<{ id: string }>}) {
+    const {id} = await params
   try {
     const dateParam = req.nextUrl.searchParams.get('date')
     if (!dateParam) return badRequest('date is required, format YYYY-MM-DD')
@@ -12,7 +14,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const date = new Date(`${dateParam}T00:00:00`)
     if (isNaN(date.getTime())) return badRequest('date must be a valid YYYY-MM-DD')
 
-    const consultant = await prisma.consultantProfile.findUnique({ where: { id: params.id } })
+    const consultant = await prisma.consultantProfile.findUnique({ where: { id } })
     if (!consultant) return notFound('Consultant not found')
 
     if (!isWorkingDay(date)) {
@@ -24,7 +26,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
     const booked = await prisma.consultation.findMany({
       where: {
-        consultantId: params.id,
+        consultantId: id,
         status: { in: ['REQUESTED', 'CONFIRMED'] },
         scheduledAt: { gte: dayStart, lte: dayEnd },
       },

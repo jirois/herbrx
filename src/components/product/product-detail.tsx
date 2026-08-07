@@ -11,6 +11,7 @@ import {
   RotateCcw,
   ChevronRight,
   Check,
+  Loader2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,8 +19,8 @@ import { QuantitySelector } from "@/components/ui/quantity-selector";
 import { ProductCard } from "@/components/store/product-card";
 import { useCart } from "@/context/cart-context";
 import { formatNaira } from "@/lib/utils";
-import { getRelatedProducts } from "@/data/products";
-import { useProductReviews } from "@/hooks/review-hooks";
+import { useStoreProduct } from "@/hooks/store-hooks";
+import { useProductReviews, useReviewSummaries } from "@/hooks/review-hooks";
 import { ProductReviewsSection } from "@/components/product/reviews/product-review-section";
 import type { Product } from "@/types";
 import Image from "next/image";
@@ -33,32 +34,107 @@ const tabs: { id: Tab; label: string }[] = [
   { id: "warnings", label: "Warnings" },
 ];
 
-export function ProductDetail({ product }: { product: Product }) {
+const DEFAULT_GRADIENT: [string, string] = ["#C8DABB", "#A8C999"];
+
+// Previously received a fully-resolved `product` prop, sourced from a
+// static getProductBySlug() call that had been commented out — this page
+// was broken. Now self-fetches by slug (same self-contained pattern as the
+// consultant booking flow), so the parent route file just passes the slug through.
+export function ProductDetail({ slug }: { slug: string }) {
   const { addItem } = useCart();
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("description");
-  const { data: reviewData, loading: reviewsLoading } = useProductReviews(
-    product.id,
-  );
 
-  const related = getRelatedProducts(product, 4);
+  const { data, loading, error } = useStoreProduct(slug);
+  const product = data?.product ?? null;
+  const related = product?.relatedProducts ?? [];
+
+  const { data: reviewData, loading: reviewsLoading } = useProductReviews(
+    product?.id ?? "",
+  );
   const { data: relatedReviewData } = useReviewSummaries(
     related.map((p) => p.id),
   );
 
   function handleAddToCart() {
-    addItem(product, qty);
+    if (!product) return;
+
+    const cartProduct: Product = {
+      id: product.id,
+      slug: product.slug,
+      name: product.name,
+      category: product.category,
+      type: product.type,
+      price: product.price,
+      originalPrice: product.originalPrice ?? null,
+      imageUrl: product.imageUrl ?? null,
+      emoji: product.emoji,
+      shortDesc: product.shortDesc,
+      longDesc: product.longDesc,
+      ingredients: product.ingredients,
+      warnings: product.warnings,
+      nafdacNo: product.nafdacNo ?? null,
+      inStock: product.inStock,
+      stockCount: product.stockCount,
+      rating: product.rating,
+      reviews: product.reviewCount ?? 0,
+      featured: false,
+      howToUse: product.howToUse,
+      badge: product.badge ?? "Verified",
+      badgeVariant: product.badgeVariant ?? "green",
+      unit: product.unit ?? "",
+      gradientFrom: DEFAULT_GRADIENT[0],
+      gradientTo: DEFAULT_GRADIENT[1],
+      tags: product.tags ?? [],
+      producer: product.producer,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    addItem(cartProduct, qty);
     setAdded(true);
     setTimeout(() => setAdded(false), 2500);
   }
 
+  if (loading && !data) {
+    return (
+      <div className="min-h-screen bg-(--cream) flex items-center justify-center py-32">
+        <Loader2 size={22} className="animate-spin text-(--text-muted)" />
+      </div>
+    );
+  }
+
+  if (error || !product) {
+    return (
+      <div className="min-h-screen bg-(--cream) flex flex-col items-center justify-center py-32 text-center px-6">
+        <p className="font-serif text-[24px] text-(--green-deep) mb-2">
+          Product not found
+        </p>
+        <p className="text-[14px] text-(--text-muted) mb-6">
+          It may have been removed or is no longer available.
+        </p>
+        <Link
+          href="/store"
+          className="text-(--green-mid) font-medium text-[14px] hover:underline"
+        >
+          ← Back to Store
+        </Link>
+      </div>
+    );
+  }
+
+  const [gradientFrom, gradientTo] = DEFAULT_GRADIENT;
+
   return (
     <div className="min-h-screen bg-(--cream)">
       {/* Breadcrumb */}
-      <div className="border-b border-(--cream-dark) bg-white">
+      <div className="border-b border-(--cream-dark)] bg-white">
         <div className="max-w-(--max-width) mx-auto px-6 lg:px-10 py-3.5 flex items-center gap-2 text-[13px] text-(--text-muted)">
-          <Link href="/" className="hover:text-(--green-mid) transition-colors">
+          <Link
+            href="/"
+            className="hover:text-(--green-mid) transition-colors"
+          >
             Home
           </Link>
           <ChevronRight size={13} />
@@ -87,7 +163,7 @@ export function ProductDetail({ product }: { product: Product }) {
             <div
               className="w-full aspect-square rounded-3xl relative overflow-hidden flex items-center justify-center"
               style={{
-                background: `linear-gradient(135deg, ${product.gradientFrom}, ${product.gradientTo})`,
+                background: `linear-gradient(135deg, ${gradientFrom}, ${gradientTo})`,
               }}
             >
               {product.imageUrl ? (
@@ -102,14 +178,16 @@ export function ProductDetail({ product }: { product: Product }) {
                   role="img"
                   aria-label={product.name}
                 >
-                  {product.emoji}
+                  {product.emoji ?? "🌿"}
                 </span>
               )}
-              <div className="absolute top-5 left-5">
-                <Badge variant={product.badgeVariant} size="lg">
-                  {product.badge}
-                </Badge>
-              </div>
+              {product.badge && (
+                <div className="absolute top-5 left-5">
+                  <Badge variant={product.badgeVariant ?? "green"} size="lg">
+                    {product.badge}
+                  </Badge>
+                </div>
+              )}
               {product.originalPrice && (
                 <div className="absolute top-5 right-5 bg-red-500 text-white text-[13px] font-bold px-3 py-1 rounded-full">
                   -
@@ -169,7 +247,7 @@ export function ProductDetail({ product }: { product: Product }) {
                         className={
                           s <= Math.round(reviewData!.summary.average)
                             ? "fill-(--gold) text-(--gold)"
-                            : "text-(--cream-dark) fill-(--cream-dark)"
+                            : "text-(--cream-dark)] fill-(--cream-dark)"
                         }
                       />
                     ))}
@@ -200,13 +278,15 @@ export function ProductDetail({ product }: { product: Product }) {
             </p>
 
             {/* Tags */}
-            <div className="flex flex-wrap gap-2 mb-6">
-              {product.tags.map((tag) => (
-                <Badge key={tag} variant="pill">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
+            {product.tags && product.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-6">
+                {product.tags.map((tag) => (
+                  <Badge key={tag} variant="pill">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            )}
 
             {/* Price */}
             <div className="flex items-baseline gap-3 mb-6">
@@ -218,16 +298,23 @@ export function ProductDetail({ product }: { product: Product }) {
                   {formatNaira(product.originalPrice)}
                 </span>
               )}
-              <span className="text-[14px] text-(--text-muted)">
-                / {product.unit}
-              </span>
+              {product.unit && (
+                <span className="text-[14px] text-(--text-muted)">
+                  / {product.unit}
+                </span>
+              )}
             </div>
 
             {/* Stock */}
-            {product.stockCount && product.stockCount < 20 && (
+            {product.stockCount > 0 && product.stockCount < 20 && (
               <p className="text-[13px] text-orange-600 font-medium mb-4 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
                 Only {product.stockCount} left in stock — order soon
+              </p>
+            )}
+            {!product.inStock && (
+              <p className="text-[13px] text-red-600 font-medium mb-4">
+                Currently out of stock
               </p>
             )}
 
@@ -236,12 +323,13 @@ export function ProductDetail({ product }: { product: Product }) {
               <QuantitySelector
                 value={qty}
                 onChange={setQty}
-                max={product.stockCount ?? 99}
+                max={product.stockCount || 99}
                 size="lg"
               />
               <button
                 onClick={handleAddToCart}
-                className="flex-1 flex items-center justify-center gap-2.5 py-4 rounded-full font-medium text-[15px] text-white transition-all duration-200 active:scale-[0.98]"
+                disabled={!product.inStock}
+                className="flex-1 flex items-center justify-center gap-2.5 py-4 rounded-full font-medium text-[15px] text-white transition-all duration-200 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{
                   background: added ? "var(--green-mid)" : "var(--green-deep)",
                 }}
@@ -294,13 +382,14 @@ export function ProductDetail({ product }: { product: Product }) {
           <div className="p-8">
             {activeTab === "description" && (
               <p className="text-[15px] text-(--text-body) leading-relaxed font-light max-w-2xl">
-                {product.longDesc ?? product.shortDesc}
+                {product.longDesc || product.shortDesc}
               </p>
             )}
             {activeTab === "ingredients" && (
               <ul className="space-y-2.5 max-w-lg">
-                {(
-                  product.ingredients ?? ["See label for full ingredients list"]
+                {(product.ingredients.length > 0
+                  ? product.ingredients
+                  : ["See label for full ingredients list"]
                 ).map((ing) => (
                   <li
                     key={ing}
@@ -320,17 +409,20 @@ export function ProductDetail({ product }: { product: Product }) {
             )}
             {activeTab === "warnings" && (
               <ul className="space-y-3 max-w-lg">
-                {(
-                  product.warnings ?? [
-                    "Keep out of reach of children",
-                    "Consult your doctor if pregnant or breastfeeding",
-                  ]
+                {(product.warnings.length > 0
+                  ? product.warnings
+                  : [
+                      "Keep out of reach of children",
+                      "Consult your doctor if pregnant or breastfeeding",
+                    ]
                 ).map((w) => (
                   <li
                     key={w}
                     className="flex items-start gap-2.5 text-[14px] text-(--text-body)"
                   >
-                    <span className="text-orange-500 mt-0.shrink-0">⚠️</span>
+                    <span className="text-orange-500 mt-0.5 shrink-0">
+                      ⚠️
+                    </span>
                     {w}
                   </li>
                 ))}
@@ -354,7 +446,7 @@ export function ProductDetail({ product }: { product: Product }) {
               {related.map((p, i) => (
                 <ProductCard
                   key={p.id}
-                  product={p}
+                  product={p as Product}
                   index={i}
                   liveSummary={relatedReviewData?.summaries[p.id] ?? null}
                 />

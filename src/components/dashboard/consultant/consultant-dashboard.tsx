@@ -51,10 +51,23 @@ type FeedbackItem = {
   };
 };
 
+type NotificationItem = {
+  id: string;
+  title: string;
+  body: string;
+  createdAt: string;
+  type: string;
+  isRead: boolean;
+};
+
 // ── Main component ──────
-export function ConsultantDashboard() {
+export function ConsultantDashboard({ user }: { user: { firstName: string } }) {
   const { data, loading, error, mutate } = useConsultantOverview();
   const [markingAll, setMarkingAll] = useState(false);
+
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   if (loading && !data) {
     return (
@@ -73,7 +86,7 @@ export function ConsultantDashboard() {
   if (error || !data) {
     return (
       <DashboardShell
-        heading="Consultant Dashboard"
+        heading={`${greeting}, ${user.firstName}`}
         subheading="Something went wrong"
       >
         <div className="p-5 rounded-2xl border border-red-500/20 bg-red-500/10 text-[13px] text-red-300">
@@ -205,50 +218,40 @@ export function ConsultantDashboard() {
             </p>
           ) : (
             <div className="space-y-2">
-              {(
-                notifications.items as {
-                  id: string;
-                  type:
-                    | "NEW_BOOKING"
-                    | "CANCELLED"
-                    | "RESCHEDULED"
-                    | "REMINDER"
-                    | string;
-                  title: string;
-                  body: string;
-                  createdAt: string;
-                  isRead: boolean;
-                }[]
-              ).map((n) => (
-                <button
-                  key={n.id}
-                  onClick={() => !n.isRead && markOneRead(n.id)}
-                  className={`w-full flex items-start gap-3 p-3 rounded-xl text-left transition-colors ${n.isRead ? "bg-white/2" : "bg-white/6 hover:bg-white/9"}`}
-                >
-                  <div className="w-7 h-7 rounded-lg bg-white/6 flex items-center justify-center shrink-0 mt-0.5">
-                    {notifIcon[n.type] ?? (
-                      <Bell size={14} className="text-white/40" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-[13px] font-medium text-white">
-                        {n.title}
-                      </p>
-                      {!n.isRead && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-(--green-mid) shrink-0" />
+              {(notifications.items as NotificationItem[]).map(
+                (n: NotificationItem) => (
+                  <button
+                    key={n.id}
+                    onClick={() => !n.isRead && markOneRead(n.id)}
+                    className={`w-full flex items-start gap-3 p-3 rounded-xl text-left transition-colors ${n.isRead ? "bg-white/2" : "bg-white/6 hover:bg-white/9"}`}
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-white/6 flex items-center justify-center shrink-0 mt-0.5">
+                      {notifIcon[n.type] ?? (
+                        <Bell size={14} className="text-white/40" />
                       )}
                     </div>
-                    <p className="text-[12px] text-white/45 mt-0.5">{n.body}</p>
-                    <p className="text-[11px] text-white/25 mt-1">
-                      {new Date(n.createdAt).toLocaleString("en-NG", {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      })}
-                    </p>
-                  </div>
-                </button>
-              ))}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-[13px] font-medium text-white">
+                          {n.title}
+                        </p>
+                        {!n.isRead && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-(--green-mid) shrink-0" />
+                        )}
+                      </div>
+                      <p className="text-[12px] text-white/45 mt-0.5">
+                        {n.body}
+                      </p>
+                      <p className="text-[11px] text-white/25 mt-1">
+                        {new Date(n.createdAt).toLocaleString("en-NG", {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        })}
+                      </p>
+                    </div>
+                  </button>
+                ),
+              )}
             </div>
           )}
         </motion.div>

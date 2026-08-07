@@ -7,7 +7,7 @@ import { useCart } from "@/context/cart-context";
 import { CartItem } from "./cart-item";
 import { Button } from "@/components/ui/button";
 import { ProductCard } from "@/components/store/product-card";
-import { getFeaturedProducts } from "@/data/products";
+import { useFeaturedProducts } from "@/hooks/store-hooks";
 import { useReviewSummaries } from "@/hooks/review-hooks";
 import { formatNaira } from "@/lib/utils";
 
@@ -15,7 +15,11 @@ const SHIPPING_THRESHOLD = 15000;
 
 export function CartPage() {
   const { items, itemCount, subtotal, shipping, total, clearCart } = useCart();
-  const suggestions = getFeaturedProducts(4)
+  const { products: featured } = useFeaturedProducts(8); // pull a few extra since some may already be in the cart
+  // const suggestions = getFeaturedProducts(4)
+  //   .filter((p) => !items.find((i) => i.product.id === p.id))
+  //   .slice(0, 4);
+  const suggestions = featured
     .filter((p) => !items.find((i) => i.product.id === p.id))
     .slice(0, 4);
   const { data: suggestionReviewData } = useReviewSummaries(

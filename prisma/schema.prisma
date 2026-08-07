@@ -404,7 +404,7 @@ enum VerificationStatus {
 // Producer Products
 model ProducerProduct {
   id                String        @id @default(cuid())
-  slug              String        @unique
+  slug              String        @unique // storefront route: /store/[slug] — generated at creation, see lib/slugify.ts
   producerProfileId String
   name              String
   description       String?       @db.Text
@@ -588,25 +588,32 @@ enum PressType {
 }
 
 model ProductMeta {
-  id          String   @id @default(cuid())
-  productId   String   @unique
-  price       Int      @default(0) // kobo
-  emoji       String   @default("🌿")
-  imageUrl    String?  @db.MediumText // primary product image, compressed to ≤100KB by client
-  productType String   @default("")
-  ingredients Json? // string[]
-  warnings    Json? // string[]
-  nafdacNo    String?
-  inStore     Boolean  @default(false)
-  stock       Int      @default(0)
-  sales       Int      @default(0)
-  revenue     Int      @default(0) // kobo
-  rating      Float    @default(0)
-  reviewCount Int      @default(0)
-  featured    Boolean  @default(false)
-  unit        String   @default("pack")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(cuid())
+  productId     String   @unique
+  price         Int      @default(0) // kobo
+  emoji         String   @default("🌿")
+  imageUrl      String?  @db.MediumText // primary product image, compressed to ≤100KB by client
+  productType   String   @default("")
+  ingredients   Json? // string[]
+  warnings      Json? // string[]
+  nafdacNo      String?
+  inStore       Boolean  @default(false)
+  stock         Int      @default(0)
+  sales         Int      @default(0)
+  revenue       Int      @default(0) // kobo
+  rating        Float    @default(0)
+  reviewCount   Int      @default(0)
+  // migration for existing rows.
+  shortDesc     String?  @db.Text // falls back to a truncated `description` if unset
+  howToUse      String?  @db.Text
+  originalPrice Int? // kobo — set to show a strikethrough discount
+  badge         String? // "Bestseller" | "Verified" | "New" | "Limited"
+  badgeVariant  String? // "gold" | "green" | "teal"
+  tags          Json? // string[]
+  unit          String   @default("unit") // "pack" | "bottle" | "jar" | etc.
+  featured      Boolean  @default(false) // shown in "You May Also Like" / homepage picks
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   product ProducerProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
 }

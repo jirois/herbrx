@@ -279,15 +279,30 @@ export interface StoreProduct {
 
   name: string;
   category: string;
+  type?: string;
 
   price: number;
+  originalPrice?: number | null;
 
   imageUrl?: string | null;
   emoji?: string;
 
   producer?: string;
 
+
   description?: string;
+
+  inStock?: boolean;
+  stockCount?: number;
+  rating: number;
+  reviews: number
+
+  unit?: string;
+  badge?: 'Bestseller' | 'Verified' | 'New' | 'Limited' | null;
+  badgeVariant?: 'gold' | 'green' | 'teal' | null;
+  tags?: string[];
+  featured?: boolean;
+
 }
 
 export interface RelatedProduct {
@@ -301,6 +316,9 @@ export interface RelatedProduct {
 
   imageUrl?: string | null;
   emoji?: string;
+
+  badge?: 'Bestseller' | 'Verified' | 'New' | 'Limited' | null;
+  badgeVariant?: 'gold' | 'green' | 'teal' | null;
 }
 
 export interface StoreProductDetail {
@@ -313,6 +331,7 @@ export interface StoreProductDetail {
   type: string;
 
   price: number;
+  originalPrice?: number | null;
 
   imageUrl?: string | null;
 
@@ -328,9 +347,20 @@ export interface StoreProductDetail {
 
   nafdacNo?: string | null;
 
+  howToUse?: string;
+
   stockCount: number;
 
   inStock: boolean;
+
+  rating: number | 0
+  
+  reviewCount: number | 0
+
+   unit?: string;
+  badge?: 'Bestseller' | 'Verified' | 'New' | 'Limited' | null;
+  badgeVariant?: 'gold' | 'green' | 'teal' | null;
+  tags?: string[];
 
   producer?: string;
 

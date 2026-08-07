@@ -8,6 +8,8 @@ import { CustomerDashboard } from "@/components/dashboard/customer/customer-dash
 import { ProducerDashboard } from "@/components/dashboard/producer/producer-dashboard";
 import { AdminDashboard } from "@/components/dashboard/admin/admin-dashboard";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { ConsultantDashboard } from "@/components/dashboard/consultant/consultant-dashboard";
+
 // import { generateSeedOrders } from "@/lib/dashboard-data";
 
 type DashboardUser = {
@@ -15,7 +17,7 @@ type DashboardUser = {
   name?: string | null;
   email?: string | null;
   image?: string | null;
-  role?: "ADMIN" | "PRODUCER" | "CUSTOMER";
+  role?: "ADMIN" | "CONSULTANT" | "PRODUCER" | "CUSTOMER";
 };
 
 export default async function DashboardPage() {
@@ -27,6 +29,10 @@ export default async function DashboardPage() {
 
   if (role === "ADMIN") {
     return <AdminDashboard user={user} />;
+  }
+  // ── Consultant ──────────
+  if (role === "CONSULTANT") {
+    return <ConsultantDashboard user={user} />;
   }
 
   if (role === "PRODUCER") {

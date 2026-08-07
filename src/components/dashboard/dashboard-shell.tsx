@@ -157,6 +157,11 @@ const adminNav: NavSection[] = [
     items: [
       { href: "/dashboard/admin/users", icon: Users, label: "Users" },
       {
+        href: "/dashboard/admin/consultants",
+        icon: HeartPulse,
+        label: "Consultants",
+      },
+      {
         href: "/dashboard/transactions",
         icon: CreditCard,
         label: "Transactions",
@@ -175,20 +180,17 @@ const consultantNav: NavSection[] = [
   },
 ];
 
-
 const roleLabel: Record<string, string> = {
   CUSTOMER: "Customer",
   PRODUCER: "Producer",
   ADMIN: "Admin",
   CONSULTANT: "Consultant",
-
 };
 const roleBadgeColor: Record<string, string> = {
   CUSTOMER: "bg-[var(--green-mid)]/30 text-[var(--green-pale)]",
   PRODUCER: "bg-amber-500/20 text-amber-300",
   ADMIN: "bg-red-500/20 text-red-300",
   CONSULTANT: "bg-blue-500/20 text-blue-300",
-
 };
 
 interface DashboardShellProps {
@@ -231,15 +233,13 @@ export function DashboardShell({
       ? adminNav
       : role === "PRODUCER"
         ? producerNav
-      : role === "CONSULTANT"
-        ? consultantNav
-        : customerNav;
-
+        : role === "CONSULTANT"
+          ? consultantNav
+          : customerNav;
 
   const initials = session?.user
-    ? `${(session.user as {firstName: string}).firstName?.[0] ?? ""}${(session.user as {lastName: string}).lastName?.[0] ?? ""}`.toUpperCase()
+    ? `${(session.user as { firstName: string }).firstName?.[0] ?? ""}${(session.user as { lastName: string }).lastName?.[0] ?? ""}`.toUpperCase()
     : "HX";
-
 
   const Sidebar = (
     <aside

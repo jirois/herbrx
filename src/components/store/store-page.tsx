@@ -2,17 +2,18 @@
 
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, X } from "lucide-react";
+import { Search, X, Loader2 } from "lucide-react";
 import { ProductCard } from "./product-card";
-import { products, productCategories } from "@/data/products";
+import { useStoreProducts } from "@/hooks/store-hooks";
 import { useReviewSummaries } from "@/hooks/review-hooks";
+import type { Product } from "@/types";
 import { cn } from "@/lib/utils";
-import { Product } from "@/types";
-
-// derive ProductType from the products data to ensure correct typing
-type ProductType = Product;
 
 type SortOption = "featured" | "price-asc" | "price-desc" | "rating" | "newest";
+
+type StoreProduct = NonNullable<
+  ReturnType<typeof useStoreProducts>["data"]
+>["products"][number];
 
 const sortOptions: { value: SortOption; label: string }[] = [
   { value: "featured", label: "Featured" },
@@ -26,29 +27,34 @@ export function StorePage() {
   const [category, setCategory] = useState("All Products");
   const [sort, setSort] = useState<SortOption>("featured");
   const [query, setQuery] = useState("");
-  // const [showFilters, setShowFilters] = useState(false)
+  const { data, loading, error } = useStoreProducts();
+  const products = useMemo(() => data?.products ?? [], [data]);
   const { data: reviewData } = useReviewSummaries(products.map((p) => p.id));
+
+  // Categories are producer-set free text now, not a fixed static list —
+  // derive the filter list from whatever's actually in the live catalog.
+  const productCategories = useMemo(() => {
+    const set = new Set(products.map((p) => p.category).filter(Boolean));
+    return ["All Products", ...Array.from(set).sort()];
+  }, [products]);
 
   const filtered = useMemo(() => {
     let result = [...products];
 
-    // Category filter
     if (category !== "All Products") {
       result = result.filter((p) => p.category === category);
     }
 
-    // Search
     if (query.trim()) {
       const q = query.toLowerCase();
       result = result.filter(
         (p) =>
           p.name.toLowerCase().includes(q) ||
-          p.shortDesc.toLowerCase().includes(q) ||
-          p.tags.some((t) => t.toLowerCase().includes(q)),
+          (p.description ?? "").toLowerCase().includes(q) ||
+          (p.tags ?? []).some((t) => t.toLowerCase().includes(q)),
       );
     }
 
-    // Sort
     switch (sort) {
       case "price-asc":
         result.sort((a, b) => a.price - b.price);
@@ -59,12 +65,12 @@ export function StorePage() {
       case "rating":
         result.sort(
           (a, b) =>
-            (reviewData?.summaries[b.id]?.average ?? b.rating) -
-            (reviewData?.summaries[a.id]?.average ?? a.rating),
+            (reviewData?.summaries[b.id]?.average ?? 0) -
+            (reviewData?.summaries[a.id]?.average ?? 0),
         );
         break;
       case "newest":
-        result.sort((a, b) => b.reviews - a.reviews);
+        // API already returns newest-first; nothing further to sort by.
         break;
       case "featured":
       default:
@@ -73,7 +79,7 @@ export function StorePage() {
     }
 
     return result;
-  }, [category, sort, query, reviewData]);
+  }, [products, category, sort, query, reviewData]);
 
   return (
     <div className="min-h-screen bg-(--cream)">
@@ -123,7 +129,7 @@ export function StorePage() {
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as SortOption)}
-            className="px-4 py-2.5 rounded-full border border-(--cream-dark) bg-white text-[14px] text-(--text-body) outline-none focus:border-(--green-mid) transition-colors cursor-pointer"
+            className="px-4 py-2.5 rounded-full border border-(--cream-dark) bg-white text-[14px] text-(--text-body)] outline-none focus:border-(--green-mid) transition-colors cursor-pointer"
           >
             {sortOptions.map((o) => (
               <option key={o.value} value={o.value}>
@@ -133,7 +139,9 @@ export function StorePage() {
           </select>
 
           <span className="text-[13px] text-(--text-muted) ml-auto">
-            {filtered.length} product{filtered.length !== 1 ? "s" : ""}
+            {loading
+              ? "Loading…"
+              : `${filtered.length} product${filtered.length !== 1 ? "s" : ""}`}
           </span>
         </div>
 
@@ -181,50 +189,63 @@ export function StorePage() {
 
           {/* Products grid */}
           <div className="flex-1 min-w-0">
-            <AnimatePresence mode="popLayout">
-              {filtered.length > 0 ? (
-                <motion.div
-                  key={`${category}-${sort}-${query}`}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5"
-                >
-                  {filtered.map((product, i) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product as ProductType}
-                      index={i}
-                      liveSummary={reviewData?.summaries[product.id] ?? null}
-                    />
-                  ))}
-                </motion.div>
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-center py-24"
-                >
-                  <div className="text-[48px] mb-4">🔍</div>
-                  <h3 className="font-serif text-[22px] text-(--green-deep) mb-2">
-                    No products found
-                  </h3>
-                  <p className="text-(--text-muted) text-[14px] mb-6">
-                    Try adjusting your search or filters
-                  </p>
-                  <button
-                    onClick={() => {
-                      setQuery("");
-                      setCategory("All Products");
-                    }}
-                    className="text-(--green-mid) font-medium text-[14px] hover:underline"
+            {loading && products.length === 0 ? (
+              <div className="text-center py-24 text-(--text-muted)">
+                <Loader2 size={22} className="animate-spin inline-block mr-2" />{" "}
+                Loading products…
+              </div>
+            ) : error ? (
+              <div className="text-center py-24">
+                <p className="text-(--text-muted) text-[14px]">
+                  Couldn&apos;t load products. Please refresh.
+                </p>
+              </div>
+            ) : (
+              <AnimatePresence mode="popLayout">
+                {filtered.length > 0 ? (
+                  <motion.div
+                    key={`${category}-${sort}-${query}`}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5"
                   >
-                    Clear all filters
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                    {filtered.map((product, i) => (
+                      <ProductCard
+                        key={product.id}
+                        product={product as Product}
+                        index={i}
+                        liveSummary={reviewData?.summaries[product.id] ?? null}
+                      />
+                    ))}
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-center py-24"
+                  >
+                    <div className="text-[48px] mb-4">🔍</div>
+                    <h3 className="font-serif text-[22px] text-(--green-deep) mb-2">
+                      No products found
+                    </h3>
+                    <p className="text-(--text-muted) text-[14px] mb-6">
+                      Try adjusting your search or filters
+                    </p>
+                    <button
+                      onClick={() => {
+                        setQuery("");
+                        setCategory("All Products");
+                      }}
+                      className="text-(--green-mid) font-medium text-[14px] hover:underline"
+                    >
+                      Clear all filters
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            )}
           </div>
         </div>
       </div>
