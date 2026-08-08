@@ -5,12 +5,14 @@ import { requireAuth, ok, notFound, badRequest, serverError } from '@/lib/api-he
 // POST /api/reviews/[id]/helpful — toggles the current user's helpful vote
 // on a review and returns the updated count, so "Helpful (N)" sorting and
 // display stay in sync with the click that just happened.
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) {
   const { session, error } = await requireAuth(req)
+  const { id } = await params;
   if (error) return error
 
   try {
-    const reviewId = params.id
+    const reviewId = id
     const user = session!.user as { id: string }
     const userId = user.id
 

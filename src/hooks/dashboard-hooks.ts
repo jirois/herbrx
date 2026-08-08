@@ -141,6 +141,38 @@ export function useAdminCompliance(status = 'PENDING', search?: string) {
   }>(`/api/dashboard/admin/compliance${qs}`)
 }
 
+export function useAdminProductsOverview() {
+  return useFetch<{
+    products: {
+      id: string
+      slug: string
+      name: string
+      category: string
+      status: string
+      producer: string
+      emoji: string
+      imageUrl: string | null
+      price: number
+      unit: string
+      badge: string | null
+      badgeVariant: string | null
+      rating: number
+      reviewCount: number
+      inStock: boolean
+      stockCount: number
+      revenue: number
+      unitsSold: number
+    }[]
+    totals: {
+      totalProducts: number
+      inStock: number
+      lowStock: number
+      totalUnitsSold: number
+      totalRevenue: number
+    }
+  }>('/api/dashboard/admin/products-overview')
+}
+
 
 // ── Mutation helpers ──────────
 

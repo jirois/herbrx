@@ -5,11 +5,13 @@ import { ok, notFound, serverError } from '@/lib/api-helpers'
 // GET /api/herbs/[slug]
 export async function GET(
   req: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
+    const { slug } = await params
+
     const herb = await prisma.herb.findUnique({
-      where: { slug: params.slug },
+      where: { slug },
       include: {
         safetyReviews: {
           where: { isPublished: true },

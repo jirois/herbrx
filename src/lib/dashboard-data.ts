@@ -18,7 +18,7 @@ export function getTopProducts(orders: Order[], limit = 5) {
     if (o.paymentStatus !== 'paid') return
     o.items.forEach(item => {
       const id = item.product.id
-      if (!map[id]) map[id] = { name:item.product.name, emoji:item.product.emoji, revenue:0, qty:0 }
+      if (!map[id]) map[id] = { name:item.product.name, emoji:item.product.emoji ?? '🏷️', revenue:0, qty:0 }
       map[id].revenue += item.product.price * item.quantity
       map[id].qty     += item.quantity
     })
@@ -60,12 +60,48 @@ export function getDashboardStats(orders: Order[]) {
 
 export function generateSeedOrders(): Order[] {
   const prods = [
-    { id:'liver-cleanse-blend',   name:'Liver Cleanse Blend',      emoji:'🌿', price:4500, gF:'#C8DABB', gT:'#A8C999' },
-    { id:'moringa-gold-capsules', name:'Moringa Gold Capsules',    emoji:'🫚', price:6200, gF:'#F5E8CE', gT:'#E8D0A0' },
-    { id:'ashwagandha-blend',     name:'Ashwagandha Stress Relief',emoji:'🌱', price:5400, gF:'#D4C5E2', gT:'#B8A5CC' },
-    { id:'bitter-leaf-tincture',  name:'Bitter Leaf Tincture',     emoji:'🌼', price:3800, gF:'#C2DDD5', gT:'#9BCABB' },
-    { id:'zobo-hibiscus-tea',     name:'Zobo Hibiscus Tea',        emoji:'🌺', price:1800, gF:'#F5C4C4', gT:'#E8A0A0' },
-    { id:'shea-neem-balm',        name:'Shea & Neem Balm',         emoji:'🧴', price:2900, gF:'#EDE6D9', gT:'#DDD0BA' },
+    {
+      id:'liver-cleanse-blend', name:'Liver Cleanse Blend', emoji:'🌿', price:4500, gF:'#C8DABB', gT:'#A8C999',
+      longDesc:'A calming herbal blend crafted to support daily wellness and digestive balance.',
+      ingredients:['Milk Thistle', 'Dandelion Root', 'Turmeric'],
+      warnings:['Consult a healthcare professional if pregnant or nursing.'],
+      createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(),
+    },
+    {
+      id:'moringa-gold-capsules', name:'Moringa Gold Capsules', emoji:'🫚', price:6200, gF:'#F5E8CE', gT:'#E8D0A0',
+      longDesc:'Nutrient-rich moringa capsules designed to complement a healthy daily routine.',
+      ingredients:['Moringa Leaf', 'Vitamin E'],
+      warnings:['Keep out of reach of children.'],
+      createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(),
+    },
+    {
+      id:'ashwagandha-blend', name:'Ashwagandha Stress Relief', emoji:'🌱', price:5400, gF:'#D4C5E2', gT:'#B8A5CC',
+      longDesc:'A soothing adaptogenic blend to help support stress relief and calm.',
+      ingredients:['Ashwagandha Root', 'Chamomile'],
+      warnings:['Do not exceed the recommended dosage.'],
+      createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(),
+    },
+    {
+      id:'bitter-leaf-tincture', name:'Bitter Leaf Tincture', emoji:'🌼', price:3800, gF:'#C2DDD5', gT:'#9BCABB',
+      longDesc:'A concentrated tincture made from bitter leaf for everyday wellness support.',
+      ingredients:['Bitter Leaf', 'Alcohol Base'],
+      warnings:['Keep away from flame and store in a cool place.'],
+      createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(),
+    },
+    {
+      id:'zobo-hibiscus-tea', name:'Zobo Hibiscus Tea', emoji:'🌺', price:1800, gF:'#F5C4C4', gT:'#E8A0A0',
+      longDesc:'A vibrant antioxidant-rich tea blend with refreshing hibiscus flavor.',
+      ingredients:['Hibiscus', 'Cinnamon', 'Cloves'],
+      warnings:['Avoid overconsumption if you are sensitive to caffeine.'],
+      createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(),
+    },
+    {
+      id:'shea-neem-balm', name:'Shea & Neem Balm', emoji:'🧴', price:2900, gF:'#EDE6D9', gT:'#DDD0BA',
+      longDesc:'A nourishing balm crafted with shea and neem for skin comfort and care.',
+      ingredients:['Shea Butter', 'Neem Extract'],
+      warnings:['Patch test before use on sensitive skin.'],
+      createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(),
+    },
   ]
   const custs = [
     { firstName:'Chioma',   lastName:'Okafor',  email:'chioma@example.com',   phone:'08012345678', address:'5 Allen Ave',     city:'Lagos',         state:'Lagos'   },
@@ -91,11 +127,14 @@ export function generateSeedOrders(): Order[] {
       const p   = prods[Math.floor(Math.random()*prods.length)]
       const qty = Math.floor(Math.random()*3)+1
       return {
-        product:  { id:p.id, name:p.name, emoji:p.emoji, price:p.price,
+        product:  {
+          id:p.id, name:p.name, emoji:p.emoji, price:p.price,
           gradientFrom:p.gF, gradientTo:p.gT, type:'Capsules', badge:'Verified' as const,
           badgeVariant:'green' as const, rating:4.8, reviews:100, inStock:true,
           slug:p.id, shortDesc:'', tags:[], category:'Capsules', unit:'bottle',
           stockCount:50, featured:false,
+          longDesc:p.longDesc, ingredients:p.ingredients, warnings:p.warnings,
+          createdAt:p.createdAt, updatedAt:p.updatedAt,
         },
         quantity: qty,
       }

@@ -31,6 +31,7 @@ import {
   Store,
   Flag,
   Rocket,
+  ShieldCheck,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -133,6 +134,11 @@ const adminNav: NavSection[] = [
     label: "Regulatory",
     items: [
       { href: "/dashboard", icon: LayoutDashboard, label: "Overview" },
+      {
+        href: "/dashboard/admin/compliance",
+        icon: ShieldCheck,
+        label: "Compliance",
+      },
       { href: "/dashboard/admin/products", icon: Package, label: "Products" },
       {
         href: "/dashboard/admin/batches",

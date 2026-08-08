@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
         inStock: p.meta!.stock > 0,
         stockCount: p.meta!.stock,
         rating: p.meta!.rating,
-        reviewCount: p.meta!.reviewCount,
+        reviews: p.meta?.reviewCount ?? 0,
         unit: p.meta!.unit,
         badge: (p.meta!.badge as StoreProduct['badge']) ?? null,
         badgeVariant: (p.meta!.badgeVariant as StoreProduct['badgeVariant']) ?? null,
