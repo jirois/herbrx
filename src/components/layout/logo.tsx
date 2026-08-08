@@ -1,51 +1,58 @@
+import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 interface LogoProps {
+  /** Use the white version of the artwork — for dark backgrounds (footer, dark hero sections, etc). */
   light?: boolean;
+  /** Render just the mortar-and-pestle mark, no wordmark — for tight spaces (collapsed sidebars, compact headers). */
+  iconOnly?: boolean;
+  /** Where the logo links to. Defaults to the homepage. */
+  href?: string;
+  /** Mark as high-priority for above-the-fold instances (e.g. the main navbar) to improve LCP. */
+  priority?: boolean;
   className?: string;
 }
 
-export function Logo({ light = false, className }: LogoProps) {
+// Intrinsic pixel dimensions of the source artwork — keeps the aspect ratio
+// correct at every size next/image is asked to render it at.
+const FULL_RATIO = { width: 868, height: 267 };
+const ICON_RATIO = { width: 263, height: 263 };
+
+export function Logo({
+  light = false,
+  iconOnly = false,
+  href = "/",
+  priority = false,
+  className,
+}: LogoProps) {
+  const src = iconOnly
+    ? light
+      ? "/brand/herbrx-icon-white.png"
+      : "/brand/herbrx-icon.png"
+    : light
+      ? "/brand/herbrx-logo-full-white.png"
+      : "/brand/herbrx-logo-full.png";
+
+  const dims = iconOnly ? ICON_RATIO : FULL_RATIO;
+
   return (
     <Link
-      href="/"
-      className={cn("flex items-center gap-2.5 group", className)}
+      href={href}
+      className={cn("inline-flex items-center group", className)}
       aria-label="HerbRx — go to homepage"
     >
-      {/* Icon mark */}
-      <div
+      <Image
+        src={src}
+        alt="HerbRx"
+        width={dims.width}
+        height={dims.height}
+        priority={priority}
         className={cn(
-          "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
-          "font-serif italic font-semibold text-[17px] transition-transform duration-300",
-          "group-hover:scale-105",
-          light
-            ? "bg-white/15 text-white border border-white/20"
-            : "bg-(--green-deep) text-white",
+          "w-auto transition-transform duration-300 group-hover:scale-105 select-none",
+          iconOnly ? "h-8 sm:h-9" : "h-9 sm:h-10",
         )}
-      >
-        Hx
-      </div>
-
-      {/* Word mark */}
-      <div className="leading-none">
-        <span
-          className={cn(
-            "block font-serif font-semibold text-[22px] tracking-[0.01em]",
-            light ? "text-white" : "text-(--green-deep)",
-          )}
-        >
-          HerbRx
-        </span>
-        <span
-          className={cn(
-            "block font-sans font-normal text-[10px] tracking-[0.14em] uppercase mt-0.5",
-            light ? "text-white/40" : "text-(--text-muted)",
-          )}
-        >
-          Natural Wellness
-        </span>
-      </div>
+      />
     </Link>
   );
 }

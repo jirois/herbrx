@@ -213,11 +213,12 @@ export async function uploadFile(file: File, folder = 'verification'): Promise<s
   const formData = new FormData()
   formData.append('file', file)
   formData.append('folder', folder)
-  const res = await fetch('/api/upload', { method: 'POST', body: formData })
+  const res = await fetch('/api/upload/document', { method: 'POST', body: formData })
   const data = await res.json()
   if (!res.ok) throw new Error(data.error ?? 'Upload failed')
   return data.url as string
 }
+
 
 // ── Domain-specific mutations ───────
 
