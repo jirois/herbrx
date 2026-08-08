@@ -400,6 +400,86 @@ export async function sendConsultationConfirmationEmail(args: {
   })
 }
 
+// ── Producer verification decision (approve / reject / under review) ──────
+export async function sendVerificationStatusEmail(opts: {
+  to:           string
+  firstName:    string
+  businessName: string
+  decision:     'APPROVED' | 'REJECTED' | 'UNDER_REVIEW'
+  note?:        string
+}) {
+  const baseUrl = process.env.NEXTAUTH_URL ?? 'https://herbrx.ng'
+  const dashUrl = `${baseUrl}/dashboard/producer/verification`
+
+  const cfgMap: Record<string, { subject: string; headline: string; color: string; detail: string }> = {
+    APPROVED: {
+      subject: '🎉 You\'re HerbRx Verified!',
+      headline: 'Verification Approved!',
+      color: '#27ae60',
+      detail: 'Congratulations — your business has been verified. You now have full marketplace selling rights and the "HerbRx Verified Safe" badge on your approved products.',
+    },
+    REJECTED: {
+      subject: '⚠ Update on your HerbRx verification application',
+      headline: 'Application Not Approved',
+      color: '#e74c3c',
+      detail: 'Your verification application was reviewed but could not be approved at this time. Please review the feedback below, update your documents, and resubmit.',
+    },
+    UNDER_REVIEW: {
+      subject: 'Your HerbRx verification is under active review',
+      headline: 'Under Active Review',
+      color: '#2E86DE',
+      detail: 'A HerbRx compliance officer has started reviewing your application and documents. We\'ll email you again as soon as a decision is made.',
+    },
+  }
+
+  const cfg = cfgMap[opts.decision]
+
+  const body = `
+    <h1 style="font-family:Georgia,serif;font-size:26px;font-weight:600;color:${cfg.color};margin-bottom:8px;">
+      ${cfg.headline}
+    </h1>
+    <p style="font-size:15px;color:#555;line-height:1.7;margin-bottom:20px;">
+      Hi ${opts.firstName}, here's an update on your HerbRx producer verification.
+    </p>
+
+    <div style="background:#f7f3ec;border-radius:12px;padding:20px 24px;margin-bottom:24px;">
+      <p style="font-size:12px;color:#999;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Business</p>
+      <p style="font-size:18px;font-weight:600;color:#1a3a2a;font-family:Georgia,serif;margin:0;">${opts.businessName}</p>
+    </div>
+
+    <p style="font-size:15px;color:#444;line-height:1.7;margin-bottom:${opts.note ? '16px' : '28px'};">
+      ${cfg.detail}
+    </p>
+
+    ${opts.note ? `
+    <div style="background:#fff8f0;border-left:4px solid ${cfg.color};padding:16px 20px;border-radius:0 12px 12px 0;margin-bottom:28px;">
+      <p style="font-size:12px;color:#999;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Note from the HerbRx compliance team</p>
+      <p style="font-size:14px;color:#555;margin:0;line-height:1.7;">${opts.note}</p>
+    </div>
+    ` : ''}
+
+    <div style="text-align:center;margin-bottom:28px;">
+      <a href="${dashUrl}"
+         style="display:inline-block;background:${BRAND_GREEN};color:#ffffff;font-family:Georgia,serif;font-size:15px;font-weight:600;padding:14px 36px;border-radius:50px;text-decoration:none;">
+        ${opts.decision === 'REJECTED' ? 'Review & Resubmit →' : 'View Verification Status →'}
+      </a>
+    </div>
+
+    <p style="font-size:13px;color:#888;line-height:1.7;">
+      Questions? Reply to this email or contact us at
+      <a href="mailto:compliance@herbrx.ng" style="color:${BRAND_GREEN};">compliance@herbrx.ng</a>
+    </p>
+  `
+
+  return transporter.sendMail({
+    from:    FROM,
+    to:      opts.to,
+    subject: `${cfg.subject} | HerbRx`,
+    html:    emailLayout(cfg.headline, body),
+    text:    `Hi ${opts.firstName}, ${cfg.detail}${opts.note ? ` Note: ${opts.note}` : ''} Visit ${dashUrl} for details.`,
+  })
+}
+
 
 // export async function sendOrderConfirmationEmail(order: Order) {
 //   const itemRows = order.items.map(item => `

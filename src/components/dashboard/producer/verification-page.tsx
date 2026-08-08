@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
-import { useVerificationStatus, producerApi } from "@/hooks/dashboard-hooks";
+import {
+  useVerificationStatus,
+  producerApi,
+  uploadFile,
+} from "@/hooks/dashboard-hooks";
 import {
   required,
   validEmail,
@@ -83,6 +87,8 @@ interface VerifiedProfilePayload {
   businessPhone?: string | null;
   rcNumber?: string | null;
   nafdacNumber?: string | null;
+  verificationNote?: string | null;
+  verifiedAt?: string | null;
 }
 
 // ── Mock state — switch this to represent different flow states ────────────
@@ -356,7 +362,13 @@ function SubmittedView({ status }: { status: "SUBMITTED" | "UNDER_REVIEW" }) {
   );
 }
 
-function RejectedView({ onReapply }: { onReapply: () => void }) {
+function RejectedView({
+  note,
+  onReapply,
+}: {
+  note?: string | null;
+  onReapply: () => void;
+}) {
   return (
     <div className="max-w-xl mx-auto py-8">
       <motion.div
@@ -372,50 +384,51 @@ function RejectedView({ onReapply }: { onReapply: () => void }) {
       </h2>
       <p className="text-[14px] text-white/50 leading-relaxed mb-6 text-center">
         Your verification application was reviewed but could not be approved at
-        this time. Review the feedback below and resubmit when ready.
+        this time. Review the feedback below, update your documents, and
+        resubmit when ready.
       </p>
 
-      {/* Rejection reasons */}
+      {/* Reviewer feedback — the admin's actual rejection note */}
       <div className="bg-red-500/8 border border-red-500/20 rounded-2xl p-5 mb-5">
-        <p className="text-[12px] text-white/35 uppercase tracking-wider mb-3">
-          Reviewer Feedback
+        <div className="flex items-center gap-2 mb-3">
+          <AlertTriangle size={14} className="text-red-400 shrink-0" />
+          <p className="text-[12px] text-white/35 uppercase tracking-wider">
+            Reviewer Feedback
+          </p>
+        </div>
+        <p className="text-[14px] text-white/75 leading-relaxed whitespace-pre-line">
+          {note && note.trim().length > 0
+            ? note
+            : "No specific reason was provided by the reviewer. Please contact compliance@herbrx.ng for details, or simply re-check your documents and resubmit."}
         </p>
-        {[
-          {
-            issue: "CAC Certificate invalid or expired",
-            fix: "Upload a current CAC certificate (within 12 months).",
-          },
-          {
-            issue: "Lab partnership letter not on letterhead",
-            fix: "Resubmit on official laboratory letterhead with stamp.",
-          },
-        ].map((item, i) => (
-          <div
-            key={i}
-            className="flex items-start gap-3 py-3 border-b border-red-500/10 last:border-0"
-          >
-            <AlertTriangle size={14} className="text-red-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-[13px] font-semibold text-white">
-                {item.issue}
-              </p>
-              <p className="text-[12px] text-white/50 mt-0.5">{item.fix}</p>
-            </div>
-          </div>
-        ))}
       </div>
 
       <button
         onClick={onReapply}
         className="w-full h-12 bg-(--green-mid) hover:bg-(--green-light) text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
       >
-        <ArrowRight size={16} /> Start New Application
+        <ArrowRight size={16} /> Re-upload Documents & Reapply
       </button>
     </div>
   );
 }
 
-function ApprovedView() {
+function ApprovedView({ verifiedAt }: { verifiedAt?: string | null }) {
+  const verifiedDate = verifiedAt ? new Date(verifiedAt) : null;
+  const renewalDate = verifiedDate
+    ? new Date(
+        verifiedDate.getFullYear() + 1,
+        verifiedDate.getMonth(),
+        verifiedDate.getDate(),
+      )
+    : null;
+  const fmt = (d: Date) =>
+    d.toLocaleDateString("en-NG", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+
   return (
     <div className="max-w-2xl mx-auto py-4">
       {/* Seal */}
@@ -445,7 +458,9 @@ function ApprovedView() {
           Tier 2 · Seal of Safety Holder
         </p>
         <p className="text-[13px] text-white/40 mt-1">
-          Verified 14 June 2025 · Renewal due June 2026
+          {verifiedDate
+            ? `Verified ${fmt(verifiedDate)}${renewalDate ? ` · Renewal due ${fmt(renewalDate)}` : ""}`
+            : "Verified · Seal of Safety active"}
         </p>
       </motion.div>
 
@@ -647,6 +662,34 @@ export function VerificationPage() {
     setSubmitting(true);
     setSubmitError(null);
     try {
+      // Upload any newly-selected files first, so we submit real hosted URLs
+      // rather than placeholder strings.
+      const existingProfile =
+        (verificationData?.profile as
+          | (VerifiedProfilePayload & {
+              cacCertUrl?: string | null;
+              labPartnerUrl?: string | null;
+              nafdacCertUrl?: string | null;
+              insuranceUrl?: string | null;
+            })
+          | undefined) ?? undefined;
+
+      const [cacCertUrl, labPartnerUrl, nafdacUrl, insuranceUrl] =
+        await Promise.all([
+          docs.cacCertFile
+            ? uploadFile(docs.cacCertFile, "verification")
+            : Promise.resolve(existingProfile?.cacCertUrl ?? ""),
+          docs.labPartnerFile
+            ? uploadFile(docs.labPartnerFile, "verification")
+            : Promise.resolve(existingProfile?.labPartnerUrl ?? ""),
+          docs.nafdacFile
+            ? uploadFile(docs.nafdacFile, "verification")
+            : Promise.resolve(existingProfile?.nafdacCertUrl ?? ""),
+          docs.insuranceFile
+            ? uploadFile(docs.insuranceFile, "verification")
+            : Promise.resolve(existingProfile?.insuranceUrl ?? ""),
+        ]);
+
       await producerApi.applyVerification({
         businessName: business.businessName,
         businessEmail: business.businessEmail,
@@ -655,26 +698,24 @@ export function VerificationPage() {
         nafdacNumber: business.nafdacNumber,
         state: business.state,
         website: business.website,
-        // Document URLs — in production upload to Cloudinary/S3 first
-        cacCertUrl: docs.cacCertFile
-          ? `https://cdn.herbrx.ng/docs/${docs.cacCertFile.name}`
-          : "",
-        labPartnerUrl: docs.labPartnerFile
-          ? `https://cdn.herbrx.ng/docs/${docs.labPartnerFile.name}`
-          : "",
-        nafdacUrl: docs.nafdacFile
-          ? `https://cdn.herbrx.ng/docs/${docs.nafdacFile.name}`
-          : "",
-        insuranceUrl: docs.insuranceFile
-          ? `https://cdn.herbrx.ng/docs/${docs.insuranceFile.name}`
-          : "",
+        cacCertUrl,
+        labPartnerUrl,
+        nafdacUrl,
+        insuranceUrl,
       });
-      refetchVerification();
-    } catch {
+      //   // Document URLs — in production upload to Cloudinary/S3 first
+
+      await refetchVerification();
+      setVerificationStatus("SUBMITTED");
+    } catch (e) {
       /* optimistic fallback */
+      setSubmitError(
+        e instanceof Error
+          ? e.message
+          : "Something went wrong submitting your application. Please try again.",
+      );
     }
     setSubmitting(false);
-    setVerificationStatus("SUBMITTED");
   }
 
   // ── Status-based rendering ────
@@ -684,7 +725,12 @@ export function VerificationPage() {
         heading="Verification Status"
         subheading="Your HerbRx Seal of Safety"
       >
-        <ApprovedView />
+        <ApprovedView
+          verifiedAt={
+            (verificationData?.profile as VerifiedProfilePayload | undefined)
+              ?.verifiedAt
+          }
+        />
       </DashboardShell>
     );
   }
@@ -718,15 +764,18 @@ export function VerificationPage() {
         subheading="Application not approved"
       >
         <RejectedView
+          note={
+            (verificationData?.profile as VerifiedProfilePayload | undefined)
+              ?.verificationNote
+          }
           onReapply={() => {
             setVerificationStatus("UNVERIFIED");
-            setStep(0);
+            setStep(1);
           }}
         />
       </DashboardShell>
     );
   }
-
   // ── Application flow (UNVERIFIED / DRAFT) ───────
   return (
     <DashboardShell

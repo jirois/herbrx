@@ -5,7 +5,7 @@ import { buildDailySlotTemplate, isWorkingDay } from '@/lib/booking-config'
 
 // GET /api/consultants/[id]/availability?date=YYYY-MM-DD
 export async function GET(req: NextRequest,
-  { params }: { params: Promise<{ id: string }>}) {
+  { params }: { params: Promise<{ id: string }> }) {
     const {id} = await params
   try {
     const dateParam = req.nextUrl.searchParams.get('date')

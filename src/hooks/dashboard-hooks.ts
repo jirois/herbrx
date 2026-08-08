@@ -130,6 +130,18 @@ export function useAdminBatches(status?: string) {
   )
 }
 
+export function useAdminCompliance(status = 'PENDING', search?: string) {
+  const params = new URLSearchParams()
+  if (status) params.set('status', status)
+  if (search) params.set('search', search)
+  const qs = params.toString() ? `?${params}` : ''
+  return useFetch<{
+    producers: Record<string, unknown>[]
+    counts: { pending: number; approved: number; rejected: number; total: number }
+  }>(`/api/dashboard/admin/compliance${qs}`)
+}
+
+
 // ── Mutation helpers ──────────
 
 /** Generic POST helper */
@@ -164,6 +176,17 @@ export async function apiDelete(url: string) {
   return data;
 }
 
+/** Upload a file to /api/upload (Cloudinary in production, mock CDN URL in dev). Returns the hosted URL. */
+export async function uploadFile(file: File, folder = 'verification'): Promise<string> {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('folder', folder)
+  const res = await fetch('/api/upload', { method: 'POST', body: formData })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error ?? 'Upload failed')
+  return data.url as string
+}
+
 // ── Domain-specific mutations ───────
 
 export const producerApi = {
@@ -187,6 +210,8 @@ export const adminApi = {
   resolveAlert:   (body: unknown) => apiPatch('/api/dashboard/admin/alerts', body),
   deleteAlert: (alertId: string) => apiDelete(`/api/dashboard/admin/alerts?id=${alertId}`),
   changeUserStatus: (body: unknown) => apiPatch('/api/dashboard/admin/users', body),
+  reviewVerification: (body: { producerUserId: string; decision: 'APPROVED' | 'REJECTED' | 'UNDER_REVIEW'; note?: string }) =>
+    apiPatch('/api/dashboard/producer/verification', body),
 }
 
 export const bookingApi = {

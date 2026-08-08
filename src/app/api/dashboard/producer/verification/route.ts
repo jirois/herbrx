@@ -134,7 +134,10 @@ export async function PATCH(req: NextRequest) {
     if (!['APPROVED', 'REJECTED', 'UNDER_REVIEW'].includes(decision)){
      return badRequest('decision must be APPROVED, REJECTED, or UNDER_REVIEW') 
     }
-    const profile = await prisma.producerProfile.findUnique({where: {userId: producerUserId}})
+    const profile = await prisma.producerProfile.findUnique({where: {userId: producerUserId},
+    include: {user: {select: {email: true, firstName: true}}}
+    })
+    
     if (!profile) return notFound()
     
     const updated = await prisma.producerProfile.update({
@@ -159,6 +162,22 @@ export async function PATCH(req: NextRequest) {
         reason:     note ?? null
       }
     })
+
+    // Notify the producer by email (fire-and-forget — don't block the response)
+    const producerEmail = profile.user?.email
+    const producerName  = profile.user?.firstName ?? 'there'
+    if (producerEmail) {
+      import('@/lib/mailer').then(({ sendVerificationStatusEmail }) => {
+        sendVerificationStatusEmail({
+          to:           producerEmail,
+          firstName:    producerName,
+          businessName: profile.businessName,
+          decision:     decision as 'APPROVED' | 'REJECTED' | 'UNDER_REVIEW',
+          note:         note ?? undefined,
+        }).catch(err => console.error('[VerificationStatus Email]', err))
+      }).catch(() => {})
+    }
+
 
     return ok({ profile: updated})
   } catch (e) {
