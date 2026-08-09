@@ -7,9 +7,10 @@ const createPrismaClient = () => {
   const url = new URL(databaseUrl)
 
   const poolConfig: mariadb.PoolConfig = {
-    host: url.hostname,
+    host: url.hostname === 'localhost' || !url.hostname ? '127.0.0.1' : url.hostname,
     port: Number(url.port) || 3306,
     user: url.username,
+    // Decode password cleanly: 'UyouyoumeAkpos%402025' -> 'UyouyoumeAkpos@2025'
     password: decodeURIComponent(url.password),
     database: url.pathname.replace(/^\//, ''),
     connectionLimit: 5,
@@ -17,9 +18,11 @@ const createPrismaClient = () => {
     acquireTimeout: 10000,
     idleTimeout: 30000,
     minimumIdle: 0,
+    // CRITICAL FOR HOSTINGER LOCALHOST/127.0.0.1 CONNECTION HANDSHAKE:
+    ssl: false,
+    allowPublicKeyRetrieval: true,
   }
 
-  // Pass poolConfig directly into PrismaMariaDb
   const adapter = new PrismaMariaDb(poolConfig)
   return new PrismaClient({ adapter })
 }
