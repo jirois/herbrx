@@ -3,7 +3,7 @@ import { PrismaMariaDb } from '@prisma/adapter-mariadb'
 import mariadb from 'mariadb'
 
 const createPrismaClient = () => {
-  const databaseUrl = process.env.DATABASE_URL || 'mysql://localhost:3306/placeholder'
+  const databaseUrl = process.env.DATABASE_URL || 'mysql://127.0.0.1:3306/u309736608_herbrx'
   const url = new URL(databaseUrl)
 
   const poolConfig: mariadb.PoolConfig = {
@@ -12,12 +12,14 @@ const createPrismaClient = () => {
     user: url.username,
     password: decodeURIComponent(url.password),
     database: url.pathname.replace(/^\//, ''),
-    connectionLimit: 3, // Safe limit for Hostinger shared/remote limits
-    connectTimeout: 30000,
-    socketTimeout: 30000,
-    acquireTimeout: 30000,
+    connectionLimit: 5,
+    connectTimeout: 10000,
+    acquireTimeout: 10000,
+    idleTimeout: 30000,
+    minimumIdle: 0,
   }
 
+  // Pass poolConfig directly into PrismaMariaDb
   const adapter = new PrismaMariaDb(poolConfig)
   return new PrismaClient({ adapter })
 }
