@@ -1,16 +1,20 @@
 import { PrismaClient } from '@prisma/client'
 import { PrismaMariaDb } from '@prisma/adapter-mariadb'
+import type { PoolConfig } from 'mariadb'
 
 const createPrismaClient = () => {
-  const databaseUrl = process.env.DATABASE_URL || 'mysql://u309736608_herbrx_db:UyouyoumeAkpos%402025@127.0.0.1:3306/u309736608_herbrx'
+  const databaseUrl =
+    process.env.DATABASE_URL ||
+    'mysql://u309736608_herbrx_db:UyouyoumeAkpos%402025@srv1910.hstgr.io:3306/u309736608_herbrx'
+
   const url = new URL(databaseUrl)
 
-  const adapter = new PrismaMariaDb({
-    host: url.hostname === 'localhost' || !url.hostname ? '127.0.0.1' : url.hostname,
+  const config: PoolConfig = {
+    host: url.hostname || 'srv1910.hstgr.io',
     port: Number(url.port) || 3306,
-    user: url.username,
-    password: decodeURIComponent(url.password),
-    database: url.pathname.replace(/^\//, ''),
+    user: url.username || 'u309736608_herbrx_db',
+    password: url.password ? decodeURIComponent(url.password) : 'UyouyoumeAkpos@2025',
+    database: url.pathname.replace(/^\//, '') || 'u309736608_herbrx',
     connectionLimit: 5,
     connectTimeout: 10000,
     acquireTimeout: 10000,
@@ -18,8 +22,9 @@ const createPrismaClient = () => {
     minimumIdle: 0,
     ssl: false,
     allowPublicKeyRetrieval: true,
-  })
+  }
 
+  const adapter = new PrismaMariaDb(config)
   return new PrismaClient({ adapter })
 }
 
