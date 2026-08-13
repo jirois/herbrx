@@ -30,6 +30,9 @@ export function UserMenu() {
 
   if (!user) return null;
 
+  const role = user.role
+    ? user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase()
+    : "User";
   const initials =
     `${user.firstName?.[0] ?? ""}${user.lastName?.[0] ?? ""}`.toUpperCase();
 
@@ -87,7 +90,7 @@ export function UserMenu() {
                 {
                   href: "/dashboard",
                   icon: <LayoutDashboard size={15} />,
-                  label: "Merchant Dashboard",
+                  label: `${role} Dashboard`,
                 },
                 {
                   href: "/account",

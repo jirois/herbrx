@@ -180,6 +180,7 @@ export interface User {
   lastName: string
   phone?: string
   image?: string
+  role?: string
   createdAt: string
 }
 
