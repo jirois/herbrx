@@ -1,10 +1,10 @@
-// src/app/api/db-test/route.ts
-
-import { PrismaClient } from "@prisma/client";
-import { PrismaMariaDb } from "@prisma/adapter-mariadb";
+import mariadb from "mariadb";
 
 export async function GET() {
-  let prisma: PrismaClient | undefined;
+  let pool: ReturnType<typeof mariadb.createPool> | undefined;
+  let connection: Awaited<
+    ReturnType<ReturnType<typeof mariadb.createPool>["getConnection"]>
+  > | undefined;
 
   try {
     const databaseUrl = process.env.DATABASE_URL;
@@ -15,44 +15,37 @@ export async function GET() {
 
     const url = new URL(databaseUrl);
 
-    const host = url.hostname;
-    const port = Number(url.port || 3306);
-    const user = decodeURIComponent(url.username);
-    const password = decodeURIComponent(url.password);
-    const database = url.pathname.replace(/^\/+/, "");
-
-    console.log("=== DB TEST CONFIG ===");
-    console.log({
-      host,
-      port,
-      user,
-      database,
-    });
-
-    const adapter = new PrismaMariaDb({
-      host,
-      port,
-      user,
-      password,
-      database,
+    const config = {
+      host: url.hostname,
+      port: Number(url.port || 3306),
+      user: decodeURIComponent(url.username),
+      password: decodeURIComponent(url.password),
+      database: url.pathname.replace(/^\/+/, ""),
 
       connectionLimit: 1,
       connectTimeout: 15000,
       acquireTimeout: 15000,
-      idleTimeout: 30000,
+    };
+
+    console.log("=== DIRECT MARIADB TEST ===");
+    console.log({
+      host: config.host,
+      port: config.port,
+      user: config.user,
+      database: config.database,
     });
 
-    prisma = new PrismaClient({ adapter });
+    pool = mariadb.createPool(config);
 
-    console.log("Calling Prisma $connect()...");
+    console.log("Getting connection...");
 
-    await prisma.$connect();
+    connection = await pool.getConnection();
 
-    console.log("Prisma connected.");
+    console.log("CONNECTED TO MARIADB!");
 
-    const result = await prisma.$queryRaw`
-      SELECT 1 AS ok
-    `;
+    const result = await connection.query(
+      "SELECT 1 AS ok, VERSION() AS version"
+    );
 
     console.log("QUERY RESULT:", result);
 
@@ -61,23 +54,37 @@ export async function GET() {
       result,
     });
   } catch (error) {
-    console.error("=== HOSTINGER DATABASE TEST FAILED ===");
+    console.error("=== DIRECT MARIADB ERROR ===");
     console.error(error);
+
+    const err = error as {
+      message?: string;
+      code?: string;
+      errno?: number;
+      sqlState?: string;
+      sqlMessage?: string;
+      cause?: unknown;
+    };
 
     return Response.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : String(error),
-        cause:
-          error instanceof Error && error.cause
-            ? String(error.cause)
-            : undefined,
+        error: err.message ?? String(error),
+        code: err.code,
+        errno: err.errno,
+        sqlState: err.sqlState,
+        sqlMessage: err.sqlMessage,
+        cause: err.cause ? String(err.cause) : undefined,
       },
       { status: 500 }
     );
   } finally {
-    if (prisma) {
-      await prisma.$disconnect().catch(() => {});
+    if (connection) {
+      connection.release();
+    }
+
+    if (pool) {
+      await pool.end().catch(() => {});
     }
   }
 }
