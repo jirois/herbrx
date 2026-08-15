@@ -4,7 +4,7 @@ import { PrismaMariaDb } from '@prisma/adapter-mariadb'
 const createPrismaClient = () => {
   const databaseUrl =
     process.env.DATABASE_URL ||
-    'mysql://u309736608_herbrx_db:Mypassword%402025@127.0.0.1:3306/u309736608_herbrx'
+    'mysql://u309736608_herbrx_db:U2HerbRx%40001@127.0.0.1:3306/u309736608_herbrx'
 
   const url = new URL(databaseUrl)
 
