@@ -1,40 +1,40 @@
-import { PrismaClient } from "@prisma/client";
-import { PrismaMariaDb } from "@prisma/adapter-mariadb";
+import { PrismaClient } from '@prisma/client'
+import { PrismaMariaDb } from '@prisma/adapter-mariadb'
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
+const createPrismaClient = () => {
+  const databaseUrl =
+    process.env.DATABASE_URL ||
+    'mysql://u309736608_herbrx_db:Mypassword%402025@127.0.0.1:3306/u309736608_herbrx'
 
-function createPrismaClient() {
-  const databaseUrl = process.env.DATABASE_URL;
+  const url = new URL(databaseUrl)
 
-  if (!databaseUrl) {
-    throw new Error("DATABASE_URL is not defined");
-  }
-
-  const url = new URL(databaseUrl);
-
-  const adapter = new PrismaMariaDb({
-    host: url.hostname,
-    port: Number(url.port || 3306),
-    user: decodeURIComponent(url.username),
-    password: decodeURIComponent(url.password),
-    database: url.pathname.replace(/^\/+/, ""),
-
-    connectionLimit: 1,
+  const config: ConstructorParameters<typeof PrismaMariaDb>[0] = {
+    host: url.hostname === 'localhost' || !url.hostname ? '127.0.0.1' : url.hostname,
+    port: Number(url.port) || 3306,
+    user: url.username || 'u309736608_herbrx_db',
+    password: url.password ? decodeURIComponent(url.password) : '',
+    database: url.pathname.replace(/^\//, '') || 'u309736608_herbrx',
+    connectionLimit: 5,
     connectTimeout: 10000,
     acquireTimeout: 10000,
     idleTimeout: 30000,
-  });
+    minimumIdle: 0,
+    ssl: false,
+    allowPublicKeyRetrieval: true,
+  }
 
-  return new PrismaClient({
-    adapter,
-  });
+  const adapter = new PrismaMariaDb(config)
+  return new PrismaClient({ adapter })
 }
 
-export const prisma =
-  globalForPrisma.prisma ?? createPrismaClient();
+type ExtendedPrismaClient = ReturnType<typeof createPrismaClient>
 
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
+const globalForPrisma = globalThis as unknown as {
+  prisma: ExtendedPrismaClient | undefined
+}
+
+export const prisma = globalForPrisma.prisma ?? createPrismaClient()
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma
 }
