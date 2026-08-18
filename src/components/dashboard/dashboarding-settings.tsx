@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { DashboardShell } from "./dashboard-shell";
 import { useToast } from "@/context/toast-context";
@@ -11,22 +11,43 @@ import {
   Bell,
   Shield,
   Copy,
-  Eye,
-  EyeOff,
   Check,
   Loader2,
   ExternalLink,
   Webhook,
+  Clock,
+  CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Tab = "profile" | "payout" | "paystack" | "notifications" | "security";
+type Role = "ADMIN" | "PRODUCER" | "CUSTOMER" | "CONSULTANT" | string;
 
-const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
+const ALL_TABS: {
+  id: Tab;
+  label: string;
+  icon: React.ReactNode;
+  producerOnly?: boolean;
+}[] = [
   { id: "profile", label: "Business Profile", icon: <User size={15} /> },
-  { id: "payout", label: "Payout Account", icon: <Banknote size={15} /> },
-  { id: "paystack", label: "Paystack & API", icon: <Key size={15} /> },
-  { id: "notifications", label: "Notifications", icon: <Bell size={15} /> },
+  {
+    id: "payout",
+    label: "Payout Account",
+    icon: <Banknote size={15} />,
+    producerOnly: true,
+  },
+  {
+    id: "paystack",
+    label: "Paystack & API",
+    icon: <Key size={15} />,
+    producerOnly: true,
+  },
+  {
+    id: "notifications",
+    label: "Notifications",
+    icon: <Bell size={15} />,
+    producerOnly: true,
+  },
   { id: "security", label: "Security", icon: <Shield size={15} /> },
 ];
 
@@ -104,7 +125,15 @@ function SaveButton({
   );
 }
 
-// ── Profile Tab ───────────────────────────────────────────────────────────
+function TabSkeleton() {
+  return (
+    <div className="flex items-center justify-center py-16">
+      <Loader2 size={22} className="animate-spin text-(--green-pale)" />
+    </div>
+  );
+}
+
+// ── Profile Tab ───────
 type ProfileUser = {
   firstName?: string;
   lastName?: string;
@@ -112,46 +141,84 @@ type ProfileUser = {
   phone?: string;
 };
 
-function ProfileTab({ user }: { user: ProfileUser }) {
-  const { success } = useToast();
+function ProfileTab({ user, role }: { user: ProfileUser; role: Role }) {
+  const { success, error: toastError } = useToast();
+  const isProducer = role === "PRODUCER";
+  const [loadingData, setLoadingData] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    businessName: "HerbRx Nigeria",
+    businessName: "",
     firstName: user.firstName ?? "",
     lastName: user.lastName ?? "",
     email: user.email ?? "",
     phone: user.phone ?? "",
-    website: "https://herbrx.ng",
-    address: "Lagos, Nigeria",
-    description:
-      "Premium NAFDAC-compliant herbal wellness products for Nigerians.",
+    website: "",
+    address: "",
+    description: "",
   });
-  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/dashboard/settings/profile")
+      .then((r) => r.json())
+      .then((d) =>
+        setForm((p) => ({
+          ...p,
+          firstName: d.firstName ?? p.firstName,
+          lastName: d.lastName ?? p.lastName,
+          email: d.email ?? p.email,
+          phone: d.phone ?? "",
+          businessName: d.businessName ?? "",
+          website: d.website ?? "",
+          address: d.address ?? "",
+          description: d.description ?? "",
+        })),
+      )
+      .catch(() => toastError("Couldn't load your profile"))
+      .finally(() => setLoadingData(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    await new Promise((r) => setTimeout(r, 900));
-    setLoading(false);
-    success("Business profile updated");
+    setSaving(true);
+    try {
+      const res = await fetch("/api/dashboard/settings/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to save");
+      success(isProducer ? "Business profile updated" : "Profile updated");
+    } catch (e) {
+      toastError(e instanceof Error ? e.message : "Failed to save profile");
+    }
+    setSaving(false);
   }
+
+  if (loadingData) return <TabSkeleton />;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div>
         <h3 className="font-serif text-[18px] font-semibold text-white mb-1">
-          Business Profile
+          {isProducer ? "Business Profile" : "Profile"}
         </h3>
         <p className="text-[13px] text-white/40 font-light">
-          This information appears on your invoices and receipts.
+          {isProducer
+            ? "This information appears on your invoices and receipts."
+            : "Your personal account details."}
         </p>
       </div>
 
-      <Field
-        label="Business Name"
-        id="bizName"
-        value={form.businessName}
-        onChange={(v) => setForm((p) => ({ ...p, businessName: v }))}
-      />
+      {isProducer && (
+        <Field
+          label="Business Name"
+          id="bizName"
+          value={form.businessName}
+          onChange={(v) => setForm((p) => ({ ...p, businessName: v }))}
+        />
+      )}
 
       <div className="grid sm:grid-cols-2 gap-4">
         <Field
@@ -184,59 +251,97 @@ function ProfileTab({ user }: { user: ProfileUser }) {
         onChange={(v) => setForm((p) => ({ ...p, phone: v }))}
         placeholder="08012345678"
       />
-      <Field
-        label="Website"
-        id="website"
-        value={form.website}
-        onChange={(v) => setForm((p) => ({ ...p, website: v }))}
-      />
-      <Field
-        label="Business Address"
-        id="address"
-        value={form.address}
-        onChange={(v) => setForm((p) => ({ ...p, address: v }))}
-      />
 
-      <div>
-        <label className="block text-[12px] font-medium text-white/50 mb-1.5 uppercase tracking-wide">
-          Business Description
-        </label>
-        <textarea
-          value={form.description}
-          onChange={(e) =>
-            setForm((p) => ({ ...p, description: e.target.value }))
-          }
-          rows={3}
-          className="w-full px-4 py-3 rounded-xl border border-white/8 bg-white/5 text-[14px] text-white placeholder:text-white/20 outline-none focus:border-(--green-mid) resize-none"
-        />
-      </div>
+      {isProducer && (
+        <>
+          <Field
+            label="Website"
+            id="website"
+            value={form.website}
+            onChange={(v) => setForm((p) => ({ ...p, website: v }))}
+            placeholder="https://yourbusiness.ng"
+          />
+          <Field
+            label="Business Address"
+            id="address"
+            value={form.address}
+            onChange={(v) => setForm((p) => ({ ...p, address: v }))}
+          />
+          <div>
+            <label className="block text-[12px] font-medium text-white/50 mb-1.5 uppercase tracking-wide">
+              Business Description
+            </label>
+            <textarea
+              value={form.description}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, description: e.target.value }))
+              }
+              rows={3}
+              className="w-full px-4 py-3 rounded-xl border border-white/8 bg-white/5 text-[14px] text-white placeholder:text-white/20 outline-none focus:border-(--green-mid) resize-none"
+            />
+          </div>
+        </>
+      )}
 
-      <SaveButton loading={loading} />
+      <SaveButton loading={saving} />
     </form>
   );
 }
 
 // ── Payout Tab ───────
 function PayoutTab() {
-  const { success } = useToast();
+  const { success, error: toastError } = useToast();
+  const [loadingData, setLoadingData] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [verified, setVerified] = useState(false);
   const [form, setForm] = useState({
     bankName: "First Bank Nigeria",
-    accountNumber: "1234567890",
-    accountName: "HerbRx Nigeria Ltd",
-    bvn: "12345678901",
+    accountNumber: "",
+    accountName: "",
+    bvn: "",
   });
-  const [loading, setLoading] = useState(false);
-  const [verified] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/dashboard/producer/settings/payout")
+      .then((r) => r.json())
+      .then((d) => {
+        setForm((p) => ({
+          bankName: d.bankName || p.bankName,
+          accountNumber: d.accountNumber ?? "",
+          accountName: d.accountName ?? "",
+          bvn: d.bvn ?? "",
+        }));
+        setVerified(Boolean(d.payoutVerified));
+      })
+      .catch(() => toastError("Couldn't load your payout details"))
+      .finally(() => setLoadingData(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    await new Promise((r) => setTimeout(r, 1100));
-    setLoading(false);
-    success(
-      "Payout account updated. Changes will take effect on your next settlement.",
-    );
+    setSaving(true);
+    try {
+      const res = await fetch("/api/dashboard/producer/settings/payout", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to save");
+      setVerified(Boolean(data.payoutVerified));
+      success(
+        "Payout account saved. Our team verifies new bank details before your next settlement.",
+      );
+    } catch (e) {
+      toastError(
+        e instanceof Error ? e.message : "Failed to save payout account",
+      );
+    }
+    setSaving(false);
   }
+
+  if (loadingData) return <TabSkeleton />;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -245,16 +350,29 @@ function PayoutTab() {
           Payout Account
         </h3>
         <p className="text-[13px] text-white/40 font-light">
-          Your settlement funds will be sent here. Processing typically takes
-          T+1 business days.
+          Your settlement funds will be sent here.
         </p>
       </div>
 
-      {verified && (
-        <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 rounded-xl px-4 py-3 text-[13px] text-green-400">
-          <Check size={15} /> Account verified — settlements active
-        </div>
-      )}
+      <div
+        className={cn(
+          "flex items-center gap-2 rounded-xl px-4 py-3 text-[13px] border",
+          verified
+            ? "bg-green-500/10 border-green-500/20 text-green-400"
+            : "bg-amber-500/10 border-amber-500/20 text-amber-400",
+        )}
+      >
+        {verified ? (
+          <>
+            <Check size={15} /> Account verified — settlements active
+          </>
+        ) : (
+          <>
+            <Clock size={15} /> Awaiting verification — settlements are held
+            until this account is confirmed
+          </>
+        )}
+      </div>
 
       <div>
         <label className="block text-[12px] font-medium text-white/50 mb-1.5 uppercase tracking-wide">
@@ -297,8 +415,8 @@ function PayoutTab() {
         id="accName"
         value={form.accountName}
         onChange={(v) => setForm((p) => ({ ...p, accountName: v }))}
-        disabled
-        hint="Auto-filled after account number verification"
+        placeholder="As it appears on your bank account"
+        hint="Must match your registered business or personal name"
       />
       <Field
         label="BVN"
@@ -313,43 +431,31 @@ function PayoutTab() {
       <div className="border-t border-white/[0.07] pt-5">
         <p className="text-[12px] text-white/30 mb-4">
           Settlement schedule: every weekday (Mon–Fri) for the previous
-          day&apos;s transactions.
+          day&apos;s transactions, once your account is verified.
         </p>
-        <SaveButton loading={loading} label="Update Payout Account" />
+        <SaveButton loading={saving} label="Update Payout Account" />
       </div>
     </form>
   );
 }
 
-// ── Paystack & API Tab ────
+// ── Paystack & API Tab (read-only reference — platform-level integration) ──
 function PaystackTab() {
-  const { success } = useToast();
-  const [showSecret, setShowSecret] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [webhook, setWebhook] = useState(
-    "https://herbrx.ng/api/paystack/webhook",
-  );
 
   const pubKey =
-    process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || "pk_test_••••••••••••••••";
-  const secKey = "sk_test_••••••••••••••••••••••••••••••••";
+    process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || "Not configured";
+  const isLive = pubKey.startsWith("pk_live_");
+  const webhookUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/api/paystack/webhook`
+      : "/api/paystack/webhook";
 
   function copyToClipboard(text: string, id: string) {
     navigator.clipboard.writeText(text).then(() => {
       setCopied(id);
       setTimeout(() => setCopied(null), 2000);
     });
-  }
-
-  async function saveWebhook(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    await new Promise((r) => setTimeout(r, 800));
-    setLoading(false);
-    success(
-      "Webhook URL saved. Configure the same URL in your Paystack dashboard.",
-    );
   }
 
   return (
@@ -359,17 +465,16 @@ function PaystackTab() {
           Paystack Integration
         </h3>
         <p className="text-[13px] text-white/40 font-light">
-          Your API keys and webhook configuration.
+          HerbRx checkout runs on a single, platform-wide Paystack integration —
+          these values are for reference, not per-account configuration.
         </p>
       </div>
 
-      {/* API Keys */}
       <div className="space-y-4">
         <p className="text-[12px] uppercase tracking-widest text-white/30 font-medium">
           API Keys
         </p>
 
-        {/* Public key */}
         <div>
           <label className="block text-[12px] font-medium text-white/50 mb-1.5 uppercase tracking-wide">
             Public Key
@@ -384,7 +489,7 @@ function PaystackTab() {
             <button
               type="button"
               onClick={() => copyToClipboard(pubKey, "pub")}
-              className="w-10 h-10 rounded-xl bg-white/5 border border-white/8 flex items-center justify-center text-white/40 hover:text-white hover:border-white/2 transition-all shrink-0"
+              className="w-10 h-10 rounded-xl bg-white/5 border border-white/8 flex items-center justify-center text-white/40 hover:text-white hover:border-white/20 transition-all shrink-0"
             >
               {copied === "pub" ? (
                 <Check size={14} className="text-green-400" />
@@ -395,39 +500,20 @@ function PaystackTab() {
           </div>
         </div>
 
-        {/* Secret key */}
         <div>
           <label className="block text-[12px] font-medium text-white/50 mb-1.5 uppercase tracking-wide">
             Secret Key
           </label>
-          <div className="flex items-center gap-2">
-            <input
-              type={showSecret ? "text" : "password"}
-              readOnly
-              value={secKey}
-              className="flex-1 px-4 py-3 rounded-xl border border-white/8 bg-white/5 text-[13px] text-white/60 font-mono outline-none"
-            />
-            <button
-              type="button"
-              onClick={() => setShowSecret((v) => !v)}
-              className="w-10 h-10 rounded-xl bg-white/5 border border-white/8 flex items-center justify-center text-white/40 hover:text-white transition-all shrink-0"
-            >
-              {showSecret ? <EyeOff size={14} /> : <Eye size={14} />}
-            </button>
-            <button
-              type="button"
-              onClick={() => copyToClipboard(secKey, "sec")}
-              className="w-10 h-10 rounded-xl bg-white/5 border border-white/8 flex items-center justify-center text-white/40 hover:text-white hover:border-white/20 transition-all shrink-0"
-            >
-              {copied === "sec" ? (
-                <Check size={14} className="text-green-400" />
-              ) : (
-                <Copy size={14} />
-              )}
-            </button>
-          </div>
-          <p className="text-[11px] text-red-400/60 mt-1">
-            Never expose your secret key publicly. Keep it in .env.local only.
+          <input
+            type="password"
+            readOnly
+            value="••••••••••••••••••••••••••••••••"
+            className="w-full px-4 py-3 rounded-xl border border-white/8 bg-white/5 text-[13px] text-white/40 font-mono outline-none"
+          />
+          <p className="text-[11px] text-white/30 mt-1">
+            The secret key lives only in the server environment
+            (PAYSTACK_SECRET_KEY) — it&apos;s never sent to the browser, so
+            there&apos;s nothing to reveal here.
           </p>
         </div>
 
@@ -441,72 +527,82 @@ function PaystackTab() {
         </a>
       </div>
 
-      {/* Webhook */}
       <div className="border-t border-white/[0.07] pt-6">
         <p className="text-[12px] uppercase tracking-widest text-white/30 font-medium mb-4">
           Webhook
         </p>
-        <form onSubmit={saveWebhook} className="space-y-4">
-          <div>
-            <label className="text-[12px] font-medium text-white/50 mb-1.5 uppercase tracking-wide flex items-center gap-1.5">
-              <Webhook size={12} /> Webhook URL
-            </label>
+        <div>
+          <label className="text-[12px] font-medium text-white/50 mb-1.5 uppercase tracking-wide flex items-center gap-1.5">
+            <Webhook size={12} /> Webhook URL
+          </label>
+          <div className="flex items-center gap-2">
             <input
-              value={webhook}
-              onChange={(e) => setWebhook(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-white/8 bg-white/5 text-[13px] text-white font-mono outline-none focus:border-(--green-mid)"
+              readOnly
+              value={webhookUrl}
+              className="flex-1 px-4 py-3 rounded-xl border border-white/8 bg-white/5 text-[13px] text-white/60 font-mono outline-none"
             />
-            <p className="text-[11px] text-white/30 mt-1">
-              Add this URL in your Paystack Dashboard → Settings → API Keys &
-              Webhooks → Webhook URL. HerbRx will automatically verify the
-              HMAC-SHA512 signature on every event.
+            <button
+              type="button"
+              onClick={() => copyToClipboard(webhookUrl, "hook")}
+              className="w-10 h-10 rounded-xl bg-white/5 border border-white/8 flex items-center justify-center text-white/40 hover:text-white hover:border-white/20 transition-all shrink-0"
+            >
+              {copied === "hook" ? (
+                <Check size={14} className="text-green-400" />
+              ) : (
+                <Copy size={14} />
+              )}
+            </button>
+          </div>
+          <p className="text-[11px] text-white/30 mt-1">
+            This is fixed by the app&apos;s deployment — add it once in your
+            Paystack Dashboard → Settings → API Keys & Webhooks.
+          </p>
+        </div>
+
+        <div className="bg-white/3 border border-white/6 rounded-xl p-4 text-[12px] text-white/40 mt-4">
+          <p className="font-medium text-white/60 mb-2">Events handled:</p>
+          {[
+            "charge.success → marks order as paid",
+            "charge.failed → marks order as cancelled",
+          ].map((e) => (
+            <p key={e} className="flex items-center gap-2 mt-1">
+              <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
+              {e}
             </p>
-          </div>
-
-          <div className="bg-white/3 border border-white/6 rounded-xl p-4 text-[12px] text-white/40">
-            <p className="font-medium text-white/60 mb-2">Events handled:</p>
-            {[
-              "charge.success → marks order as paid",
-              "charge.failed → marks order as cancelled",
-              "transfer.success → payout confirmed",
-            ].map((e) => (
-              <p key={e} className="flex items-center gap-2 mt-1">
-                <span className="text-green-500">✓</span>
-                {e}
-              </p>
-            ))}
-          </div>
-
-          <SaveButton loading={loading} label="Save Webhook URL" />
-        </form>
+          ))}
+        </div>
       </div>
 
-      {/* Test mode toggle */}
       <div className="border-t border-white/[0.07] pt-6">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-[14px] font-medium text-white">Test Mode</p>
+            <p className="text-[14px] font-medium text-white">Environment</p>
             <p className="text-[12px] text-white/40 font-light mt-0.5">
-              Enable to use test keys. No real payments processed.
+              Determined by which Paystack key is configured — switch keys in
+              the server&apos;s environment variables, not here.
             </p>
           </div>
-          <div className="w-12 h-6 bg-amber-500/20 border border-amber-500/30 rounded-full flex items-center px-1 cursor-pointer">
-            <div className="w-4 h-4 bg-amber-400 rounded-full ml-auto transition-all" />
-          </div>
+          <span
+            className={cn(
+              "text-[11px] font-medium px-3 py-1.5 rounded-full",
+              isLive
+                ? "bg-green-500/15 text-green-400"
+                : "bg-amber-500/15 text-amber-400",
+            )}
+          >
+            {isLive ? "Live" : "Test Mode"}
+          </span>
         </div>
-        <p className="text-[11px] text-amber-400/60 mt-2">
-          Currently using test keys (pk_test_…). Switch to live keys in
-          .env.local for production.
-        </p>
       </div>
     </div>
   );
 }
 
-// ── Notifications Tab ─────────
+// ── Notifications Tab ─────
 function NotificationsTab() {
-  const { success } = useToast();
-  const [loading, setLoading] = useState(false);
+  const { success, error: toastError } = useToast();
+  const [loadingData, setLoadingData] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [prefs, setPrefs] = useState({
     newOrder: true,
     paymentFailed: true,
@@ -514,15 +610,36 @@ function NotificationsTab() {
     settlementPaid: true,
     lowStock: true,
     emailDigest: false,
-    slackWebhook: false,
   });
+
+  useEffect(() => {
+    fetch("/api/dashboard/producer/settings/notifications")
+      .then((r) => r.json())
+      .then((d) => setPrefs((p) => ({ ...p, ...d })))
+      .catch(() => toastError("Couldn't load your notification preferences"))
+      .finally(() => setLoadingData(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    await new Promise((r) => setTimeout(r, 700));
-    setLoading(false);
-    success("Notification preferences saved");
+    setSaving(true);
+    try {
+      const res = await fetch(
+        "/api/dashboard/producer/settings/notifications",
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(prefs),
+        },
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to save");
+      success("Notification preferences saved");
+    } catch (e) {
+      toastError(e instanceof Error ? e.message : "Failed to save preferences");
+    }
+    setSaving(false);
   }
 
   const items = [
@@ -539,7 +656,7 @@ function NotificationsTab() {
     {
       id: "disputeOpened" as const,
       label: "Dispute Opened",
-      desc: "When a chargeback is raised",
+      desc: "When a dispute is raised",
     },
     {
       id: "settlementPaid" as const,
@@ -557,6 +674,8 @@ function NotificationsTab() {
       desc: "Summary of yesterday's activity",
     },
   ];
+
+  if (loadingData) return <TabSkeleton />;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -601,14 +720,14 @@ function NotificationsTab() {
         ))}
       </div>
 
-      <SaveButton loading={loading} />
+      <SaveButton loading={saving} />
     </form>
   );
 }
 
 // ── Security Tab ───
 function SecurityTab() {
-  const { success } = useToast();
+  const { success, error: toastError } = useToast();
   const [loading, setLoading] = useState(false);
   const [cur, setCur] = useState("");
   const [nw, setNw] = useState("");
@@ -617,14 +736,27 @@ function SecurityTab() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (nw !== conf) return;
+    if (nw !== conf) {
+      toastError("New password and confirmation don't match");
+      return;
+    }
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 900));
+    try {
+      const res = await fetch("/api/dashboard/settings/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: cur, newPassword: nw }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to change password");
+      setCur("");
+      setNw("");
+      setConf("");
+      success("Password changed successfully");
+    } catch (e) {
+      toastError(e instanceof Error ? e.message : "Failed to change password");
+    }
     setLoading(false);
-    setCur("");
-    setNw("");
-    setConf("");
-    success("Password changed successfully");
   }
 
   return (
@@ -638,7 +770,6 @@ function SecurityTab() {
         </p>
       </div>
 
-      {/* Change password */}
       <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
         <p className="text-[12px] uppercase tracking-widest text-white/30 font-medium">
           Change Password
@@ -673,7 +804,7 @@ function SecurityTab() {
         <SaveButton loading={loading} label="Change Password" />
       </form>
 
-      {/* 2FA */}
+      {/* 2FA — not yet available, said honestly rather than faking a toggle */}
       <div className="border-t border-white/[0.07] pt-6">
         <p className="text-[12px] uppercase tracking-widest text-white/30 font-medium mb-4">
           Two-Factor Authentication
@@ -684,67 +815,13 @@ function SecurityTab() {
               Authenticator App (TOTP)
             </p>
             <p className="text-[12px] text-white/40 font-light mt-0.5">
-              Use Google Authenticator or Authy
+              Not available yet — this is on the roadmap.
             </p>
           </div>
-          <button
-            type="button"
-            className="px-4 py-2 rounded-xl bg-(--green-mid)/20 text-(--green-pale) text-[13px] font-medium hover:bg-(--green-mid)/30 transition-colors"
-          >
-            Enable 2FA
-          </button>
+          <span className="px-4 py-2 rounded-xl bg-white/5 text-white/30 text-[13px] font-medium">
+            Coming Soon
+          </span>
         </div>
-      </div>
-
-      {/* Active sessions */}
-      <div className="border-t border-white/[0.07] pt-6">
-        <p className="text-[12px] uppercase tracking-widest text-white/30 font-medium mb-4">
-          Active Sessions
-        </p>
-        {[
-          {
-            device: "Chrome on macOS",
-            location: "Lagos, NG",
-            current: true,
-            time: "Now",
-          },
-          {
-            device: "Safari on iPhone",
-            location: "Lagos, NG",
-            current: false,
-            time: "2 hours ago",
-          },
-          {
-            device: "Firefox on Windows",
-            location: "Abuja, NG",
-            current: false,
-            time: "3 days ago",
-          },
-        ].map((s, i) => (
-          <div
-            key={i}
-            className="flex items-center justify-between py-3 border-b border-white/5 last:border-0"
-          >
-            <div>
-              <p className="text-[13px] font-medium text-white flex items-center gap-2">
-                {s.device}
-                {s.current && (
-                  <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">
-                    Current
-                  </span>
-                )}
-              </p>
-              <p className="text-[11px] text-white/35 mt-0.5">
-                {s.location} · {s.time}
-              </p>
-            </div>
-            {!s.current && (
-              <button className="text-[12px] text-red-400/60 hover:text-red-400 transition-colors">
-                Revoke
-              </button>
-            )}
-          </div>
-        ))}
       </div>
     </div>
   );
@@ -759,16 +836,19 @@ interface Props {
     firstName: string;
     lastName: string;
     phone?: string;
+    role?: Role;
   };
 }
 
 export function DashboardSettings({ user }: Props) {
+  const role = user.role ?? "CUSTOMER";
+  const tabs = ALL_TABS.filter((t) => !t.producerOnly || role === "PRODUCER");
   const [activeTab, setActiveTab] = useState<Tab>("profile");
 
   return (
     <DashboardShell
       heading="Settings"
-      subheading="Configure your business, payments, and account preferences"
+      subheading="Configure your account and preferences"
     >
       <div className="grid lg:grid-cols-[200px_1fr] gap-6">
         {/* Sidebar */}
@@ -804,10 +884,12 @@ export function DashboardSettings({ user }: Props) {
           transition={{ duration: 0.22 }}
           className="bg-[#161B27] border border-white/[0.07] rounded-2xl p-7"
         >
-          {activeTab === "profile" && <ProfileTab user={user} />}
-          {activeTab === "payout" && <PayoutTab />}
-          {activeTab === "paystack" && <PaystackTab />}
-          {activeTab === "notifications" && <NotificationsTab />}
+          {activeTab === "profile" && <ProfileTab user={user} role={role} />}
+          {activeTab === "payout" && role === "PRODUCER" && <PayoutTab />}
+          {activeTab === "paystack" && role === "PRODUCER" && <PaystackTab />}
+          {activeTab === "notifications" && role === "PRODUCER" && (
+            <NotificationsTab />
+          )}
           {activeTab === "security" && <SecurityTab />}
         </motion.div>
       </div>

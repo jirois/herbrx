@@ -27,13 +27,14 @@ export async function GET(req: NextRequest) {
       } : {}),
     }
 
-    const [users, total] = await Promise.all([
+    const [users, total, flagCounts] = await Promise.all([
       prisma.user.findMany({
         where,
         select: {
           id: true, firstName: true, lastName: true,
           email: true, phone: true, role: true,
-          emailVerified: true, createdAt: true,
+          status: true, emailVerified: true, createdAt: true,
+          statusNote: true,
           producerProfile: {
             select: { businessName: true, tier: true, products: { select: { id: true } } },
           },
@@ -43,7 +44,15 @@ export async function GET(req: NextRequest) {
         skip, take: limit,
       }),
       prisma.user.count({ where }),
+      // Real "times actioned against by an admin" count, used as the flag indicator
+      prisma.adminAction.groupBy({
+        by: ['targetId'],
+        where: { targetType: 'User' },
+        _count: { targetId: true },
+      }),
     ])
+
+    const flagCountByUser = new Map(flagCounts.map(f => [f.targetId, f._count.targetId]))
 
     // Shape the data cleanly
     const shaped = users.map(u => ({
@@ -53,6 +62,8 @@ export async function GET(req: NextRequest) {
       email:         u.email,
       phone:         u.phone,
       role:          u.role,
+      status:        u.status,
+      statusNote:    u.statusNote,
       emailVerified: u.emailVerified,
       createdAt:     u.createdAt,
       businessName:  u.producerProfile?.businessName,
@@ -62,6 +73,7 @@ export async function GET(req: NextRequest) {
       totalSpend:    u.orders
         .filter(o => o.paymentStatus === 'PAID')
         .reduce((s, o) => s + o.total, 0),
+      flagCount: flagCountByUser.get(u.id) ?? 0,
     }))
 
     return ok({ users: shaped, total, page: Math.ceil(skip / limit) + 1, limit })
@@ -71,9 +83,8 @@ export async function GET(req: NextRequest) {
 }
 
 // PATCH /api/dashboard/admin/users
-// Body: { userId, status: 'ACTIVE'|'SUSPENDED'|'BANNED', note }
-// Note: status lives on User model — add a `status` field or use a separate table.
-// For now we toggle emailVerified as a proxy for suspension and log the action.
+// Body: { userId, action, note }
+// action: 'SUSPEND' | 'BAN' | 'ACTIVATE'
 export async function PATCH(req: NextRequest) {
   const { session, error } = await requireAuth(req, ['ADMIN'])
   if (error) return error
@@ -81,12 +92,26 @@ export async function PATCH(req: NextRequest) {
   try {
     const adminId = (session!.user as { id: string }).id
     const body    = await req.json()
-    const { userId, action, note } = body // action: 'SUSPEND' | 'BAN' | 'ACTIVATE'
+    const { userId, action, note } = body
 
     if (!userId || !action) return badRequest('userId and action are required')
 
+    const statusMap: Record<string, 'ACTIVE' | 'SUSPENDED' | 'BANNED'> = {
+      SUSPEND: 'SUSPENDED',
+      BAN: 'BANNED',
+      ACTIVATE: 'ACTIVE',
+    }
+    const nextStatus = statusMap[action]
+    if (!nextStatus) return badRequest(`Unknown action: ${action}`)
+
     const user = await prisma.user.findUnique({ where: { id: userId } })
     if (!user) return notFound('User not found')
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: { status: nextStatus, statusNote: note ?? null },
+      select: { id: true, status: true, statusNote: true },
+    })
 
     // Audit log the action
     await prisma.adminAction.create({
@@ -99,7 +124,7 @@ export async function PATCH(req: NextRequest) {
       },
     })
 
-    return ok({ userId, action, message: `User ${action.toLowerCase()}d successfully` })
+    return ok({ ...updated, message: `User ${action.toLowerCase()}d successfully` })
   } catch (e) {
     return serverError(e)
   }

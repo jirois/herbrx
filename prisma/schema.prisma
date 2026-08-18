@@ -1,59 +1,41 @@
-// Prisma
-
 generator client {
   provider = "prisma-client-js"
-  // output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "mysql"
 }
 
-// User
-
 model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  firstName     String
-  lastName      String
-  phone         String?
-  passwordHash  String
-  emailVerified Boolean  @default(false)
-  image         String?
-  role          UserRole @default(CUSTOMER)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  otpCodes           OtpCode[]
-  orders             Order[]
-  sessions           Session[]
-  // Customer-specific
-  healthProfile      HealthProfile?
-  consultations      Consultation[]
-  savedMedications   SavedMedication[]
-  alertSubscriptions AlertSubscription[]
-
-  // Producer-specific
-  producerProfile       ProducerProfile?
-  // Admin-specific 
+  id                    String                 @id @default(cuid())
+  email                 String                 @unique
+  firstName             String
+  lastName              String
+  phone                 String?
+  passwordHash          String
+  emailVerified         Boolean                @default(false)
+  image                 String?
+  role                  UserRole               @default(CUSTOMER)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
   adminActions          AdminAction[]
+  alertSubscriptions    AlertSubscription?
+  consultantProfile     ConsultantProfile?
+  consultations         Consultation[]
+  healthProfile         HealthProfile?
   incubationSubmissions IncubationSubmission[]
   interactionFeedback   InteractionFeedback[]
+  orders                Order[]
+  otpCodes              OtpCode[]
+  producerProfile       ProducerProfile?
   productReviews        ProductReview[]
-  consultantProfile     ConsultantProfile?
+  savedMedications      SavedMedication[]
+  sessions              Session[]
 
   @@index([email])
   @@index([role])
 }
 
-enum UserRole {
-  CUSTOMER
-  PRODUCER
-  ADMIN
-  CONSULTANT
-}
-
-// OTP codes
 model OtpCode {
   id        String     @id @default(cuid())
   userId    String
@@ -63,20 +45,12 @@ model OtpCode {
   usedAt    DateTime?
   attempts  Int        @default(0)
   createdAt DateTime   @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([code])
 }
 
-enum OtpPurpose {
-  EMAIL_VERIFICATION
-  PASSWORD_RESET
-  TWO_FACTOR
-}
-
-// Session (NextAuth)
 model Session {
   id           String   @id @default(cuid())
   sessionToken String   @unique
@@ -95,14 +69,11 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// Orders
 model Order {
-  id           String  @id @default(cuid())
-  userId       String?
-  paystackRef  String? @unique
-  paystackTxId Int?
-
-  // Customer snapshot (denormalised for guests)
+  id            String        @id @default(cuid())
+  userId        String?
+  paystackRef   String?       @unique
+  paystackTxId  Int?
   custFirstName String
   custLastName  String
   custEmail     String
@@ -110,20 +81,16 @@ model Order {
   custAddress   String
   custCity      String
   custState     String
-
-  subtotal Int // in kobo
-  shipping Int @default(0)
-  total    Int
-
+  subtotal      Int
+  shipping      Int           @default(0)
+  total         Int
   paymentMethod PaymentMethod @default(CARD)
   paymentStatus PayStatus     @default(PENDING)
   status        OrderStatus   @default(PENDING)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user  User?       @relation(fields: [userId], references: [id])
-  items OrderItem[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  user          User?         @relation(fields: [userId], references: [id])
+  items         OrderItem[]
 
   @@index([custEmail])
   @@index([paystackRef])
@@ -135,13 +102,507 @@ model OrderItem {
   orderId      String
   productId    String
   productName  String
-  productEmoji String @default("🌿")
-  price        Int // in kobo
+  productEmoji String @default("?")
+  price        Int
   quantity     Int
-
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order        Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
+}
+
+model HealthProfile {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  conditions String?  @db.LongText
+  allergies  String?  @db.LongText
+  notes      String?  @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SavedMedication {
+  id         String   @id @default(cuid())
+  userId     String
+  name       String
+  dose       String?
+  frequency  String?
+  createdAt  DateTime @default(now())
+  normalised String?
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Consultation {
+  id               String                   @id @default(cuid())
+  userId           String
+  practitionerId   String?
+  type             ConsultationType
+  status           ConsultationStatus       @default(REQUESTED)
+  scheduledAt      DateTime?
+  notes            String?                  @db.Text
+  meetingUrl       String?
+  amount           Int?
+  paystackRef      String?                  @unique
+  paymentStatus    ConsultPayStatus         @default(PENDING)
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  consultantId     String?
+  feedback         String?                  @db.Text
+  payoutStatus     PayoutStatus             @default(NONE)
+  platformFeeRate  Float?
+  practitionerName String?
+  ratedAt          DateTime?
+  rating           Int?
+  notifications    ConsultantNotification[]
+  consultant       ConsultantProfile?       @relation(fields: [consultantId], references: [id])
+  user             User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([paystackRef])
+  @@index([consultantId])
+}
+
+model ConsultantProfile {
+  id                String                   @id @default(cuid())
+  userId            String                   @unique
+  specialization    ConsultationType
+  bio               String?                  @db.Text
+  licenseNumber     String?
+  yearsExperience   Int?
+  avatarUrl         String?
+  status            ConsultantStatus         @default(ACTIVE)
+  mustResetPassword Boolean                  @default(true)
+  createdBy         String
+  deactivatedAt     DateTime?
+  deactivatedBy     String?
+  deactivationNote  String?                  @db.Text
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  notifications     ConsultantNotification[]
+  user              User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  consultations     Consultation[]
+
+  @@index([status])
+  @@index([specialization])
+}
+
+model ConsultantNotification {
+  id             String               @id @default(cuid())
+  consultantId   String
+  consultationId String?
+  type           ConsultantNotifyType
+  title          String
+  body           String               @db.Text
+  isRead         Boolean              @default(false)
+  createdAt      DateTime             @default(now())
+  consultant     ConsultantProfile    @relation(fields: [consultantId], references: [id], onDelete: Cascade)
+  consultation   Consultation?        @relation(fields: [consultationId], references: [id])
+
+  @@index([consultantId])
+  @@index([consultantId, isRead])
+  @@index([createdAt])
+  @@index([consultationId], map: "ConsultantNotification_consultationId_fkey")
+}
+
+model AlertSubscription {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  herbIds   String?  @db.LongText
+  channels  String?  @db.LongText
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SafetyAlert {
+  id          String        @id @default(cuid())
+  title       String
+  body        String        @db.Text
+  severity    AlertSeverity
+  productName String?
+  batchNo     String?
+  status      AlertStatus   @default(ACTIVE)
+  publishedAt DateTime      @default(now())
+  createdBy   String
+
+  @@index([severity])
+  @@index([status])
+}
+
+model ProducerProfile {
+  id                 String             @id @default(cuid())
+  userId             String             @unique
+  businessName       String
+  businessEmail      String?
+  businessPhone      String?
+  rcNumber           String?
+  nafdacNumber       String?
+  tier               ProducerTier       @default(UNVERIFIED)
+  verifiedAt         DateTime?
+  verifiedBy         String?
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+  verificationNote   String?            @db.Text
+  submittedAt        DateTime?
+  cacCertUrl         String?
+  labPartnerUrl      String?
+  nafdacCertUrl      String?
+  insuranceUrl       String?
+  state              String?
+  website            String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  products           ProducerProduct[]
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ProducerProduct {
+  id                String            @id @default(cuid())
+  slug              String            @unique
+  producerProfileId String
+  name              String
+  description       String?           @db.Text
+  category          String?
+  status            ProductStatus     @default(DRAFT)
+  flaggedAt         DateTime?
+  flagReason        String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  batchSubmissions  BatchSubmission[]
+  producerProfile   ProducerProfile   @relation(fields: [producerProfileId], references: [id], onDelete: Cascade)
+  meta              ProductMeta?
+
+  @@index([producerProfileId])
+  @@index([status])
+}
+
+model BatchSubmission {
+  id           String          @id @default(cuid())
+  productId    String
+  batchNo      String
+  coaFileUrl   String
+  labName      String?
+  testedAt     DateTime?
+  reviewStatus BatchStatus     @default(SUBMITTED)
+  reviewedBy   String?
+  reviewNotes  String?         @db.Text
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  supplyChain  String?         @db.LongText
+  product      ProducerProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([reviewStatus])
+}
+
+model AdminAction {
+  id         String   @id @default(cuid())
+  adminId    String
+  action     String
+  targetType String
+  targetId   String
+  reason     String?  @db.Text
+  createdAt  DateTime @default(now())
+  admin      User     @relation(fields: [adminId], references: [id])
+
+  @@index([adminId])
+  @@index([targetType, targetId])
+}
+
+model Herb {
+  id             String                @id @default(cuid())
+  slug           String                @unique
+  name           String
+  scientificName String
+  localNames     String                @db.LongText
+  emoji          String                @default("?")
+  category       String
+  safetyRating   HerbSafety
+  summary        String                @db.Text
+  keyBenefits    String                @db.LongText
+  warnings       String                @db.LongText
+  interactions   String                @db.LongText
+  languages      String                @db.LongText
+  reviewedAt     DateTime              @default(now())
+  publishedAt    DateTime              @default(now())
+  isPublished    Boolean               @default(true)
+  safetyReviews  ProductSafetyReview[]
+
+  @@index([slug])
+  @@index([safetyRating])
+  @@index([category])
+}
+
+model ProductSafetyReview {
+  id             String        @id @default(cuid())
+  herbId         String?
+  productName    String
+  producer       String
+  category       String
+  emoji          String        @default("?")
+  imageUrl       String?
+  verdict        ReviewVerdict
+  overallScore   Float
+  reviewDate     DateTime      @default(now())
+  batchNo        String
+  labName        String
+  nafdacNo       String?
+  verifiedBadge  Boolean       @default(false)
+  parameters     String        @db.LongText
+  summary        String        @db.Text
+  recommendation String        @db.Text
+  reportUrl      String?
+  isPublished    Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  herb           Herb?         @relation(fields: [herbId], references: [id])
+
+  @@index([verdict])
+  @@index([isPublished])
+  @@index([herbId], map: "ProductSafetyReview_herbId_fkey")
+}
+
+model SafetyGuide {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  title        String
+  description  String   @db.Text
+  category     String
+  languages    String   @db.LongText
+  readTime     String
+  downloadable Boolean  @default(false)
+  pdfUrl       String?
+  featured     Boolean  @default(false)
+  emoji        String   @default("?")
+  isPublished  Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([slug])
+  @@index([category])
+}
+
+model PressItem {
+  id          String    @id @default(cuid())
+  type        PressType
+  outlet      String?
+  headline    String
+  excerpt     String?   @db.Text
+  category    String?
+  href        String?
+  date        DateTime
+  isPublished Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  @@index([type])
+}
+
+model ProductMeta {
+  id            String          @id @default(cuid())
+  productId     String          @unique
+  price         Int             @default(0)
+  emoji         String          @default("?")
+  imageUrl      String?         @db.MediumText
+  productType   String          @default("")
+  ingredients   String?         @db.LongText
+  warnings      String?         @db.LongText
+  nafdacNo      String?
+  inStore       Boolean         @default(false)
+  stock         Int             @default(0)
+  sales         Int             @default(0)
+  revenue       Int             @default(0)
+  rating        Float           @default(0)
+  reviewCount   Int             @default(0)
+  featured      Boolean         @default(false)
+  unit          String          @default("unit")
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  badge         String?
+  badgeVariant  String?
+  howToUse      String?         @db.Text
+  originalPrice Int?
+  shortDesc     String?         @db.Text
+  tags          String?         @db.LongText
+  product       ProducerProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model IncubationSubmission {
+  id              String               @id @default(cuid())
+  userId          String
+  productName     String
+  formulaCategory String
+  description     String               @db.Text
+  targetDosage    String?
+  currentForm     String?
+  originStory     String?              @db.Text
+  ndaSigned       Boolean              @default(false)
+  ndaSignedAt     DateTime?
+  royaltyAgreed   Boolean              @default(false)
+  royaltyRate     Float?
+  currentPhase    IncubationPhase      @default(INTAKE)
+  status          IncubationStatus     @default(ACTIVE)
+  adminNotes      String?              @db.Text
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  documents       IncubationDocument[]
+  phases          IncubationPhaseLog[]
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([currentPhase])
+  @@index([status])
+}
+
+model IncubationPhaseLog {
+  id           String               @id @default(cuid())
+  submissionId String
+  phase        IncubationPhase
+  enteredAt    DateTime             @default(now())
+  completedAt  DateTime?
+  notes        String?              @db.Text
+  completedBy  String?
+  submission   IncubationSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId])
+}
+
+model IncubationDocument {
+  id           String               @id @default(cuid())
+  submissionId String
+  type         IncubationDocType
+  name         String
+  url          String
+  uploadedAt   DateTime             @default(now())
+  uploadedBy   String?
+  submission   IncubationSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId])
+}
+
+model DrugHerbInteraction {
+  id             String                @id @default(cuid())
+  drugName       String
+  drugAliases    String                @db.LongText
+  drugClass      String?
+  herbName       String
+  herbScientific String?
+  herbLocalNames String                @db.LongText
+  severity       Severity
+  mechanism      String?               @db.Text
+  effect         String                @db.Text
+  advice         String                @db.Text
+  evidenceLevel  EvidenceLevel
+  references     String                @db.LongText
+  source         String                @default("PHARMACIST_CURATED")
+  isPublished    Boolean               @default(true)
+  confirmedCount Int                   @default(0)
+  disputedCount  Int                   @default(0)
+  reportedCount  Int                   @default(0)
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  feedback       InteractionFeedback[]
+
+  @@unique([drugName, herbName])
+  @@index([drugName])
+  @@index([herbName])
+  @@index([severity])
+  @@index([isPublished])
+}
+
+model InteractionQuery {
+  id             String   @id @default(cuid())
+  userId         String?
+  sessionId      String?
+  drugs          String   @db.LongText
+  herbs          String?  @db.LongText
+  resultCount    Int      @default(0)
+  hadMissingDrug Boolean  @default(false)
+  missingDrugs   String?  @db.LongText
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+  @@index([hadMissingDrug])
+  @@index([createdAt])
+}
+
+model InteractionFeedback {
+  id            String               @id @default(cuid())
+  userId        String
+  interactionId String?
+  type          String
+  drugName      String?
+  herbName      String?
+  severity      Severity?
+  description   String               @db.Text
+  outcome       String?              @db.Text
+  verified      Boolean              @default(false)
+  verifiedBy    String?
+  verifiedAt    DateTime?
+  promotedToDb  Boolean              @default(false)
+  createdAt     DateTime             @default(now())
+  interaction   DrugHerbInteraction? @relation(fields: [interactionId], references: [id])
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([interactionId])
+  @@index([type])
+  @@index([verified])
+}
+
+model NewsletterSubscriber {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  source         String?
+  subscribedAt   DateTime  @default(now())
+  unsubscribedAt DateTime?
+
+  @@index([subscribedAt])
+}
+
+model ProductReview {
+  id               String              @id @default(cuid())
+  productId        String
+  userId           String
+  rating           Int
+  title            String
+  body             String              @db.Text
+  verifiedPurchase Boolean             @default(false)
+  helpfulCount     Int                 @default(0)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  helpfulVotes     ReviewHelpfulVote[]
+
+  @@unique([productId, userId])
+  @@index([productId])
+  @@index([productId, rating])
+  @@index([userId], map: "ProductReview_userId_fkey")
+}
+
+model ReviewHelpfulVote {
+  id        String        @id @default(cuid())
+  reviewId  String
+  userId    String
+  createdAt DateTime      @default(now())
+  review    ProductReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, userId])
+}
+
+enum UserRole {
+  CUSTOMER
+  PRODUCER
+  ADMIN
+  CONSULTANT
+}
+
+enum OtpPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+  TWO_FACTOR
 }
 
 enum PaymentMethod {
@@ -163,74 +624,6 @@ enum OrderStatus {
   SHIPPED
   DELIVERED
   CANCELLED
-}
-
-// Customer: Health Profile
-model HealthProfile {
-  id         String   @id @default(cuid())
-  userId     String   @unique
-  conditions Json? // string[]
-  allergies  Json? // string[]
-  notes      String?  @db.Text
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-// Customer: Saved Medications (for interaction Engine)
-model SavedMedication {
-  id         String   @id @default(cuid())
-  userId     String
-  name       String
-  normalised String? // Lowercase for deduplication lookups
-  dose       String?
-  frequency  String?
-  createdAt  DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-}
-
-// Customer: Telehealth Consultations
-
-model Consultation {
-  id               String             @id @default(cuid())
-  userId           String
-  practitionerId   String?
-  practitionerName String? // snapshot at booking time — practitioner list is currently static, not a DB table
-  consultantId     String?
-  type             ConsultationType
-  status           ConsultationStatus @default(REQUESTED)
-  scheduledAt      DateTime?
-  notes            String?            @db.Text
-  meetingUrl       String?
-  amount           Int?
-  paystackRef      String?            @unique
-  paymentStatus    ConsultPayStatus   @default(PENDING)
-
-  // platformFeeRate snapshot at completion time so historical earnings
-  // don't shift if the platform fee percentage changes later.
-  platformFeeRate Float? // e.g 0.15 = platform keeps 15%
-  payoutStatus    PayoutStatus @default(NONE)
-
-  // Client rates the consultant after COMPLETED — powers the consultant
-  rating   Int? // 1-5
-  feedback String?   @db.Text
-  ratedAt  DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user          User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  consultant    ConsultantProfile?       @relation(fields: [consultantId], references: [id])
-  notifications ConsultantNotification[]
-
-  @@index([userId])
-  @@index([status])
-  @@index([paystackRef])
-  @@index([consultantId])
 }
 
 enum ConsultationType {
@@ -259,55 +652,9 @@ enum PayoutStatus {
   PAID
 }
 
-model ConsultantProfile {
-  id                String           @id @default(cuid())
-  userId            String           @unique
-  specialization    ConsultationType // reuses the existing enum — it already
-  bio               String?          @db.Text
-  licenseNumber     String? // pharmacist/toxicologist license, optional for herbalists
-  yearsExperience   Int?
-  avatarUrl         String?
-  status            ConsultantStatus @default(ACTIVE)
-  // Set true on creation; cleared once the consultant changes their admin-
-  mustResetPassword Boolean          @default(true)
-  createdBy         String // Admin user id who provisioned this account
-  deactivatedAt     DateTime?
-  deactivatedBy     String? // Admin user id
-  deactivationNote  String?          @db.Text
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user          User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  consultations Consultation[]
-  notifications ConsultantNotification[]
-
-  @@index([status])
-  @@index([specialization])
-}
-
 enum ConsultantStatus {
   ACTIVE
   INACTIVE
-}
-
-// ── Consultant Notifications ────
-model ConsultantNotification {
-  id             String               @id @default(cuid())
-  consultantId   String
-  consultationId String?
-  type           ConsultantNotifyType
-  title          String
-  body           String               @db.Text
-  isRead         Boolean              @default(false)
-  createdAt      DateTime             @default(now())
-
-  consultant   ConsultantProfile @relation(fields: [consultantId], references: [id], onDelete: Cascade)
-  consultation Consultation?     @relation(fields: [consultationId], references: [id], onDelete: SetNull)
-
-  @@index([consultantId])
-  @@index([consultantId, isRead])
-  @@index([createdAt])
 }
 
 enum ConsultantNotifyType {
@@ -315,35 +662,6 @@ enum ConsultantNotifyType {
   CANCELLED
   RESCHEDULED
   REMINDER
-}
-
-// Customer: Safety Alert Subscriptions
-model AlertSubscription {
-  id        String   @id @default(cuid())
-  userId    String
-  herbIds   Json? // string[] of herb IDs/names they want alerts for
-  channels  Json? // ["email", "sms"]
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId])
-}
-
-// Safety Alerts (Admin-published)
-model SafetyAlert {
-  id          String        @id @default(cuid())
-  title       String
-  body        String        @db.Text
-  severity    AlertSeverity
-  productName String?
-  batchNo     String?
-  status      AlertStatus   @default(ACTIVE)
-  publishedAt DateTime      @default(now())
-  createdBy   String
-
-  @@index([severity])
-  @@index([status])
 }
 
 enum AlertSeverity {
@@ -355,37 +673,6 @@ enum AlertSeverity {
 enum AlertStatus {
   ACTIVE
   RESOLVED
-}
-
-// Producer Profile
-model ProducerProfile {
-  id            String       @id @default(cuid())
-  userId        String       @unique
-  businessName  String
-  businessEmail String?
-  businessPhone String?
-  rcNumber      String? // CAC reqistration
-  nafdacNumber  String?
-  tier          ProducerTier @default(UNVERIFIED)
-  verifiedAt    DateTime?
-  verifiedBy    String? // Admin user ID
-
-  // Verification lifecycle
-  verificationStatus VerificationStatus @default(UNVERIFIED)
-  verificationNote   String?            @db.Text // admin feedback on rejection
-  submittedAt        DateTime?
-  cacCertUrl         String?
-  labPartnerUrl      String?
-  nafdacCertUrl      String?
-  insuranceUrl       String?
-  state              String?
-  website            String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  products ProducerProduct[]
 }
 
 enum ProducerTier {
@@ -401,55 +688,12 @@ enum VerificationStatus {
   REJECTED
 }
 
-// Producer Products
-model ProducerProduct {
-  id                String        @id @default(cuid())
-  slug              String        @unique // storefront route: /store/[slug] — generated at creation, see lib/slugify.ts
-  producerProfileId String
-  name              String
-  description       String?       @db.Text
-  category          String?
-  status            ProductStatus @default(DRAFT)
-  flaggedAt         DateTime?
-  flagReason        String?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-
-  producerProfile  ProducerProfile   @relation(fields: [producerProfileId], references: [id], onDelete: Cascade)
-  batchSubmissions BatchSubmission[]
-  meta             ProductMeta?
-
-  @@index([producerProfileId])
-  @@index([status])
-}
-
 enum ProductStatus {
   DRAFT
   PENDING_REVIEW
   APPROVED
   FLAGGED
   BANNED
-}
-
-// Batch / COA Submissions
-model BatchSubmission {
-  id           String      @id @default(cuid())
-  productId    String
-  batchNo      String
-  coaFileUrl   String // URL to uploaded COA document
-  labName      String?
-  testedAt     DateTime?
-  supplyChain  Json? // [{stage, location, date}]
-  reviewStatus BatchStatus @default(SUBMITTED)
-  reviewedBy   String?
-  reviewNotes  String?     @db.Text
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-
-  product ProducerProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@index([productId])
-  @@index([reviewStatus])
 }
 
 enum BatchStatus {
@@ -459,83 +703,11 @@ enum BatchStatus {
   REJECTED
 }
 
-// Admin Actions (Audit Log)
-model AdminAction {
-  id         String   @id @default(cuid())
-  adminId    String
-  action     String
-  targetType String // "Product" | "User" | "Batch" | "Alert"
-  targetId   String
-  reason     String?  @db.Text
-  createdAt  DateTime @default(now())
-
-  admin User @relation(fields: [adminId], references: [id])
-
-  @@index([adminId])
-  @@index([targetType, targetId])
-}
-
-// ── Herb Directory ──────
-model Herb {
-  id             String     @id @default(cuid())
-  slug           String     @unique
-  name           String
-  scientificName String
-  localNames     Json // string[]
-  emoji          String     @default("🌿")
-  category       String
-  safetyRating   HerbSafety
-  summary        String     @db.Text
-  keyBenefits    Json // string[]
-  warnings       Json // string[]
-  interactions   Json // string[]
-  languages      Json // string[]
-  reviewedAt     DateTime   @default(now())
-  publishedAt    DateTime   @default(now())
-  isPublished    Boolean    @default(true)
-
-  safetyReviews ProductSafetyReview[]
-
-  @@index([slug])
-  @@index([safetyRating])
-  @@index([category])
-}
-
 enum HerbSafety {
   SAFE
   CAUTION
   DANGER
   INSUFFICIENT_DATA
-}
-
-// ── Product Safety Reviews ──────
-model ProductSafetyReview {
-  id             String        @id @default(cuid())
-  herbId         String?
-  productName    String
-  producer       String
-  category       String
-  emoji          String        @default("🌿")
-  imageUrl       String?
-  verdict        ReviewVerdict
-  overallScore   Float
-  reviewDate     DateTime      @default(now())
-  batchNo        String
-  labName        String
-  nafdacNo       String?
-  verifiedBadge  Boolean       @default(false)
-  parameters     Json // { name, result, limit, pass }[]
-  summary        String        @db.Text
-  recommendation String        @db.Text
-  reportUrl      String?
-  isPublished    Boolean       @default(true)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-
-  herb Herb? @relation(fields: [herbId], references: [id])
-
-  @@index([verdict])
-  @@index([isPublished])
 }
 
 enum ReviewVerdict {
@@ -545,113 +717,17 @@ enum ReviewVerdict {
   PENDING
 }
 
-// ── Safety Guides 
-model SafetyGuide {
-  id           String   @id @default(cuid())
-  slug         String   @unique
-  title        String
-  description  String   @db.Text
-  category     String
-  languages    Json // string[]
-  readTime     String
-  downloadable Boolean  @default(false)
-  pdfUrl       String?
-  featured     Boolean  @default(false)
-  emoji        String   @default("📚")
-  isPublished  Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  @@index([slug])
-  @@index([category])
-}
-
-// ── Press Coverage & Releases 
-model PressItem {
-  id          String    @id @default(cuid())
-  type        PressType
-  outlet      String? // for COVERAGE
-  headline    String
-  excerpt     String?   @db.Text
-  category    String?
-  href        String?
-  date        DateTime
-  isPublished Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-
-  @@index([type])
-}
-
 enum PressType {
   COVERAGE
   RELEASE
 }
 
-model ProductMeta {
-  id            String   @id @default(cuid())
-  productId     String   @unique
-  price         Int      @default(0) // kobo
-  emoji         String   @default("🌿")
-  imageUrl      String?  @db.MediumText // primary product image, compressed to ≤100KB by client
-  productType   String   @default("")
-  ingredients   Json? // string[]
-  warnings      Json? // string[]
-  nafdacNo      String?
-  inStore       Boolean  @default(false)
-  stock         Int      @default(0)
-  sales         Int      @default(0)
-  revenue       Int      @default(0) // kobo
-  rating        Float    @default(0)
-  reviewCount   Int      @default(0)
-  // migration for existing rows.
-  shortDesc     String?  @db.Text // falls back to a truncated `description` if unset
-  howToUse      String?  @db.Text
-  originalPrice Int? // kobo — set to show a strikethrough discount
-  badge         String? // "Bestseller" | "Verified" | "New" | "Limited"
-  badgeVariant  String? // "gold" | "green" | "teal"
-  tags          Json? // string[]
-  unit          String   @default("unit") // "pack" | "bottle" | "jar" | etc.
-  featured      Boolean  @default(false) // shown in "You May Also Like" / homepage picks
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  product ProducerProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
-}
-
-model IncubationSubmission {
-  id              String           @id @default(cuid())
-  userId          String
-  productName     String
-  formulaCategory String
-  description     String           @db.Text
-  targetDosage    String? // e.g. "500mg capsule"
-  currentForm     String? // e.g. "Raw leaf extract"
-  originStory     String?          @db.Text
-  ndaSigned       Boolean          @default(false)
-  ndaSignedAt     DateTime?
-  royaltyAgreed   Boolean          @default(false)
-  royaltyRate     Float? // e.g. 0.15 = 15%
-  currentPhase    IncubationPhase  @default(INTAKE)
-  status          IncubationStatus @default(ACTIVE)
-  adminNotes      String?          @db.Text
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-
-  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  phases    IncubationPhaseLog[]
-  documents IncubationDocument[]
-
-  @@index([userId])
-  @@index([currentPhase])
-  @@index([status])
-}
-
 enum IncubationPhase {
-  INTAKE // Phase 1 — Formulation Intake & IP Agreement
-  PRECLINICAL // Phase 2 — Pre-Clinical Safety & Toxicity Screening
-  BRANDING // Phase 3 — Standardization & Branding
-  NAFDAC // Phase 4 — NAFDAC Listing Under HerbRx Umbrella
-  LAUNCH // Phase 5 — HerbRx Exclusive Launch
+  INTAKE
+  PRECLINICAL
+  BRANDING
+  NAFDAC
+  LAUNCH
 }
 
 enum IncubationStatus {
@@ -661,79 +737,15 @@ enum IncubationStatus {
   CANCELLED
 }
 
-// Log of phase transitions with timestamps and notes
-model IncubationPhaseLog {
-  id           String          @id @default(cuid())
-  submissionId String
-  phase        IncubationPhase
-  enteredAt    DateTime        @default(now())
-  completedAt  DateTime?
-  notes        String?         @db.Text
-  completedBy  String? // Admin user id
-
-  submission IncubationSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-
-  @@index([submissionId])
-}
-
-// Documents uploaded or generated during incubation
-model IncubationDocument {
-  id           String            @id @default(cuid())
-  submissionId String
-  type         IncubationDocType
-  name         String
-  url          String
-  uploadedAt   DateTime          @default(now())
-  uploadedBy   String? // user or admin id
-
-  submission IncubationSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-
-  @@index([submissionId])
-}
-
 enum IncubationDocType {
-  NDA // Signed Non-Disclosure Agreement
-  ROYALTY_CONTRACT // Fractional royalty agreement
-  FORMULA_SHEET // Submitted formula details
-  LAB_REPORT // Pre-clinical toxicity / heavy metals report
-  BRAND_GUIDE // HerbRx branding materials
-  NAFDAC_APPLICATION // NAFDAC listing application
-  NAFDAC_APPROVAL // Final NAFDAC listing certificate
-  LAUNCH_PLAN // Marketplace launch brief
-}
-
-// ── Drug-Herb Interaction Engine ──
-model DrugHerbInteraction {
-  id             String        @id @default(cuid())
-  drugName       String // normalised lowercase, eg warfarin
-  drugAliases    Json //  string[] - brand names
-  drugClass      String?
-  herbName       String
-  herbScientific String?
-  herbLocalNames Json // string[] - Yoruba, Hausa, Igbo Names
-  severity       Severity
-  mechanism      String?       @db.Text
-  effect         String        @db.Text
-  advice         String        @db.Text
-  evidenceLevel  EvidenceLevel
-  references     Json // string[] - DOI / URL citations
-  source         String        @default("PHARMACIST_CURATED")
-  isPublished    Boolean       @default(true)
-  confirmedCount Int           @default(0)
-  disputedCount  Int           @default(0)
-  reportedCount  Int           @default(0)
-  reviewedBy     String?
-  reviewedAt     DateTime?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-
-  feedback InteractionFeedback[]
-
-  @@unique([drugName, herbName])
-  @@index([drugName])
-  @@index([herbName])
-  @@index([severity])
-  @@index([isPublished])
+  NDA
+  ROYALTY_CONTRACT
+  FORMULA_SHEET
+  LAB_REPORT
+  BRAND_GUIDE
+  NAFDAC_APPLICATION
+  NAFDAC_APPROVAL
+  LAUNCH_PLAN
 }
 
 enum Severity {
@@ -748,90 +760,4 @@ enum EvidenceLevel {
   MODERATE
   PRELIMINARY
   ANECDOTAL
-}
-
-// Every search session logged — powers the gap report
-model InteractionQuery {
-  id             String   @id @default(cuid())
-  userId         String?
-  sessionId      String?
-  drugs          Json // string[] of searched drug names
-  herbs          Json? // string[] of herb filter (optional)
-  resultCount    Int      @default(0)
-  hadMissingDrug Boolean  @default(false)
-  missingDrugs   Json? // string[] — drugs that returned no results
-  createdAt      DateTime @default(now())
-
-  @@index([userId])
-  @@index([hadMissingDrug])
-  @@index([createdAt])
-}
-
-// User feedback on individual interaction records
-model InteractionFeedback {
-  id            String    @id @default(cuid())
-  userId        String
-  interactionId String?
-  type          String // CONFIRM | DISPUTE | REPORT
-  drugName      String?
-  herbName      String?
-  severity      Severity?
-  description   String    @db.Text
-  outcome       String?   @db.Text
-  verified      Boolean   @default(false)
-  verifiedBy    String?
-  verifiedAt    DateTime?
-  promotedToDb  Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  interaction DrugHerbInteraction? @relation(fields: [interactionId], references: [id], onDelete: SetNull)
-
-  @@index([userId])
-  @@index([interactionId])
-  @@index([type])
-  @@index([verified])
-}
-
-// ── Newsletter (public, no account required) ───────────────────────────────
-model NewsletterSubscriber {
-  id             String    @id @default(cuid())
-  email          String    @unique
-  source         String? // page/section the signup came from, e.g. "homepage"
-  subscribedAt   DateTime  @default(now())
-  unsubscribedAt DateTime?
-
-  @@index([subscribedAt])
-}
-
-model ProductReview {
-  id               String   @id @default(cuid())
-  productId        String
-  userId           String
-  rating           Int // 1–5
-  title            String
-  body             String   @db.Text
-  verifiedPurchase Boolean  @default(false)
-  helpfulCount     Int      @default(0)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  helpfulVotes ReviewHelpfulVote[]
-
-  @@unique([productId, userId]) // one review per customer per product
-  @@index([productId])
-  @@index([productId, rating])
-}
-
-model ReviewHelpfulVote {
-  id        String   @id @default(cuid())
-  reviewId  String
-  userId    String
-  createdAt DateTime @default(now())
-
-  review ProductReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-
-  @@unique([reviewId, userId]) // one helpful vote per user per review
 }

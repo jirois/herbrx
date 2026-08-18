@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { cn } from "@/lib/utils";
 import {
   Pill,
   Plus,
@@ -11,85 +12,97 @@ import {
   AlertTriangle,
   CheckCircle,
   Info,
+  Loader2,
+  Stethoscope,
+  AlertCircle
 } from "lucide-react";
 
-// Static interaction data — wire to a real database/API
-const INTERACTIONS: Record<
-  string,
-  {
-    herb: string;
-    severity: "DANGER" | "WARNING" | "INFO";
-    effect: string;
-    advice: string;
-  }[]
-> = {
-  warfarin: [
-    {
-      herb: "St. John's Wort",
-      severity: "DANGER",
-      effect:
-        "Significantly reduces warfarin efficacy, increasing clotting risk.",
-      advice: "Avoid concurrent use. Consult your physician immediately.",
-    },
-    {
-      herb: "Garlic Extract",
-      severity: "WARNING",
-      effect: "May enhance anticoagulant effects, increasing bleeding risk.",
-      advice: "Monitor INR closely. Limit garlic supplement dosage.",
-    },
-    {
-      herb: "Ginger",
-      severity: "WARNING",
-      effect: "May potentiate antiplatelet activity.",
-      advice: "Use with caution. Discuss with your doctor.",
-    },
-  ],
-  metformin: [
-    {
-      herb: "Bitter Leaf (Vernonia amygdalina)",
-      severity: "WARNING",
-      effect:
-        "May cause additive hypoglycaemic effect, risking blood sugar crash.",
-      advice: "Monitor blood glucose closely if using both.",
-    },
-    {
-      herb: "Moringa",
-      severity: "INFO",
-      effect: "Some evidence of mild glucose-lowering properties.",
-      advice: "Inform your doctor. Monitor blood sugar levels.",
-    },
-  ],
-  sertraline: [
-    {
-      herb: "St. John's Wort",
-      severity: "DANGER",
-      effect:
-        "Risk of serotonin syndrome — a potentially life-threatening condition.",
-      advice:
-        "Do NOT combine. Stop St. John's Wort and consult your doctor immediately.",
-    },
-    {
-      herb: "Valerian Root",
-      severity: "WARNING",
-      effect: "May increase sedation and CNS depression.",
-      advice: "Avoid combining without medical supervision.",
-    },
-  ],
-  amlodipine: [
-    {
-      herb: "Grapefruit",
-      severity: "WARNING",
-      effect: "Increases drug plasma levels, risking toxicity.",
-      advice: "Avoid grapefruit products while on amlodipine.",
-    },
-    {
-      herb: "Hawthorn (Crataegus)",
-      severity: "WARNING",
-      effect: "May have additive antihypertensive effects.",
-      advice: "Monitor blood pressure regularly.",
-    },
-  ],
-};
+
+interface InteractionResult {
+  herb: string;
+  severity: "DANGER" | "WARNING" | "INFO" | "BENEFICIAL";
+  effect: string;
+  advice: string;
+  evidenceLevel?: string;
+}
+
+// // Static interaction data — wire to a real database/API
+// const INTERACTIONS: Record<
+//   string,
+//   {
+//     herb: string;
+//     severity: "DANGER" | "WARNING" | "INFO";
+//     effect: string;
+//     advice: string;
+//   }[]
+// > = {
+//   warfarin: [
+//     {
+//       herb: "St. John's Wort",
+//       severity: "DANGER",
+//       effect:
+//         "Significantly reduces warfarin efficacy, increasing clotting risk.",
+//       advice: "Avoid concurrent use. Consult your physician immediately.",
+//     },
+//     {
+//       herb: "Garlic Extract",
+//       severity: "WARNING",
+//       effect: "May enhance anticoagulant effects, increasing bleeding risk.",
+//       advice: "Monitor INR closely. Limit garlic supplement dosage.",
+//     },
+//     {
+//       herb: "Ginger",
+//       severity: "WARNING",
+//       effect: "May potentiate antiplatelet activity.",
+//       advice: "Use with caution. Discuss with your doctor.",
+//     },
+//   ],
+//   metformin: [
+//     {
+//       herb: "Bitter Leaf (Vernonia amygdalina)",
+//       severity: "WARNING",
+//       effect:
+//         "May cause additive hypoglycaemic effect, risking blood sugar crash.",
+//       advice: "Monitor blood glucose closely if using both.",
+//     },
+//     {
+//       herb: "Moringa",
+//       severity: "INFO",
+//       effect: "Some evidence of mild glucose-lowering properties.",
+//       advice: "Inform your doctor. Monitor blood sugar levels.",
+//     },
+//   ],
+//   sertraline: [
+//     {
+//       herb: "St. John's Wort",
+//       severity: "DANGER",
+//       effect:
+//         "Risk of serotonin syndrome — a potentially life-threatening condition.",
+//       advice:
+//         "Do NOT combine. Stop St. John's Wort and consult your doctor immediately.",
+//     },
+//     {
+//       herb: "Valerian Root",
+//       severity: "WARNING",
+//       effect: "May increase sedation and CNS depression.",
+//       advice: "Avoid combining without medical supervision.",
+//     },
+//   ],
+//   amlodipine: [
+//     {
+//       herb: "Grapefruit",
+//       severity: "WARNING",
+//       effect: "Increases drug plasma levels, risking toxicity.",
+//       advice: "Avoid grapefruit products while on amlodipine.",
+//     },
+//     {
+//       herb: "Hawthorn (Crataegus)",
+//       severity: "WARNING",
+//       effect: "May have additive antihypertensive effects.",
+//       advice: "Monitor blood pressure regularly.",
+//     },
+//   ],
+// };
 
 const COMMON_MEDS = [
   "Warfarin",
@@ -106,20 +119,30 @@ const severityConfig = {
   DANGER: {
     color: "border-red-500/30 bg-red-500/8",
     badge: "bg-red-500/15 text-red-400",
-    icon: "🚨",
+    icon: AlertCircle,
+    iconColor: "text-red-400",
     label: "High Risk",
   },
   WARNING: {
     color: "border-amber-500/30 bg-amber-500/8",
     badge: "bg-amber-500/15 text-amber-400",
-    icon: "⚠️",
+    icon: AlertTriangle,
+    iconColor: "text-amber-400",
     label: "Caution",
   },
   INFO: {
     color: "border-blue-500/30 bg-blue-500/8",
     badge: "bg-blue-500/15 text-blue-400",
-    icon: "ℹ️",
+    icon: Info,
+    iconColor: "text-blue-400",
     label: "Note",
+  },
+  BENEFICIAL: {
+    color: "border-green-500/30 bg-green-500/8",
+    badge: "bg-green-500/15 text-green-400",
+    icon: CheckCircle,
+    iconColor: "text-emerald-500",
+    label: "Beneficial",
   },
 };
 
@@ -127,7 +150,10 @@ export function InteractionEngine() {
   const [medications, setMedications] = useState<string[]>([]);
   const [input, setInput] = useState("");
   const [checked, setChecked] = useState(false);
-  const [results, setResults] = useState<(typeof INTERACTIONS)[string]>([]);
+  const [checking, setChecking] = useState(false);
+  const [results, setResults] = useState<InteractionResult[]>([]);
+  const [missingDrugs, setMissingDrugs] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   function addMed(name: string) {
     const clean = name.trim();
@@ -142,25 +168,59 @@ export function InteractionEngine() {
     setChecked(false);
   }
 
-  function runCheck() {
-    const found: (typeof INTERACTIONS)[string] = [];
-    medications.forEach((med) => {
-      const key = med.toLowerCase();
-      const hits = INTERACTIONS[key];
-      if (hits) found.push(...hits);
-    });
-    // Deduplicate by herb name
-    const unique = found.filter(
-      (v, i, arr) => arr.findIndex((x) => x.herb === v.herb) === i,
-    );
-    // Sort: DANGER → WARNING → INFO
-    const order = { DANGER: 0, WARNING: 1, INFO: 2 };
-    setResults(unique.sort((a, b) => order[a.severity] - order[b.severity]));
-    setChecked(true);
+  async function runCheck() {
+    setChecking(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/interactions/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ drugs: medications }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Interaction check failed");
+
+      const flat: InteractionResult[] = Object.values(
+        data.results as Record<
+          string,
+          {
+            herbName: string;
+            severity: InteractionResult["severity"];
+            effect: string;
+            advice: string;
+            evidenceLevel?: string;
+          }[]
+        >,
+      )
+        .flat()
+        .map((r) => ({
+          herb: r.herbName,
+          severity: r.severity,
+          effect: r.effect,
+          advice: r.advice,
+          evidenceLevel: r.evidenceLevel,
+        }));
+
+      // Deduplicate by herb name
+      const unique = flat.filter(
+        (v, i, arr) => arr.findIndex((x) => x.herb === v.herb) === i,
+      );
+      // Sort: DANGER → WARNING → INFO → BENEFICIAL
+      const order = { DANGER: 0, WARNING: 1, INFO: 2, BENEFICIAL: 3 };
+      setResults(unique.sort((a, b) => order[a.severity] - order[b.severity]));
+      setMissingDrugs(data.missingDrugs ?? []);
+      setChecked(true);
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Couldn't run the interaction check. Please try again.",
+      );
+    }
+    setChecking(false);
   }
 
   const hasDanger = results.some((r) => r.severity === "DANGER");
-  const hasWarning = results.some((r) => r.severity === "WARNING");
 
   return (
     <DashboardShell
@@ -239,11 +299,24 @@ export function InteractionEngine() {
 
           <button
             onClick={runCheck}
-            disabled={medications.length === 0}
+            disabled={medications.length === 0 || checking}
             className="mt-5 w-full h-11 bg-(--green-deep) hover:bg-(--green-mid) disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors text-[14px] flex items-center justify-center gap-2"
           >
-            <Pill size={16} /> Check for Interactions
+            {checking ? (
+              <>
+                <Loader2 size={16} className="animate-spin" /> Checking…
+              </>
+            ) : (
+              <>
+                <Pill size={16} /> Check for Interactions
+              </>
+            )}
           </button>
+          {error && (
+            <p className="text-[12px] text-red-400 mt-3 text-center">
+              {error}
+            </p>
+          )}
         </div>
 
         {/* Results */}
@@ -305,9 +378,10 @@ export function InteractionEngine() {
                           className={`p-5 rounded-2xl border ${cfg.color}`}
                         >
                           <div className="flex items-start gap-3">
-                            <span className="text-[20px] shrink-0 mt-0.5">
-                              {cfg.icon}
-                            </span>
+                            <cfg.icon
+                              size={20}
+                              className={cn("shrink-0 mt-0.5", cfg.iconColor)}
+                            />
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2 flex-wrap">
                                 <h3 className="text-[15px] font-semibold text-white">
@@ -333,13 +407,30 @@ export function InteractionEngine() {
                     })}
                   </div>
 
-                  <p className="text-[12px] text-white/30 mt-4 leading-relaxed">
-                    ⚕️ This tool is for informational purposes only and does not
-                    replace professional medical advice. Always consult a
-                    qualified pharmacist or physician before starting, stopping,
-                    or changing any medication or supplement.
+                  <p className="flex items-start gap-2 text-[12px] text-white/30 mt-4 leading-relaxed">
+                    <Stethoscope size={13} className="shrink-0 mt-0.5" />
+                    <span>
+                      This tool is for informational purposes only and does
+                      not replace professional medical advice. Always consult
+                      a qualified pharmacist or physician before starting,
+                      stopping, or changing any medication or supplement.
+                    </span>
                   </p>
                 </>
+              )}
+              {missingDrugs.length > 0 && (
+                <div className="flex items-start gap-2.5 p-4 rounded-2xl bg-white/4 border border-white/8 mt-4">
+                  <Info size={14} className="text-white/40 shrink-0 mt-0.5" />
+                  <p className="text-[12px] text-white/45 leading-relaxed">
+                    <span className="text-white/60 font-medium">
+                      {missingDrugs.join(", ")}
+                    </span>{" "}
+                    {missingDrugs.length === 1 ? "isn't" : "aren't"} yet in our
+                    curated interaction database — this doesn&apos;t mean it&apos;s
+                    safe, just that we don&apos;t have data on it. Always check
+                    with your pharmacist.
+                  </p>
+                </div>
               )}
             </motion.div>
           )}

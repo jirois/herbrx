@@ -2,7 +2,15 @@
 
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, X, Download, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Search,
+  X,
+  Download,
+  ChevronDown,
+  ChevronUp,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { DashboardShell } from "./dashboard-shell";
 import { formatNaira, cn } from "@/lib/utils";
 import { ProductImage } from "@/components/ui/product-image";
@@ -421,14 +429,14 @@ export function TransactionsPage({ orders }: Props) {
               disabled={page === 1}
               className="px-4 py-2 rounded-xl bg-white/5 border border-white/8 hover:border-white/18 disabled:opacity-30 disabled:cursor-not-allowed transition-all text-white"
             >
-              ← Prev
+              <ChevronLeft size={14} /> Prev
             </button>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
               className="px-4 py-2 rounded-xl bg-white/5 border border-white/8 hover:border-white/18 disabled:opacity-30 disabled:cursor-not-allowed transition-all text-white"
             >
-              Next →
+              Next <ChevronRight size={14} />
             </button>
           </div>
         </div>

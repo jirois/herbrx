@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
-import { adminApi } from "@/hooks/dashboard-hooks";
+import { adminApi, useAdminUsers } from "@/hooks/dashboard-hooks";
 import {
   Search,
   UserX,
@@ -51,108 +51,25 @@ interface ManagedUser {
   notes: string;
 }
 
-// ── Mock data ───────
-const INITIAL_USERS: ManagedUser[] = [
-  {
-    id: "u1",
-    firstName: "Amaka",
-    lastName: "Okafor",
-    email: "amaka.okafor@gmail.com",
-    phone: "+234 803 456 7890",
-    role: "CUSTOMER",
-    status: "ACTIVE",
-    emailVerified: true,
-    createdAt: "2024-03-12",
-    lastActive: "2 hours ago",
-    orders: 7,
-    totalSpend: 42500,
-    flagCount: 0,
-    notes: "",
-  },
-  {
-    id: "u2",
-    firstName: "Chuka",
-    lastName: "Nwosu",
-    email: "chuka@greenhealth.ng",
-    phone: "+234 805 123 4567",
-    role: "PRODUCER",
-    status: "ACTIVE",
-    emailVerified: true,
-    createdAt: "2024-01-20",
-    lastActive: "1 day ago",
-    businessName: "GreenHealth NG",
-    tier: "VERIFIED",
-    productCount: 4,
-    flagCount: 0,
-    notes: "",
-  },
-  {
-    id: "u3",
-    firstName: "Fatima",
-    lastName: "Bello",
-    email: "fatima.bello@yahoo.com",
-    phone: "+234 811 234 5678",
-    role: "CUSTOMER",
-    status: "ACTIVE",
-    emailVerified: true,
-    createdAt: "2024-05-08",
-    lastActive: "3 days ago",
-    orders: 2,
-    totalSpend: 8900,
-    flagCount: 0,
-    notes: "",
-  },
-  {
-    id: "u4",
-    firstName: "Dayo",
-    lastName: "Adeyemi",
-    email: "dayo@slimherbs.ng",
-    phone: "+234 802 987 6543",
-    role: "PRODUCER",
-    status: "SUSPENDED",
-    emailVerified: true,
-    createdAt: "2024-02-14",
-    lastActive: "12 days ago",
-    businessName: "SlimHerbs NG",
-    tier: "UNVERIFIED",
-    productCount: 2,
-    flagCount: 2,
-    notes: "Submitted duplicate COA documents. Under review.",
-  },
-  {
-    id: "u5",
-    firstName: "Emeka",
-    lastName: "Eze",
-    email: "emeka.eze@hotmail.com",
-    phone: undefined,
-    role: "CUSTOMER",
-    status: "BANNED",
-    emailVerified: false,
-    createdAt: "2024-06-01",
-    lastActive: "20 days ago",
-    orders: 0,
-    totalSpend: 0,
-    flagCount: 3,
-    notes: "Multiple chargeback attempts. Permanently banned.",
-  },
-  {
-    id: "u6",
-    firstName: "Ngozi",
-    lastName: "Ike",
-    email: "ngozi@naturaherbs.ng",
-    phone: "+234 809 345 6789",
-    role: "PRODUCER",
-    status: "ACTIVE",
-    emailVerified: true,
-    createdAt: "2024-04-18",
-    lastActive: "5 hours ago",
-    businessName: "Natura Herbs Ltd",
-    tier: "UNVERIFIED",
-    productCount: 1,
-    flagCount: 0,
-    notes: "",
-  },
-];
+// // ── Mock data ───────
+// const INITIAL_USERS: ManagedUser[] = [
+//   {
+//     id: "u1",
+//     firstName: "Amaka",
+//     lastName: "Okafor",
+//     email: "amaka.okafor@gmail.com",
+//     phone: "+234 803 456 7890",
+//     role: "CUSTOMER",
+//     status: "ACTIVE",
+//     emailVerified: true,
+//     createdAt: "2024-03-12",
+//     lastActive: "2 hours ago",
+//     orders: 7,
+//     totalSpend: 42500,
+//     flagCount: 0,
+//     notes: "",
+//   },
+//]
 
 // ── Config ───────
 const roleConfig: Record<
@@ -410,20 +327,65 @@ function UserDetailModal({
 
 // ── Main component ─────
 export function UsersManagementPage() {
-  const [users, setUsers] = useState<ManagedUser[]>(INITIAL_USERS);
+  const { data, loading } = useAdminUsers();
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<UserRole | "ALL">("ALL");
   const [statusFilter, setStatusFilter] = useState<UserStatus | "ALL">("ALL");
   const [selectedUser, setSelectedUser] = useState<ManagedUser | null>(null);
-  //   const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  // Optimistic local overrides applied on top of fetched data after a status
+  // change, keyed by user id — avoids copying fetched data into its own
+  // state just to mutate it (which would need an effect + setState).
+  const [overrides, setOverrides] = useState<
+    Record<string, { status: UserStatus; notes: string }>
+  >({});
+
+  const users = useMemo<ManagedUser[]>(() => {
+    if (!data?.users) return [];
+    return (
+      data.users as unknown as Array<{
+        id: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        phone?: string | null;
+        role: UserRole;
+        status: UserStatus;
+        statusNote?: string | null;
+        emailVerified: boolean;
+        createdAt: string;
+        businessName?: string | null;
+        tier?: "UNVERIFIED" | "VERIFIED" | null;
+        productCount?: number;
+        orders?: number;
+        totalSpend?: number;
+        flagCount: number;
+      }>
+    ).map((u) => {
+      const override = overrides[u.id];
+      return {
+        id: u.id,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        email: u.email,
+        phone: u.phone ?? undefined,
+        role: u.role,
+        status: override?.status ?? u.status,
+        emailVerified: u.emailVerified,
+        createdAt: u.createdAt,
+        lastActive: "—", // no session-activity tracking yet
+        orders: u.orders,
+        totalSpend: u.totalSpend,
+        businessName: u.businessName ?? undefined,
+        tier: u.tier ?? undefined,
+        productCount: u.productCount,
+        flagCount: u.flagCount,
+        notes: override?.notes ?? u.statusNote ?? "",
+      };
+    });
+  }, [data, overrides]);
 
   function handleStatusChange(id: string, status: UserStatus, note: string) {
-    setUsers((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, status, notes: note } : u)),
-    );
-    // setSelectedUser((prev) =>
-    //   prev?.id === id ? { ...prev, status, notes: note } : prev,
-    // );
+    setOverrides((prev) => ({ ...prev, [id]: { status, notes: note } }));
 
     // Sync to API
     adminApi
@@ -452,6 +414,19 @@ export function UsersManagementPage() {
   const verifiedProducers = users.filter(
     (u) => u.role === "PRODUCER" && u.tier === "VERIFIED",
   ).length;
+
+  if (loading && users.length === 0) {
+    return (
+      <DashboardShell
+        heading="User Management"
+        subheading="View, filter, and manage all platform users — customers, producers, and admins."
+      >
+        <div className="flex items-center justify-center py-24">
+          <Loader2 size={24} className="animate-spin text-(--green-pale)" />
+        </div>
+      </DashboardShell>
+    );
+  }
 
   return (
     <DashboardShell
@@ -647,13 +622,9 @@ export function UsersManagementPage() {
                 </button>
                 {user.status === "ACTIVE" ? (
                   <button
-                    onClick={() => {
-                      setUsers((prev) =>
-                        prev.map((u) =>
-                          u.id === user.id ? { ...u, status: "SUSPENDED" } : u,
-                        ),
-                      );
-                    }}
+                    onClick={() =>
+                      handleStatusChange(user.id, "SUSPENDED", user.notes)
+                    }
                     className="w-8 h-8 rounded-lg bg-white/6 hover:bg-amber-500/20 flex items-center justify-center text-white/40 hover:text-amber-400 transition-all"
                     title="Suspend"
                   >
@@ -661,13 +632,9 @@ export function UsersManagementPage() {
                   </button>
                 ) : (
                   <button
-                    onClick={() => {
-                      setUsers((prev) =>
-                        prev.map((u) =>
-                          u.id === user.id ? { ...u, status: "ACTIVE" } : u,
-                        ),
-                      );
-                    }}
+                    onClick={() =>
+                      handleStatusChange(user.id, "ACTIVE", user.notes)
+                    }
                     className="w-8 h-8 rounded-lg bg-white/6 hover:bg-green-500/20 flex items-center justify-center text-white/40 hover:text-green-400 transition-all"
                     title="Activate"
                   >

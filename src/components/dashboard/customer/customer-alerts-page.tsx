@@ -18,7 +18,11 @@ import {
   ExternalLink,
   X,
   Loader2,
+  AlertTriangle,
+  AlertCircle,
+  BellOff,
   MessageSquare,
+  ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
 import type { AlertSeverity } from "@/types";
@@ -36,62 +40,13 @@ interface Alert {
   publishedAt: string;
 }
 
-// Fallback mock while API loads
-// const MOCK_ALERTS: Alert[] = [
-//   {
-//     id: "a1",
-//     severity: "DANGER",
-//     status: "ACTIVE",
-//     title: "Counterfeit Moringa Capsules Detected in Lagos Markets",
-//     body: 'Multiple batches of counterfeit "SuperGreen Moringa 500mg" identified in Lagos Island and Alaba markets. Lab analysis reveals lead levels of 12.4 mg/kg — over 6× the safe limit. Do not consume. Dispose of immediately.',
-//     productName: "SuperGreen Moringa 500mg",
-//     batchNo: "B2024-FAKE-01",
-//     publishedAt: "2 hours ago",
-//   },
-//   {
-//     id: "a2",
-//     severity: "WARNING",
-//     status: "ACTIVE",
-//     title: "St. John's Wort + SSRI Antidepressants — Interaction Warning",
-//     body: "Significant risk of serotonin syndrome when combining St. John's Wort with SSRI antidepressants (sertraline, fluoxetine, citalopram). Stop St. John's Wort immediately if you take SSRIs and consult your doctor.",
-//     productName: "St. John's Wort Extract",
-//     publishedAt: "1 day ago",
-//   },
-//   {
-//     id: "a3",
-//     severity: "WARNING",
-//     status: "ACTIVE",
-//     title: "High-Dose Bitter Leaf — Hypoglycaemia Risk in Diabetics",
-//     body: "High-dose Bitter Leaf preparations (>500mg/day) may cause additive blood sugar-lowering effects alongside metformin or glibenclamide. Monitor glucose closely if combining these.",
-//     publishedAt: "3 days ago",
-//   },
-//   {
-//     id: "a4",
-//     severity: "DANGER",
-//     status: "RESOLVED",
-//     title: "Shea Butter Adulteration — Kano Batch B2024-11 Recalled",
-//     body: 'Batch B2024-11 of "PureShea Body Butter" failed microbial screening. All units have been recalled. The producer has been suspended from the marketplace.',
-//     productName: "PureShea Body Butter",
-//     batchNo: "B2024-11",
-//     publishedAt: "1 month ago",
-//   },
-//   {
-//     id: "a5",
-//     severity: "INFO",
-//     status: "RESOLVED",
-//     title: "Updated Safety Guidelines: Bitter Leaf (Vernonia amygdalina)",
-//     body: "Revised dosage guidelines and interaction warnings for Bitter Leaf now available in the Herb Directory and Safety Guides.",
-//     publishedAt: "2 months ago",
-//   },
-// ];
-
 const severityConfig: Record<
   AlertSeverity,
   {
     bg: string;
     border: string;
     badge: string;
-    icon: string;
+    icon: typeof AlertTriangle;
     label: string;
     dot: string;
   }
@@ -100,7 +55,7 @@ const severityConfig: Record<
     bg: "bg-red-500/8",
     border: "border-red-500/20",
     badge: "bg-red-500/15 text-red-400",
-    icon: "🚨",
+    icon: AlertCircle,
     label: "Danger",
     dot: "bg-red-400",
   },
@@ -108,7 +63,7 @@ const severityConfig: Record<
     bg: "bg-amber-500/8",
     border: "border-amber-500/20",
     badge: "bg-amber-500/15 text-amber-400",
-    icon: "⚠️",
+    icon: AlertTriangle,
     label: "Warning",
     dot: "bg-amber-400",
   },
@@ -116,7 +71,7 @@ const severityConfig: Record<
     bg: "bg-blue-500/8",
     border: "border-blue-500/20",
     badge: "bg-blue-500/15 text-blue-400",
-    icon: "ℹ️",
+    icon: Info,
     label: "Info",
     dot: "bg-blue-400",
   },
@@ -167,10 +122,23 @@ export function CustomerAlertsPage() {
     e.preventDefault();
     if (!subEmail) return;
     setSubLoading(true);
-    await new Promise((r) => setTimeout(r, 1000));
+    try {
+      const res = await fetch("/api/alerts/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: subEmail, channels: ["email"] }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Subscription failed");
+      }
+      setSubDone(true);
+      setSubscribed(true);
+    } catch {
+      // Keep the form open so the person can retry rather than silently
+      // pretending it worked.
+    }
     setSubLoading(false);
-    setSubDone(true);
-    setSubscribed(true);
   }
 
   return (
@@ -266,7 +234,7 @@ export function CustomerAlertsPage() {
           },
           {
             label: "Alert Status",
-            value: subscribed ? "On 🔔" : "Off 🔕",
+            value: subscribed ? "On" : "Off",
             color: subscribed ? "text-green-400" : "text-white/40",
             bg: "bg-white/[0.04] border-white/[0.07]",
           },
@@ -278,7 +246,11 @@ export function CustomerAlertsPage() {
             transition={{ delay: i * 0.05 }}
             className={`rounded-2xl border p-5 ${k.bg}`}
           >
-            <div className={`text-[24px] font-serif font-semibold ${k.color}`}>
+            <div
+              className={`text-[24px] font-serif font-semibold ${k.color} flex items-center gap-2`}
+            >
+              {k.label === "Alert Status" &&
+                (subscribed ? <Bell size={20} /> : <BellOff size={20} />)}
               {k.value}
             </div>
             <div className="text-[11px] text-white/35 mt-0.5">{k.label}</div>
@@ -358,7 +330,7 @@ export function CustomerAlertsPage() {
               className={`rounded-2xl border overflow-hidden transition-all ${isResolved ? "border-white/[0.07] bg-white/2 opacity-70" : `${cfg.border} ${cfg.bg}`}`}
             >
               <div className="flex items-start gap-4 p-5">
-                <span className="text-[22px] shrink-0 mt-0.5">{cfg.icon}</span>
+                <cfg.icon size={22} className="shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                     <span
@@ -367,9 +339,18 @@ export function CustomerAlertsPage() {
                       {cfg.label}
                     </span>
                     <span
-                      className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${isResolved ? "bg-white/6 text-white/30" : "bg-green-500/15 text-green-400"}`}
+                      className={`flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${isResolved ? "bg-white/6 text-white/30" : "bg-green-500/15 text-green-400"}`}
                     >
-                      {isResolved ? "✓ Resolved" : "● Active"}
+                      {isResolved ? (
+                        <>
+                          <CheckCircle size={11} /> Resolved
+                        </>
+                      ) : (
+                        <>
+                          <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                          Active
+                        </>
+                      )}
                     </span>
                   </div>
                   <p
@@ -467,9 +448,9 @@ export function CustomerAlertsPage() {
           your pharmacist before making decisions about your health.{" "}
           <Link
             href="/alerts"
-            className="text-(--green-pale) hover:text-white transition-colors"
+            className="inline-flex items-center gap-1 text-(--green-pale) hover:text-white transition-colors"
           >
-            View all public alerts →
+            View all public alerts <ArrowRight size={11} />
           </Link>
         </p>
       </div>

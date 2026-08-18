@@ -141,6 +141,7 @@ export function useAdminCompliance(status = 'PENDING', search?: string) {
   }>(`/api/dashboard/admin/compliance${qs}`)
 }
 
+
 export function useAdminProductsOverview() {
   return useFetch<{
     products: {
@@ -245,6 +246,8 @@ export const adminApi = {
   changeUserStatus: (body: unknown) => apiPatch('/api/dashboard/admin/users', body),
   reviewVerification: (body: { producerUserId: string; decision: 'APPROVED' | 'REJECTED' | 'UNDER_REVIEW'; note?: string }) =>
     apiPatch('/api/dashboard/producer/verification', body),
+   updateDispute: (body: { disputeId: string; status: 'OPEN' | 'INVESTIGATING' | 'RESOLVED' | 'CLOSED'; resolution?: string }) =>
+    apiPatch('/api/dashboard/admin/disputes', body),
 }
 
 export const bookingApi = {
@@ -294,6 +297,38 @@ export function useAdminProducts(status?: string, search?: string) {
   const qs = params.toString()
   return useFetch<{ products: Record<string, unknown>[] }>(`/api/dashboard/admin/products${qs ? `?${qs}` : ''}`)
 }
+
+export function useAdminOverviewStats() {
+  return useFetch<{
+    totalUsers: number
+    totalOrders: number
+    revenueMtd: number
+    verifiedProducers: number
+    totalProducers: number
+  }>('/api/dashboard/admin/overview-stats')
+}
+
+
+export function useAdminDisputes() {
+  return useFetch<{
+    disputes: {
+      id: string
+      orderId: string
+      customer: string
+      email: string
+      amount: number
+      subject: string
+      description: string
+      status: 'OPEN' | 'INVESTIGATING' | 'RESOLVED' | 'CLOSED'
+      resolution: string | null
+      createdAt: string
+      resolvedAt: string | null
+    }[]
+    counts: { open: number; resolved: number; closed: number; amountAtRisk: number }
+  }>('/api/dashboard/admin/disputes')
+}
+
+
 
 // ── Public consultant directory (booking flows) ────────────────────────────
 export function useConsultantDirectory(type?: string) {
