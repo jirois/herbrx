@@ -73,7 +73,10 @@ export async function POST(req: NextRequest) {
         interaction.drugName === drug ||
         interaction.drugName.includes(drug) ||
         drug.includes(interaction.drugName) ||
-        aliases.some((a: string) => a.toLowerCase() === drug || a.toLowerCase().includes(drug))
+        aliases.some(a =>
+          typeof a === 'string' &&
+          (a.toLowerCase() === drug || a.toLowerCase().includes(drug))
+        )
       )
       if (!matchesDrug) return false
 
@@ -131,7 +134,12 @@ export async function POST(req: NextRequest) {
             ? [i.drugAliases]
             : []
 
-        return [i.drugName, ...aliases.map(a => a.toLowerCase())]
+        return [
+          i.drugName,
+          ...aliases.flatMap(a =>
+            typeof a === 'string' ? [a.toLowerCase()] : []
+          ),
+        ]
       })
     )
     const missingDrugs = normalisedDrugs.filter(drug =>

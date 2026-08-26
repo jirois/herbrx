@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     const body   = await req.json()
 
     const { productId, batchNo, labName, testedAt,
-            expiryDate, quantity, unit, notes,
+            expiryDate, 
             coaFileUrl, chainStages } = body
 
     if (!productId || !batchNo || !labName || !coaFileUrl) {
@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
         coaFileUrl,
         testedAt:  testedAt  ? new Date(testedAt)  : null,
         supplyChain: Array.isArray(chainStages) && chainStages.length > 0
-          ? chainStages.filter((s: SupplyChainStage) => s?.stage || s?.location || s?.date)
+          ? JSON.stringify(chainStages.filter((s: SupplyChainStage) => s?.stage || s?.location || s?.date))
           : undefined,
         reviewStatus: 'SUBMITTED',
       },
