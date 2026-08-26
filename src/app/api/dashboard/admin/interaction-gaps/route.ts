@@ -18,9 +18,10 @@ export async function GET(req: NextRequest) {
 
     const freqMap = new Map<string, { count: number; lastSeen: Date }>()
     for (const q of gapQueries) {
-      const missing = (q.missingDrugs as string[]) ?? []
+      const missing = Array.isArray(q.missingDrugs) ? q.missingDrugs : []
       for (const drug of missing) {
-        const key = drug.toLowerCase().trim()
+        const key = typeof drug === 'string' ? drug.toLowerCase().trim() : ''
+        if (!key) continue
         const ex  = freqMap.get(key)
         if (ex) { ex.count++; if (q.createdAt > ex.lastSeen) ex.lastSeen = q.createdAt }
         else freqMap.set(key, { count: 1, lastSeen: q.createdAt })
@@ -88,10 +89,20 @@ export async function PATCH(req: NextRequest) {
       if (!drugName || !herbName || !severity || !effect || !advice || !evidenceLevel)
         return badRequest('drugName, herbName, severity, effect, advice, evidenceLevel required')
 
+      const safeStringList = (value: unknown): string[] => {
+        if (!Array.isArray(value)) return [] as string[]
+        return value.filter((item): item is string => typeof item === 'string')
+      }
+
+      const normalizedHerbLocalNames = safeStringList(herbLocalNames)
+      const normalizedDrugAliases = safeStringList(drugAliases)
+      const herbLocalNamesString = normalizedHerbLocalNames.join(', ')
+      const drugAliasesString = normalizedDrugAliases.join(', ')
+
       const interaction = await prisma.drugHerbInteraction.upsert({
         where:  { drugName_herbName: { drugName: drugName.toLowerCase().trim(), herbName } },
-        update: { severity, mechanism: mechanism ?? null, effect, advice, evidenceLevel, drugClass: drugClass ?? null, herbScientific: herbScientific ?? null, herbLocalNames: herbLocalNames ?? [], drugAliases: drugAliases ?? [], source: 'COMMUNITY_REPORTED', reportedCount: { increment: 1 }, reviewedBy: adminId, reviewedAt: new Date(), isPublished: true },
-        create: { drugName: drugName.toLowerCase().trim(), herbName, severity, mechanism: mechanism ?? null, effect, advice, evidenceLevel, drugClass: drugClass ?? null, herbScientific: herbScientific ?? null, herbLocalNames: herbLocalNames ?? [], drugAliases: drugAliases ?? [], references: [], source: 'COMMUNITY_REPORTED', reportedCount: 1, reviewedBy: adminId, reviewedAt: new Date(), isPublished: true },
+        update: { severity, mechanism: mechanism ?? null, effect, advice, evidenceLevel, drugClass: drugClass ?? null, herbScientific: herbScientific ?? null, herbLocalNames: herbLocalNamesString, drugAliases: drugAliasesString, source: 'COMMUNITY_REPORTED', reportedCount: { increment: 1 }, reviewedBy: adminId, reviewedAt: new Date(), isPublished: true },
+        create: { drugName: drugName.toLowerCase().trim(), herbName, severity, mechanism: mechanism ?? null, effect, advice, evidenceLevel, drugClass: drugClass ?? null, herbScientific: herbScientific ?? null, herbLocalNames: herbLocalNamesString, drugAliases: drugAliasesString, references: '', source: 'COMMUNITY_REPORTED', reportedCount: 1, reviewedBy: adminId, reviewedAt: new Date(), isPublished: true },
       })
 
       await prisma.interactionFeedback.update({

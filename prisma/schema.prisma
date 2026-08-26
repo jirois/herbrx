@@ -7,30 +7,38 @@ datasource db {
 }
 
 model User {
-  id                    String                 @id @default(cuid())
-  email                 String                 @unique
-  firstName             String
-  lastName              String
-  phone                 String?
-  passwordHash          String
-  emailVerified         Boolean                @default(false)
-  image                 String?
-  role                  UserRole               @default(CUSTOMER)
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
+  id            String        @id @default(cuid())
+  email         String        @unique
+  firstName     String
+  lastName      String
+  phone         String?
+  passwordHash  String
+  emailVerified Boolean       @default(false)
+  image         String?
+  role          UserRole      @default(CUSTOMER)
+  status        AccountStatus @default(ACTIVE)
+  statusNote    String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  otpCodes           OtpCode[]
+  orders             Order[]
+  sessions           Session[]
+  disputesRaised     Dispute[]
+  // Customer-specific
+  healthProfile      HealthProfile?
+  consultations      Consultation[]
+  savedMedications   SavedMedication[]
+  alertSubscriptions AlertSubscription[]
+
+  // Producer-specific
+  producerProfile       ProducerProfile?
+  // Admin-specific 
   adminActions          AdminAction[]
-  alertSubscriptions    AlertSubscription?
-  consultantProfile     ConsultantProfile?
-  consultations         Consultation[]
-  healthProfile         HealthProfile?
   incubationSubmissions IncubationSubmission[]
   interactionFeedback   InteractionFeedback[]
-  orders                Order[]
-  otpCodes              OtpCode[]
-  producerProfile       ProducerProfile?
   productReviews        ProductReview[]
-  savedMedications      SavedMedication[]
-  sessions              Session[]
+  consultantProfile     ConsultantProfile?
 
   @@index([email])
   @@index([role])
@@ -91,6 +99,7 @@ model Order {
   updatedAt     DateTime      @updatedAt
   user          User?         @relation(fields: [userId], references: [id])
   items         OrderItem[]
+  disputes      Dispute[]
 
   @@index([custEmail])
   @@index([paystackRef])
@@ -296,6 +305,35 @@ model BatchSubmission {
   @@index([reviewStatus])
 }
 
+// Admin Actions (Audit Log)
+// ── Order Disputes ──────
+model Dispute {
+  id          String        @id @default(cuid())
+  orderId     String
+  raisedById  String? // User who raised it (nullable — guest orders)
+  subject     String
+  description String        @db.Text
+  status      DisputeStatus @default(OPEN)
+  resolution  String?       @db.Text
+  resolvedBy  String? // Admin user ID
+  resolvedAt  DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  order    Order @relation(fields: [orderId], references: [id])
+  raisedBy User? @relation(fields: [raisedById], references: [id])
+
+  @@index([orderId])
+  @@index([status])
+}
+
+enum DisputeStatus {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+  CLOSED
+}
+
 model AdminAction {
   id         String   @id @default(cuid())
   adminId    String
@@ -315,15 +353,15 @@ model Herb {
   slug           String                @unique
   name           String
   scientificName String
-  localNames     String                @db.LongText
+  localNames     Json
   emoji          String                @default("?")
   category       String
   safetyRating   HerbSafety
   summary        String                @db.Text
-  keyBenefits    String                @db.LongText
-  warnings       String                @db.LongText
-  interactions   String                @db.LongText
-  languages      String                @db.LongText
+  keyBenefits    Json
+  warnings       Json
+  interactions   Json
+  languages      Json
   reviewedAt     DateTime              @default(now())
   publishedAt    DateTime              @default(now())
   isPublished    Boolean               @default(true)
@@ -349,7 +387,7 @@ model ProductSafetyReview {
   labName        String
   nafdacNo       String?
   verifiedBadge  Boolean       @default(false)
-  parameters     String        @db.LongText
+  parameters     Json
   summary        String        @db.Text
   recommendation String        @db.Text
   reportUrl      String?
@@ -369,7 +407,7 @@ model SafetyGuide {
   title        String
   description  String   @db.Text
   category     String
-  languages    String   @db.LongText
+  languages    Json
   readTime     String
   downloadable Boolean  @default(false)
   pdfUrl       String?
@@ -381,6 +419,7 @@ model SafetyGuide {
 
   @@index([slug])
   @@index([category])
+  @@index([isPublished])
 }
 
 model PressItem {
@@ -483,17 +522,17 @@ model IncubationDocument {
 model DrugHerbInteraction {
   id             String                @id @default(cuid())
   drugName       String
-  drugAliases    String                @db.LongText
+  drugAliases    Json
   drugClass      String?
   herbName       String
   herbScientific String?
-  herbLocalNames String                @db.LongText
+  herbLocalNames Json
   severity       Severity
   mechanism      String?               @db.Text
   effect         String                @db.Text
   advice         String                @db.Text
   evidenceLevel  EvidenceLevel
-  references     String                @db.LongText
+  references     Json
   source         String                @default("PHARMACIST_CURATED")
   isPublished    Boolean               @default(true)
   confirmedCount Int                   @default(0)
@@ -597,6 +636,12 @@ enum UserRole {
   PRODUCER
   ADMIN
   CONSULTANT
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
 }
 
 enum OtpPurpose {

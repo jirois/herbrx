@@ -85,8 +85,8 @@ async function main() {
           price:       p.price,
           emoji:       p.emoji,
           productType: p.category,
-          ingredients: p.ing,
-          warnings:    p.warn,
+          ingredients: p.ing.join(', '),
+          warnings:    p.warn.join(','),
           nafdacNo:    p.nafdac,
           inStore:     p.inStore,
           stock:       p.stock,
@@ -575,8 +575,19 @@ async function seedInteractions() {
     try {
       await prisma.drugHerbInteraction.upsert({
         where:  { drugName_herbName: { drugName: pair.drugName, herbName: pair.herbName } },
-        update: { ...rest, drugAliases, herbLocalNames, isPublished: true },
-        create: { ...rest, drugAliases, herbLocalNames, references: [], isPublished: true },
+        update: {
+          ...rest,
+          drugAliases: JSON.stringify(drugAliases),
+          herbLocalNames: JSON.stringify(herbLocalNames),
+          isPublished: true,
+        },
+        create: {
+          ...rest,
+          drugAliases: JSON.stringify(drugAliases),
+          herbLocalNames: JSON.stringify(herbLocalNames),
+          references: JSON.stringify([]),
+          isPublished: true,
+        },
       })
       added++
     } catch (e: unknown) {

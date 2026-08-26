@@ -63,7 +63,12 @@ export async function POST(req: NextRequest) {
 
     // Filter: also match drugAliases (JSON array, can't query natively in MySQL)
     const matchingInteractions = allInteractions.filter(interaction => {
-      const aliases = (interaction.drugAliases as string[]) ?? []
+      const aliases = Array.isArray(interaction.drugAliases)
+        ? interaction.drugAliases
+        : typeof interaction.drugAliases === 'string'
+          ? [interaction.drugAliases]
+          : []
+
       const matchesDrug = normalisedDrugs.some(drug =>
         interaction.drugName === drug ||
         interaction.drugName.includes(drug) ||
@@ -90,29 +95,42 @@ export async function POST(req: NextRequest) {
     )
 
     // Shape results — include community signal counts and total feedback
-    const results = matchingInteractions.map(i => ({
-      id:             i.id,
-      drugName:       i.drugName,
-      drugClass:      i.drugClass,
-      herbName:       i.herbName,
-      herbScientific: i.herbScientific,
-      herbLocalNames: (i.herbLocalNames as string[]) ?? [],
-      severity:       i.severity,
-      mechanism:      i.mechanism,
-      effect:         i.effect,
-      advice:         i.advice,
-      evidenceLevel:  i.evidenceLevel,
-      source:         i.source,
-      confirmedCount: i.confirmedCount,
-      disputedCount:  i.disputedCount,
-      reportedCount:  i.reportedCount,
-      feedbackCount:  i.feedback.length,
-    }))
+    const results = matchingInteractions.map(i => {
+      const herbLocalNames = Array.isArray(i.herbLocalNames)
+        ? i.herbLocalNames
+        : typeof i.herbLocalNames === 'string'
+          ? [i.herbLocalNames]
+          : []
+
+      return {
+        id:             i.id,
+        drugName:       i.drugName,
+        drugClass:      i.drugClass,
+        herbName:       i.herbName,
+        herbScientific: i.herbScientific,
+        herbLocalNames,
+        severity:       i.severity,
+        mechanism:      i.mechanism,
+        effect:         i.effect,
+        advice:         i.advice,
+        evidenceLevel:  i.evidenceLevel,
+        source:         i.source,
+        confirmedCount: i.confirmedCount,
+        disputedCount:  i.disputedCount,
+        reportedCount:  i.reportedCount,
+        feedbackCount:  i.feedback.length,
+      }
+    })
 
     // Identify which drugs had zero results — these become gap signals
     const foundDrugs = new Set(
       matchingInteractions.flatMap(i => {
-        const aliases = (i.drugAliases as string[]) ?? []
+        const aliases = Array.isArray(i.drugAliases)
+          ? i.drugAliases
+          : typeof i.drugAliases === 'string'
+            ? [i.drugAliases]
+            : []
+
         return [i.drugName, ...aliases.map(a => a.toLowerCase())]
       })
     )
@@ -128,11 +146,11 @@ export async function POST(req: NextRequest) {
       data: {
         userId:       userId ?? null,
         sessionId:    sessionId ?? null,
-        drugs:        normalisedDrugs,
+        drugs:        JSON.stringify(normalisedDrugs),
         herbs:        herbs ?? [],
         resultCount:  results.length,
         hadMissingDrug: missingDrugs.length > 0,
-        missingDrugs: missingDrugs.length > 0 ? missingDrugs : [],
+        missingDrugs: JSON.stringify(missingDrugs),
       },
     }).catch(err => console.error('[InteractionQuery log]', err))
 
