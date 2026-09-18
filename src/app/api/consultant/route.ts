@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import type { ConsultantProfile } from '@prisma/client'
 import { ok, serverError } from '@/lib/api-helpers'
 
-// GET /api/consultants?type=HERBALIST
+// GET /api/consultant?type=HERBALIST
 // Public — browsing consultants shouldn't require login, only booking
 // should. Replaces the static PRACTITIONERS arrays duplicated in
 // booking-page.tsx and consultations-page.tsx.
@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
           licenseNumber: c.licenseNumber,
           yearsExperience: c.yearsExperience,
           avatarUrl: c.avatarUrl,
+          worksWeekends: c.worksWeekends,
           rating: r?._avg.rating ?? null,
           reviewCount: r?._count.rating ?? 0,
         }

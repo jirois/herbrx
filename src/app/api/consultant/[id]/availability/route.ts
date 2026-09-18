@@ -3,11 +3,10 @@ import { prisma } from '@/lib/prisma'
 import { ok, badRequest, notFound, serverError } from '@/lib/api-helpers'
 import { buildDailySlotTemplate, isWorkingDay } from '@/lib/booking-config'
 
-// GET /api/consultants/[id]/availability?date=YYYY-MM-DD
-export async function GET(req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }) {
-    const {id} = await params
+// GET /api/consultant/[id]/availability?date=YYYY-MM-DD
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params
     const dateParam = req.nextUrl.searchParams.get('date')
     if (!dateParam) return badRequest('date is required, format YYYY-MM-DD')
 
@@ -17,7 +16,7 @@ export async function GET(req: NextRequest,
     const consultant = await prisma.consultantProfile.findUnique({ where: { id } })
     if (!consultant) return notFound('Consultant not found')
 
-    if (!isWorkingDay(date)) {
+    if (!isWorkingDay(date, consultant.worksWeekends)) {
       return ok({ date: dateParam, slots: [], note: 'This consultant is unavailable on weekends.' })
     }
 

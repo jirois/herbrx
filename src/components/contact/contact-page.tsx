@@ -10,8 +10,8 @@ const contactChannels = [
   {
     icon: "📧",
     label: "Email",
-    value: "hello@herbrx.ng",
-    href: "mailto:hello@herbrx.ng",
+    value: "info@herbrx.ng",
+    href: "mailto:info@herbrx.ng",
     note: "We respond within 24 hours",
   },
   {
@@ -203,7 +203,11 @@ export function ContactPage() {
                     Submit your herbal product and receive a detailed
                     independent safety and efficacy report.
                   </p>
-                  <Button variant="outline" size="sm" href="/submit">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    href="/dashboard/producer/incubation"
+                  >
                     Submit a Product
                   </Button>
                 </div>

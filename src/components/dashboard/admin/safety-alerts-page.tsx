@@ -39,56 +39,56 @@ interface Alert {
 }
 
 // ── Mock data ──────
-const INITIAL_ALERTS: Alert[] = [
-  {
-    id: "a1",
-    severity: "DANGER",
-    status: "ACTIVE",
-    title: "Counterfeit Moringa Capsules Detected — Lagos Markets",
-    body: 'Multiple batches of counterfeit "SuperGreen Moringa 500mg" have been identified in Lagos Island and Alaba markets. Lab analysis reveals dangerous levels of lead (12.4 mg/kg vs limit of 2 mg/kg) and undisclosed fillers. Do not consume.',
-    productName: "SuperGreen Moringa 500mg",
-    batchNo: "B2024-FAKE-01",
-    publishedAt: "2025-06-20 09:14",
-    createdBy: "Admin Chukwuemeka",
-    notifiedCount: 1842,
-  },
-  {
-    id: "a2",
-    severity: "WARNING",
-    status: "ACTIVE",
-    title: "Drug Interaction Advisory: St. John's Wort + SSRIs",
-    body: "Multiple user reports and clinical evidence confirm a significant risk of serotonin syndrome when combining St. John's Wort (Hypericum perforatum) with SSRI antidepressants (sertraline, fluoxetine, citalopram). Users taking SSRIs must discontinue St. John's Wort immediately and consult their physician.",
-    productName: "St. John's Wort Extract",
-    batchNo: undefined,
-    publishedAt: "2025-06-19 14:30",
-    createdBy: "Dr. Adaeze Okonkwo",
-    notifiedCount: 3204,
-  },
-  {
-    id: "a3",
-    severity: "DANGER",
-    status: "RESOLVED",
-    title: "Shea Butter Adulteration — Kano Batch B2024-11",
-    body: 'Batch B2024-11 of "PureShea Body Butter" by ZoboFresh Ltd was found to contain undisclosed industrial additives and failed microbial count screening. All units have been recalled. Producers have been notified.',
-    productName: "PureShea Body Butter",
-    batchNo: "B2024-11",
-    publishedAt: "2025-06-15 11:00",
-    createdBy: "Admin Chukwuemeka",
-    notifiedCount: 987,
-  },
-  {
-    id: "a4",
-    severity: "INFO",
-    status: "RESOLVED",
-    title: "Updated Safety Guidelines: Bitter Leaf (Vernonia amygdalina)",
-    body: "HerbRx has updated its safety guidelines for Bitter Leaf preparations. New evidence suggests high-dose aqueous extracts (>500mg/day) may interact with antidiabetic medications. Updated guides are available in all five languages on the Resources page.",
-    productName: undefined,
-    batchNo: undefined,
-    publishedAt: "2025-06-10 08:00",
-    createdBy: "Dr. Adaeze Okonkwo",
-    notifiedCount: 5611,
-  },
-];
+// const INITIAL_ALERTS: Alert[] = [
+//   {
+//     id: "a1",
+//     severity: "DANGER",
+//     status: "ACTIVE",
+//     title: "Counterfeit Moringa Capsules Detected — Lagos Markets",
+//     body: 'Multiple batches of counterfeit "SuperGreen Moringa 500mg" have been identified in Lagos Island and Alaba markets. Lab analysis reveals dangerous levels of lead (12.4 mg/kg vs limit of 2 mg/kg) and undisclosed fillers. Do not consume.',
+//     productName: "SuperGreen Moringa 500mg",
+//     batchNo: "B2024-FAKE-01",
+//     publishedAt: "2025-06-20 09:14",
+//     createdBy: "Admin Chukwuemeka",
+//     notifiedCount: 1842,
+//   },
+//   {
+//     id: "a2",
+//     severity: "WARNING",
+//     status: "ACTIVE",
+//     title: "Drug Interaction Advisory: St. John's Wort + SSRIs",
+//     body: "Multiple user reports and clinical evidence confirm a significant risk of serotonin syndrome when combining St. John's Wort (Hypericum perforatum) with SSRI antidepressants (sertraline, fluoxetine, citalopram). Users taking SSRIs must discontinue St. John's Wort immediately and consult their physician.",
+//     productName: "St. John's Wort Extract",
+//     batchNo: undefined,
+//     publishedAt: "2025-06-19 14:30",
+//     createdBy: "Dr. Adaeze Okonkwo",
+//     notifiedCount: 3204,
+//   },
+//   {
+//     id: "a3",
+//     severity: "DANGER",
+//     status: "RESOLVED",
+//     title: "Shea Butter Adulteration — Kano Batch B2024-11",
+//     body: 'Batch B2024-11 of "PureShea Body Butter" by ZoboFresh Ltd was found to contain undisclosed industrial additives and failed microbial count screening. All units have been recalled. Producers have been notified.',
+//     productName: "PureShea Body Butter",
+//     batchNo: "B2024-11",
+//     publishedAt: "2025-06-15 11:00",
+//     createdBy: "Admin Chukwuemeka",
+//     notifiedCount: 987,
+//   },
+//   {
+//     id: "a4",
+//     severity: "INFO",
+//     status: "RESOLVED",
+//     title: "Updated Safety Guidelines: Bitter Leaf (Vernonia amygdalina)",
+//     body: "HerbRx has updated its safety guidelines for Bitter Leaf preparations. New evidence suggests high-dose aqueous extracts (>500mg/day) may interact with antidiabetic medications. Updated guides are available in all five languages on the Resources page.",
+//     productName: undefined,
+//     batchNo: undefined,
+//     publishedAt: "2025-06-10 08:00",
+//     createdBy: "Dr. Adaeze Okonkwo",
+//     notifiedCount: 5611,
+//   },
+// ];
 
 // ── Config ──────
 const severityConfig: Record<
@@ -132,7 +132,7 @@ const labelCls =
 // ── Component ────────────
 export function SafetyAlertsPage() {
   const { data: alertsData, mutate: refetchAlerts } = useAdminAlerts("ALL");
-  const [alerts, setAlerts] = useState<Alert[]>(INITIAL_ALERTS);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
   const [hasSynced, setHasSynced] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);

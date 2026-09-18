@@ -20,6 +20,24 @@ export function buildDailySlotTemplate(date: Date): { iso: string; label: string
   return slots
 }
 
-export function isWorkingDay(date: Date) {
+// A consultant is unavailable on Sat/Sun only if they've explicitly opted
+// out of weekend work (worksWeekends === false). Everyone is bookable
+// every day of the week by default — the platform doesn't impose a
+// blanket weekday-only rule.
+export function isWorkingDay(date: Date, worksWeekends: boolean = true) {
+  if (worksWeekends) return true
   return WORKING_WEEKDAYS.includes(date.getDay())
+}
+
+// Formats a Date as a plain YYYY-MM-DD string using its LOCAL calendar
+// date — never use `date.toISOString().slice(0, 10)` for this. For any
+// timezone ahead of UTC (e.g. Lagos, UTC+1), local midnight converts to
+// the previous day in UTC, silently shifting every "selected day" back by
+// one — which is exactly why Monday was showing Sunday's (weekend)
+// availability, Tuesday was showing Monday's, and so on.
+export function toDateOnlyISO(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }

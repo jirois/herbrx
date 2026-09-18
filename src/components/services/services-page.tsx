@@ -53,7 +53,7 @@ const servicesFull = [
       "Condition-specific resource bundles",
     ],
     cta: "Explore Resources",
-    href: "/resources",
+    href: "/guides",
     highlight: false,
   },
   {
@@ -69,7 +69,7 @@ const servicesFull = [
       "GMP advisory for production scale-up",
     ],
     cta: "Learn More",
-    href: "/services/producers",
+    href: "/contact",
     highlight: false,
   },
   {
@@ -85,7 +85,7 @@ const servicesFull = [
       "Confidentiality guaranteed",
     ],
     cta: "Submit a Product",
-    href: "/submit",
+    href: "/dashboard/producer/incubation",
     highlight: false,
   },
   {

@@ -11,10 +11,6 @@ import { cn } from "@/lib/utils";
 
 type SortOption = "featured" | "price-asc" | "price-desc" | "rating" | "newest";
 
-type StoreProduct = NonNullable<
-  ReturnType<typeof useStoreProducts>["data"]
->["products"][number];
-
 const sortOptions: { value: SortOption; label: string }[] = [
   { value: "featured", label: "Featured" },
   { value: "price-asc", label: "Price: Low to High" },
@@ -145,7 +141,7 @@ export function StorePage() {
           </span>
         </div>
 
-        <div className="flex gap-8">
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
           {/* Sidebar categories — desktop */}
           <aside className="hidden lg:block w-52 shrink-0">
             <p className="text-[11px] uppercase tracking-[0.12em] text-(--text-muted) font-medium mb-4">

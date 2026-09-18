@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -32,9 +32,12 @@ import {
   Flag,
   Rocket,
   ShieldCheck,
+  CalendarDays,
+  CheckCircle2,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 interface NavItem {
   href: string;
@@ -182,7 +185,19 @@ const adminNav: NavSection[] = [
 const consultantNav: NavSection[] = [
   {
     label: "Consultations",
-    items: [{ href: "/dashboard", icon: LayoutDashboard, label: "Overview" }],
+    items: [
+      { href: "/dashboard", icon: LayoutDashboard, label: "Overview" },
+      {
+        href: "/dashboard/consultant/appointments",
+        icon: CalendarDays,
+        label: "Appointments",
+      },
+      {
+        href: "/dashboard/consultant/settings",
+        icon: Settings,
+        label: "Settings",
+      },
+    ],
   },
 ];
 
@@ -215,16 +230,18 @@ export function DashboardShell({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const previousPathname = useRef(pathname);
 
+  // Auto-close the mobile drawer after navigating to a new page — but only
+  // when the route actually changes, not whenever the drawer is opened.
+  // (Previously this also depended on `sidebarOpen`, which made it re-fire
+  // the instant the drawer opened and immediately close it again.)
   useEffect(() => {
-    if (!sidebarOpen) return;
-
-    const timer = window.setTimeout(() => {
+    if (previousPathname.current !== pathname) {
+      previousPathname.current = pathname;
       setSidebarOpen(false);
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, [pathname, sidebarOpen]);
+    }
+  }, [pathname]);
 
   type SessionUser = {
     role?: string;
@@ -258,9 +275,13 @@ export function DashboardShell({
     >
       <div className="flex items-center justify-between px-5 h-16 border-b border-white/[0.07] shrink-0">
         <Link href="/dashboard" className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-(--green-mid) flex items-center justify-center font-serif italic font-semibold text-[14px] text-white">
-            Hx
-          </div>
+          <Image
+            src="/brand/herbrx-icon-white.png"
+            alt="HerbRx"
+            width={263}
+            height={263}
+            className="w-8 h-8 shrink-0 select-none"
+          />
           <div>
             <span className="font-serif text-[16px] font-semibold text-white block leading-none">
               HerbRx
@@ -446,28 +467,32 @@ export function DashboardShell({
                     </div>
                     {[
                       {
-                        icon: "⚠️",
+                        icon: AlertTriangle,
+                        color: "text-red-400",
                         title: "Safety Alert",
                         desc: "Counterfeit Moringa flagged in Lagos",
                         time: "2 min ago",
                         unread: true,
                       },
                       {
-                        icon: "✅",
+                        icon: CheckCircle2,
+                        color: "text-emerald-500",
                         title: "Batch Approved",
                         desc: "COA for Batch #B2024-07 cleared",
                         time: "1 hr ago",
                         unread: true,
                       },
                       {
-                        icon: "📅",
+                        icon: CalendarDays,
+                        color: "text-blue-400",
                         title: "Consultation",
                         desc: "Session with Dr. Okonkwo confirmed",
                         time: "3 hr ago",
                         unread: false,
                       },
                       {
-                        icon: "💳",
+                        icon: CreditCard,
+                        color: "text-(--gold)",
                         title: "Payment",
                         desc: "₦4,500 from Order #ORD-0042",
                         time: "Yesterday",
@@ -481,9 +506,10 @@ export function DashboardShell({
                           n.unread && "bg-white/2.5",
                         )}
                       >
-                        <span className="text-[20px] shrink-0 mt-0.5">
-                          {n.icon}
-                        </span>
+                        <n.icon
+                          size={18}
+                          className={cn("shrink-0 mt-0.5", n.color)}
+                        />
                         <div className="flex-1 min-w-0">
                           <p className="text-[13px] font-medium text-white flex items-center gap-2">
                             {n.title}

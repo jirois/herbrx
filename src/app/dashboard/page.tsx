@@ -7,9 +7,8 @@ import { redirect } from "next/navigation";
 import { CustomerDashboard } from "@/components/dashboard/customer/customer-dashboard";
 import { ProducerDashboard } from "@/components/dashboard/producer/producer-dashboard";
 import { AdminDashboard } from "@/components/dashboard/admin/admin-dashboard";
-import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { ConsultantDashboard } from "@/components/dashboard/consultant/consultant-dashboard";
-
+import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 // import { generateSeedOrders } from "@/lib/dashboard-data";
 
 type DashboardUser = {
@@ -17,7 +16,7 @@ type DashboardUser = {
   name?: string | null;
   email?: string | null;
   image?: string | null;
-  role?: "ADMIN" | "CONSULTANT" | "PRODUCER" | "CUSTOMER";
+  role?: "ADMIN" | "PRODUCER" | "CUSTOMER" | "CONSULTANT";
 };
 
 export default async function DashboardPage() {
@@ -30,10 +29,6 @@ export default async function DashboardPage() {
   if (role === "ADMIN") {
     return <AdminDashboard user={user} />;
   }
-  // ── Consultant ──────────
-  if (role === "CONSULTANT") {
-    return <ConsultantDashboard user={user} />;
-  }
 
   if (role === "PRODUCER") {
     return (
@@ -41,6 +36,16 @@ export default async function DashboardPage() {
         <ProducerDashboard user={user} tier="UNVERIFIED" />
       </DashboardShell>
     );
+  }
+
+  // CONSULTANT accounts were previously falling through to the CUSTOMER
+  // branch below with no check at all — meaning a consultant never saw
+  // their own dashboard (queue, notifications, earnings), just the
+  // customer storefront view. ConsultantDashboard renders its own
+  // DashboardShell internally (it needs a custom heading/subheading), so
+  // it's returned directly here, same as AdminDashboard above.
+  if (role === "CONSULTANT") {
+    return <ConsultantDashboard />;
   }
 
   // CUSTOMER (default) — keep legacy merchant overview for now or show new Safe-Health Hub

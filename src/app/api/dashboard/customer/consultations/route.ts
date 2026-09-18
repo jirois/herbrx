@@ -12,10 +12,10 @@ import { notifyConsultant } from '@/lib/consultant-notify'
 // follow-up, but out of scope for the payment-gating fix itself.
 
 const CONSULTATION_PRICES: Record<string, number> = {
-  HERBALIST:    5000,
-  NATUROPATH:   6500,
-  TOXICOLOGIST: 7500,
-  PHARMACIST:   8500,
+  HERBALIST:    500,
+  NATUROPATH:   500,
+  TOXICOLOGIST: 500,
+  PHARMACIST:   500,
 }
 
 // GET /api/dashboard/customer/consultations

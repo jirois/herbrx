@@ -37,13 +37,16 @@ export async function PATCH(req: NextRequest) {
     if (!profile) return notFound('Consultant profile not found for this account')
 
     const body = await req.json()
-    const { bio, avatarUrl, newPassword } = body
+    const { bio, avatarUrl, newPassword, worksWeekends } = body
 
     if (bio !== undefined) {
       await prisma.consultantProfile.update({ where: { userId }, data: { bio } })
     }
     if (avatarUrl !== undefined) {
       await prisma.consultantProfile.update({ where: { userId }, data: { avatarUrl } })
+    }
+    if (worksWeekends !== undefined) {
+      await prisma.consultantProfile.update({ where: { userId }, data: { worksWeekends: Boolean(worksWeekends) } })
     }
 
     if (newPassword) {

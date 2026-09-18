@@ -9,7 +9,6 @@ export async function GET(
 ) {
   try {
     const { slug } = await params
-
     const herb = await prisma.herb.findUnique({
       where: { slug },
       include: {

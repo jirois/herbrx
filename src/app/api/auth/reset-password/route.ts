@@ -38,6 +38,17 @@ export async function POST(req: NextRequest) {
       data:  { passwordHash, emailVerified: true },
     })
 
+    // This is the only password-change flow most consultants actually have
+    // access to (there's no in-dashboard "change password" form yet, even
+    // though the temporary-password banner tells them to use one). If we
+    // don't also clear this here, a consultant who resets their temporary
+    // password through the normal forgot-password flow keeps seeing "using
+    // a temporary password" forever, even after picking a real one.
+    await prisma.consultantProfile.updateMany({
+      where: { userId },
+      data:  { mustResetPassword: false },
+    })
+
     return NextResponse.json({
       success: true,
       message: 'Password updated successfully. You can now sign in.',

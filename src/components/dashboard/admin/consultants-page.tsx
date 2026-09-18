@@ -50,6 +50,7 @@ type Consultant = {
   licenseNumber?: string | null;
   yearsExperience?: number | null;
   status: "ACTIVE" | "INACTIVE";
+  worksWeekends?: boolean;
   completedConsultations: number;
   avgRating?: number | null;
   totalEarningsKobo?: number | null;
@@ -72,6 +73,7 @@ function CreateConsultantModal({
     bio: "",
     licenseNumber: "",
     yearsExperience: "",
+    worksWeekends: true,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -314,6 +316,17 @@ function CreateConsultantModal({
                 onChange={(e) => set("bio", e.target.value)}
               />
             </div>
+            <label className="flex items-center gap-2.5 text-[13px] text-white/70 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.worksWeekends}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, worksWeekends: e.target.checked }))
+                }
+                className="w-4 h-4 rounded border-white/20 bg-white/6 accent-(--green-mid)"
+              />
+              Available for weekend consultations
+            </label>
             <button
               onClick={submit}
               disabled={saving}
@@ -349,6 +362,7 @@ function EditConsultantModal({
     bio: consultant.bio ?? "",
     licenseNumber: consultant.licenseNumber ?? "",
     yearsExperience: consultant.yearsExperience?.toString() ?? "",
+    worksWeekends: consultant.worksWeekends ?? true,
   });
   const [saving, setSaving] = useState(false);
 
@@ -452,6 +466,17 @@ function EditConsultantModal({
               onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
             />
           </div>
+          <label className="flex items-center gap-2.5 text-[13px] text-white/70 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.worksWeekends}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, worksWeekends: e.target.checked }))
+              }
+              className="w-4 h-4 rounded border-white/20 bg-white/6 accent-(--green-mid)"
+            />
+            Available for weekend consultations
+          </label>
           <button
             onClick={save}
             disabled={saving}

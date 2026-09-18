@@ -25,10 +25,10 @@ type BookingSession = Session & {
 }
 
 const CONSULTATION_PRICES: Record<string, number> = {
-  HERBALIST:    5000,
-  NATUROPATH:   6500,
-  TOXICOLOGIST: 7500,
-  PHARMACIST:   8500,
+  HERBALIST:    500,
+  NATUROPATH:   500,
+  TOXICOLOGIST: 500,
+  PHARMACIST:   500,
 }
 
 // POST /api/booking

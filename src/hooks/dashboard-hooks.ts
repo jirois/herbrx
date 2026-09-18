@@ -16,39 +16,55 @@ function useFetch<T>(url: string | null): FetchState<T> {
   const [data,    setData]    = useState<T | null>(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState<string | null>(null)
-  const [tick,    ]    = useState(0)
 
-  const fetchNow = useCallback(async () => {
+  // A single shared fetch implementation. Previously the initial load (in
+  // the effect below) and manual refetch (`mutate`, via `fetchNow`) each
+  // had their own copy of this logic, and NEITHER checked `res.ok` — a
+  // 404/500 response's JSON body (e.g. `{ error: "..." }`) was set as if
+  // it were valid data. Callers then did `data?.slots ?? []` and got a
+  // silent, misleadingly "empty" result instead of any indication the
+  // request had actually failed.
+  const runFetch = useCallback(async (signal?: AbortSignal) => {
     if (!url) return
     setLoading(true)
     try {
-      const res = await fetch(url)
-      const d = await res.json()
-      setData(d)
-      setError(null)
+      const res = await fetch(url, { signal })
+      const body = await res.json().catch(() => null)
+      if (!res.ok) {
+        const message =
+          (body && typeof body === 'object' && 'error' in body && typeof body.error === 'string')
+            ? body.error
+            : `Request failed (${res.status})`
+        setError(message)
+        setData(null)
+      } else {
+        setData(body)
+        setError(null)
+      }
     } catch (e) {
+      if (signal?.aborted) return
       setError(e instanceof Error ? e.message : 'Unknown error')
+      setData(null)
     } finally {
-      setLoading(false)
+      if (!signal?.aborted) setLoading(false)
     }
   }, [url])
 
   const mutate = useCallback(async () => {
-      await fetchNow()
-  }, [fetchNow])
-
-  // const mutate = useCallback(() => setTick(t => t + 1), [])
+    await runFetch()
+  }, [runFetch])
 
   useEffect(() => {
     if (!url) return
-    let cancelled = false
-  
-    fetch(url)
-      .then(r => r.json())
-      .then(d => { if (!cancelled) { setData(d); setLoading(false) } })
-      .catch(e => { if (!cancelled) { setError(e.message); setLoading(false) } })
-    return () => { cancelled = true }
-  }, [url, tick])
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => {
+      void runFetch(controller.signal)
+    }, 0)
+    return () => {
+      clearTimeout(timeoutId)
+      controller.abort()
+    }
+  }, [url, runFetch])
 
   return { data, loading, error, mutate }
 }
@@ -141,6 +157,34 @@ export function useAdminCompliance(status = 'PENDING', search?: string) {
   }>(`/api/dashboard/admin/compliance${qs}`)
 }
 
+export function useAdminOverviewStats() {
+  return useFetch<{
+    totalUsers: number
+    totalOrders: number
+    revenueMtd: number
+    verifiedProducers: number
+    totalProducers: number
+  }>('/api/dashboard/admin/overview-stats')
+}
+
+export function useAdminDisputes() {
+  return useFetch<{
+    disputes: {
+      id: string
+      orderId: string
+      customer: string
+      email: string
+      amount: number
+      subject: string
+      description: string
+      status: 'OPEN' | 'INVESTIGATING' | 'RESOLVED' | 'CLOSED'
+      resolution: string | null
+      createdAt: string
+      resolvedAt: string | null
+    }[]
+    counts: { open: number; resolved: number; closed: number; amountAtRisk: number }
+  }>('/api/dashboard/admin/disputes')
+}
 
 export function useAdminProductsOverview() {
   return useFetch<{
@@ -173,7 +217,6 @@ export function useAdminProductsOverview() {
     }
   }>('/api/dashboard/admin/products-overview')
 }
-
 
 // ── Mutation helpers ──────────
 
@@ -220,7 +263,6 @@ export async function uploadFile(file: File, folder = 'verification'): Promise<s
   return data.url as string
 }
 
-
 // ── Domain-specific mutations ───────
 
 export const producerApi = {
@@ -246,7 +288,7 @@ export const adminApi = {
   changeUserStatus: (body: unknown) => apiPatch('/api/dashboard/admin/users', body),
   reviewVerification: (body: { producerUserId: string; decision: 'APPROVED' | 'REJECTED' | 'UNDER_REVIEW'; note?: string }) =>
     apiPatch('/api/dashboard/producer/verification', body),
-   updateDispute: (body: { disputeId: string; status: 'OPEN' | 'INVESTIGATING' | 'RESOLVED' | 'CLOSED'; resolution?: string }) =>
+  updateDispute: (body: { disputeId: string; status: 'OPEN' | 'INVESTIGATING' | 'RESOLVED' | 'CLOSED'; resolution?: string }) =>
     apiPatch('/api/dashboard/admin/disputes', body),
 }
 
@@ -298,46 +340,14 @@ export function useAdminProducts(status?: string, search?: string) {
   return useFetch<{ products: Record<string, unknown>[] }>(`/api/dashboard/admin/products${qs ? `?${qs}` : ''}`)
 }
 
-export function useAdminOverviewStats() {
-  return useFetch<{
-    totalUsers: number
-    totalOrders: number
-    revenueMtd: number
-    verifiedProducers: number
-    totalProducers: number
-  }>('/api/dashboard/admin/overview-stats')
-}
-
-
-export function useAdminDisputes() {
-  return useFetch<{
-    disputes: {
-      id: string
-      orderId: string
-      customer: string
-      email: string
-      amount: number
-      subject: string
-      description: string
-      status: 'OPEN' | 'INVESTIGATING' | 'RESOLVED' | 'CLOSED'
-      resolution: string | null
-      createdAt: string
-      resolvedAt: string | null
-    }[]
-    counts: { open: number; resolved: number; closed: number; amountAtRisk: number }
-  }>('/api/dashboard/admin/disputes')
-}
-
-
-
 // ── Public consultant directory (booking flows) ────────────────────────────
 export function useConsultantDirectory(type?: string) {
   const qs = type ? `?type=${type}` : ''
-  return useFetch<{ consultants: Record<string, unknown>[] }>(`/api/consultants${qs}`)
+  return useFetch<{ consultants: Record<string, unknown>[] }>(`/api/consultant${qs}`)
 }
 
 export function useConsultantAvailability(consultantId: string | null, dateISO: string | null) {
-  const url = consultantId && dateISO ? `/api/consultants/${consultantId}/availability?date=${dateISO}` : null
+  const url = consultantId && dateISO ? `/api/consultant/${consultantId}/availability?date=${dateISO}` : null
   return useFetch<{ date: string; slots: { iso: string; label: string; available: boolean }[]; note?: string }>(url)
 }
 
@@ -373,6 +383,10 @@ export function useConsultantOverview() {
   }>('/api/dashboard/consultant/overview')
 }
 
+export function useConsultantProfile() {
+  return useFetch<{ profile: Record<string, unknown> }>('/api/dashboard/consultant/profile')
+}
+
 export function useConsultantNotifications(status?: 'UNREAD') {
   const qs = status ? `?status=${status}` : ''
   return useFetch<{ notifications: unknown[] }>(`/api/dashboard/consultant/notifications${qs}`)
@@ -397,7 +411,7 @@ export const consultantApi = {
   markAllNotificationsRead: () => apiPatch('/api/dashboard/consultant/notifications', { all: true }),
   updateQueueItem: (consultationId: string, action: 'CONFIRM' | 'COMPLETE' | 'CANCEL' | 'RESCHEDULE', scheduledAt?: string) =>
     apiPatch('/api/dashboard/consultant/queue', { consultationId, action, scheduledAt }),
-  updateProfile: (body: { bio?: string; avatarUrl?: string; newPassword?: string }) =>
+  updateProfile: (body: { bio?: string; avatarUrl?: string; newPassword?: string; worksWeekends?: boolean }) =>
     apiPatch('/api/dashboard/consultant/profile', body),
 }
 

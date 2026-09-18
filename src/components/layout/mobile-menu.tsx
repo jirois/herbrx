@@ -2,10 +2,20 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { X } from "lucide-react";
+import Image from "next/image";
+import {
+  X,
+  LogIn,
+  LayoutDashboard,
+  User,
+  Package,
+  Settings,
+  LogOut,
+} from "lucide-react";
 import { usePathname } from "next/navigation";
 import { navLinks } from "@/data/services";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/auth-context";
 import { cn } from "@/lib/utils";
 
 interface MobileMenuProps {
@@ -15,6 +25,11 @@ interface MobileMenuProps {
 
 export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
   const pathname = usePathname();
+  const { user, isLoggedIn, isLoading, logout } = useAuth();
+
+  const initials = user
+    ? `${user.firstName?.[0] ?? ""}${user.lastName?.[0] ?? ""}`.toUpperCase()
+    : "";
 
   return (
     <AnimatePresence>
@@ -57,6 +72,108 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
                 <X size={18} className="text-(--text-body)" />
               </button>
             </div>
+
+            {/* Account */}
+            {!isLoading && (
+              <div className="px-4 pt-5 pb-1 border-b border-(--cream-dark)">
+                {isLoggedIn && user ? (
+                  <>
+                    <div className="flex items-center gap-3 px-2 pb-4">
+                      {user.image ? (
+                        <Image
+                          src={user.image}
+                          alt={user.name ?? "User avatar"}
+                          className="w-10 h-10 rounded-full object-cover shrink-0"
+                          width={40}
+                          height={40}
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-(--green-deep) text-white text-[14px] font-semibold flex items-center justify-center shrink-0">
+                          {initials}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-[14px] font-semibold text-(--text-dark) truncate">
+                          {user.firstName} {user.lastName}
+                        </p>
+                        <p className="text-[12px] text-(--text-muted) truncate">
+                          {user.email}
+                        </p>
+                      </div>
+                    </div>
+                    <ul className="space-y-1 pb-3">
+                      {[
+                        {
+                          href: "/dashboard",
+                          icon: <LayoutDashboard size={17} />,
+                          label: "Dashboard",
+                        },
+                        {
+                          href: "/account",
+                          icon: <User size={17} />,
+                          label: "My Account",
+                        },
+                        {
+                          href: "/account/orders",
+                          icon: <Package size={17} />,
+                          label: "My Orders",
+                        },
+                        {
+                          href: "/account/settings",
+                          icon: <Settings size={17} />,
+                          label: "Settings",
+                        },
+                      ].map((item) => (
+                        <li key={item.href}>
+                          <Link
+                            href={item.href}
+                            onClick={onClose}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium text-(--text-body) hover:bg-(--green-pale)/40 hover:text-(--green-deep) transition-colors"
+                          >
+                            <span className="text-(--text-muted)">
+                              {item.icon}
+                            </span>
+                            {item.label}
+                          </Link>
+                        </li>
+                      ))}
+                      <li>
+                        <button
+                          onClick={() => {
+                            onClose();
+                            logout();
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          <LogOut size={17} />
+                          Sign Out
+                        </button>
+                      </li>
+                    </ul>
+                  </>
+                ) : (
+                  <div className="pb-4">
+                    <Link
+                      href="/login"
+                      onClick={onClose}
+                      className="flex items-center justify-center gap-2 w-full bg-(--green-deep) hover:bg-(--green-mid) text-white text-[14px] font-medium px-4 py-3 rounded-xl transition-colors"
+                    >
+                      <LogIn size={16} /> Sign In
+                    </Link>
+                    <p className="text-center text-[12px] text-(--text-muted) mt-2.5">
+                      New to HerbRx?{" "}
+                      <Link
+                        href="/register"
+                        onClick={onClose}
+                        className="text-(--green-deep) font-medium hover:underline"
+                      >
+                        Create an account
+                      </Link>
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Nav links */}
             <nav className="flex-1 overflow-y-auto px-4 py-6">

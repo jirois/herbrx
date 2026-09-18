@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
@@ -8,9 +8,7 @@ import {
   useConsultations,
   customerApi,
   useConsultantDirectory,
-  useConsultantAvailability,
 } from "@/hooks/dashboard-hooks";
-import { BOOKABLE_DAYS_AHEAD, isWorkingDay } from "@/lib/booking-config";
 import {
   Calendar,
   Clock,
@@ -45,6 +43,7 @@ interface Practitioner {
   color: string;
   licenseNumber?: string;
   yearsExperience?: number;
+  worksWeekends?: boolean;
 }
 
 interface Booking {
@@ -78,10 +77,10 @@ const AVATAR_COLORS = [
   "bg-[#DDD0C8] text-[#5A3A2A]",
 ];
 const CONSULTATION_PRICES: Record<ConsultationType, number> = {
-  HERBALIST: 5000,
-  NATUROPATH: 6500,
-  TOXICOLOGIST: 7500,
-  PHARMACIST: 8500,
+  HERBALIST: 500,
+  NATUROPATH: 500,
+  TOXICOLOGIST: 500,
+  PHARMACIST: 500,
 };
 
 function initials(name: string) {
@@ -149,8 +148,6 @@ function Stars({ rating }: { rating: number }) {
   );
 }
 
-type BookingStep = "browse" | "slot" | "notes" | "confirm" | "success";
-
 // ── Component ─────
 export function ConsultationsPage() {
   const router = useRouter();
@@ -160,13 +157,10 @@ export function ConsultationsPage() {
   const [hasSynced, setHasSynced] = useState(false);
   const [tab, setTab] = useState<"upcoming" | "browse">("upcoming");
   const [bookings, setBookings] = useState<Booking[]>([]);
+  // Which practitioner the booking modal (BookingFlow) is currently open
+  // for — null means the modal is closed. BookingFlow owns its own step,
+  // slot, and notes state internally; this page only controls who it's for.
   const [selected, setSelected] = useState<Practitioner | null>(null);
-  const [bookingStep, setBookingStep] = useState<BookingStep>("browse");
-  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
-  const [selectedSlotIso, setSelectedSlotIso] = useState<string>("");
-  // const [bookingNotes, setBookingNotes] = useState("");
-  // const [submitting, setSubmitting] = useState(false);
-  const [bookingError, setBookingError] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<ConsultationType | "ALL">("ALL");
   // Verifying-payment overlay state, shown while we confirm a return from
   // Paystack checkout (see the ?ref= handling in the effect below).
@@ -177,25 +171,6 @@ export function ConsultationsPage() {
     useConsultantDirectory(filterType !== "ALL" ? filterType : undefined);
   const filteredPractitioners: Practitioner[] = (directoryData?.consultants ??
     []) as unknown as Practitioner[];
-
-  const bookableDays = useMemo(() => {
-    const out: Date[] = [];
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() + 1);
-    while (out.length < BOOKABLE_DAYS_AHEAD) {
-      if (isWorkingDay(d)) out.push(new Date(d));
-      d.setDate(d.getDate() + 1);
-    }
-    return out;
-  }, []);
-
-  const dateISO = selectedDay ? selectedDay.toISOString().slice(0, 10) : null;
-  const { data: availData } = useConsultantAvailability(
-    selected?.id ?? null,
-    dateISO,
-  );
-  const slots = availData?.slots ?? [];
 
   // Sync real DB consultations into local state on load, and again after
   // every mutation (hasSynced reset to false before each refetch).
@@ -269,11 +244,7 @@ export function ConsultationsPage() {
 
   function startBooking(p: Practitioner) {
     setSelected(p);
-    setSelectedDay(bookableDays[0]);
-    setSelectedSlotIso("");
-    setBookingStep("slot");
     setTab("browse");
-    setBookingError(null);
   }
 
   return (
@@ -281,7 +252,7 @@ export function ConsultationsPage() {
       heading="Consultations"
       subheading="Book micro-consultations with certified herbalists, naturopaths, toxicologists, and pharmacists."
     >
-      <BookingFlow />
+      <BookingFlow selected={selected} onClose={() => setSelected(null)} />
 
       {/* Verifying payment overlay — shown immediately on return from Paystack checkout */}
       <AnimatePresence>
@@ -405,7 +376,7 @@ export function ConsultationsPage() {
                         </div>
                         {b.notes && (
                           <p className="mt-2 text-[13px] text-white/50 leading-relaxed italic">
-                            &rdquo{b.notes}&ldquo
+                            &rdquo;{b.notes}&ldquo;
                           </p>
                         )}
                       </div>

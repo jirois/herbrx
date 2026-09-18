@@ -11,6 +11,7 @@ import {
   CheckCircle,
   ChevronRight,
   Loader2,
+  AlertTriangle,
   Star,
   Leaf,
   Stethoscope,
@@ -29,7 +30,11 @@ import {
   useConsultantAvailability,
   bookingApi,
 } from "@/hooks/dashboard-hooks";
-import { BOOKABLE_DAYS_AHEAD, isWorkingDay } from "@/lib/booking-config";
+import {
+  BOOKABLE_DAYS_AHEAD,
+  isWorkingDay,
+  toDateOnlyISO,
+} from "@/lib/booking-config";
 
 // ── Types ─────────
 type ConsultationType =
@@ -61,6 +66,7 @@ interface Practitioner {
   color?: string;
   licenseNumber?: string;
   yearsExperience?: number;
+  worksWeekends?: boolean;
 }
 
 // interface BookingSessionUser {
@@ -129,10 +135,10 @@ const STEPS: { key: BookingStep; label: string }[] = [
 ];
 
 const CONSULTATION_PRICES: Record<ConsultationType, number> = {
-  HERBALIST: 5000,
-  NATUROPATH: 6500,
-  TOXICOLOGIST: 7500,
-  PHARMACIST: 3500,
+  HERBALIST: 500,
+  NATUROPATH: 500,
+  TOXICOLOGIST: 500,
+  PHARMACIST: 500,
 };
 
 const AVATAR_COLORS = [
@@ -197,22 +203,25 @@ export function BookingPage() {
   const consultants = (directoryData?.consultants ??
     []) as unknown as Practitioner[];
 
+  const worksWeekends = selectedConsultant?.worksWeekends ?? true;
+
   const days = useMemo(() => {
     const out: Date[] = [];
     const d = new Date();
     d.setHours(0, 0, 0, 0);
     d.setDate(d.getDate() + 1);
     while (out.length < BOOKABLE_DAYS_AHEAD) {
-      if (isWorkingDay(d)) out.push(new Date(d));
+      if (isWorkingDay(d, worksWeekends)) out.push(new Date(d));
       d.setDate(d.getDate() + 1);
     }
     return out;
-  }, []);
+  }, [worksWeekends]);
 
-  const dateISO = selectedDay ? selectedDay.toISOString().slice(0, 10) : null;
+  const dateISO = selectedDay ? toDateOnlyISO(selectedDay) : null;
   const {
     data: availData,
     loading: availLoading,
+    error: availError,
     mutate: refetchAvailability,
   } = useConsultantAvailability(selectedConsultant?.id ?? null, dateISO);
   const slots = availData?.slots ?? [];
@@ -229,7 +238,15 @@ export function BookingPage() {
 
   function choosePractitioner(p: Practitioner) {
     setSelectedConsultant(p);
-    setSelectedDay(days[0]);
+    // Don't rely on the memoized `days` array here — it's still computed
+    // from the *previous* practitioner's worksWeekends until next render.
+    // Compute the new practitioner's first bookable day directly instead.
+    const pWorksWeekends = p.worksWeekends ?? true;
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 1);
+    while (!isWorkingDay(d, pWorksWeekends)) d.setDate(d.getDate() + 1);
+    setSelectedDay(d);
     setSelectedSlotIso(null);
     setStep("slot");
   }
@@ -536,6 +553,24 @@ export function BookingPage() {
                     className="animate-spin inline-block mr-2"
                   />{" "}
                   Checking availability…
+                </div>
+              ) : availError ? (
+                <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 mb-6">
+                  <AlertTriangle
+                    size={15}
+                    className="text-red-400 shrink-0 mt-0.5"
+                  />
+                  <div className="flex-1">
+                    <p className="text-[13px] text-red-300">
+                      Couldn&apos;t load availability: {availError}
+                    </p>
+                    <button
+                      onClick={() => refetchAvailability()}
+                      className="text-[12px] text-red-300 underline mt-1"
+                    >
+                      Try again
+                    </button>
+                  </div>
                 </div>
               ) : slots.length === 0 ? (
                 <p className="py-6 text-center text-[13px] text-white/40">

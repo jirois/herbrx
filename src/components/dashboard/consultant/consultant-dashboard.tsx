@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import Link from "next/link";
 import { useConsultantOverview, consultantApi } from "@/hooks/dashboard-hooks";
 import {
   Bell,
@@ -51,23 +52,10 @@ type FeedbackItem = {
   };
 };
 
-type NotificationItem = {
-  id: string;
-  title: string;
-  body: string;
-  createdAt: string;
-  type: string;
-  isRead: boolean;
-};
-
 // ── Main component ──────
-export function ConsultantDashboard({ user }: { user: { firstName: string } }) {
+export function ConsultantDashboard() {
   const { data, loading, error, mutate } = useConsultantOverview();
   const [markingAll, setMarkingAll] = useState(false);
-
-  const hour = new Date().getHours();
-  const greeting =
-    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   if (loading && !data) {
     return (
@@ -86,7 +74,7 @@ export function ConsultantDashboard({ user }: { user: { firstName: string } }) {
   if (error || !data) {
     return (
       <DashboardShell
-        heading={`${greeting}, ${user.firstName}`}
+        heading="Consultant Dashboard"
         subheading="Something went wrong"
       >
         <div className="p-5 rounded-2xl border border-red-500/20 bg-red-500/10 text-[13px] text-red-300">
@@ -129,8 +117,13 @@ export function ConsultantDashboard({ user }: { user: { firstName: string } }) {
       {profile.mustResetPassword === true && (
         <div className="flex items-center gap-2 p-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 text-[13px] text-amber-300 mb-6">
           <BadgeCheck size={15} />
-          You&apos;re using a temporary password. Update it from your profile
-          settings.
+          You&apos;re using a temporary password.{" "}
+          <Link
+            href="/dashboard/consultant/settings"
+            className="underline hover:text-amber-200"
+          >
+            Update it from your profile settings.
+          </Link>
         </div>
       )}
 
@@ -201,15 +194,23 @@ export function ConsultantDashboard({ user }: { user: { firstName: string } }) {
                 Meeting Notifications
               </h3>
             </div>
-            {notifications.unreadCount > 0 && (
-              <button
-                onClick={markAllRead}
-                disabled={markingAll}
-                className="text-[11px] text-(--green-pale) hover:text-white transition-colors disabled:opacity-50"
+            <div className="flex items-center gap-3">
+              <Link
+                href="/dashboard/consultant/appointments"
+                className="text-[11px] text-white/40 hover:text-white transition-colors"
               >
-                {markingAll ? "Marking…" : "Mark all read"}
-              </button>
-            )}
+                Manage appointments →
+              </Link>
+              {notifications.unreadCount > 0 && (
+                <button
+                  onClick={markAllRead}
+                  disabled={markingAll}
+                  className="text-[11px] text-(--green-pale) hover:text-white transition-colors disabled:opacity-50"
+                >
+                  {markingAll ? "Marking…" : "Mark all read"}
+                </button>
+              )}
+            </div>
           </div>
           {notifications.items.length === 0 ? (
             <p className="text-[13px] text-white/35 text-center py-8">
@@ -218,40 +219,50 @@ export function ConsultantDashboard({ user }: { user: { firstName: string } }) {
             </p>
           ) : (
             <div className="space-y-2">
-              {(notifications.items as NotificationItem[]).map(
-                (n: NotificationItem) => (
-                  <button
-                    key={n.id}
-                    onClick={() => !n.isRead && markOneRead(n.id)}
-                    className={`w-full flex items-start gap-3 p-3 rounded-xl text-left transition-colors ${n.isRead ? "bg-white/2" : "bg-white/6 hover:bg-white/9"}`}
-                  >
-                    <div className="w-7 h-7 rounded-lg bg-white/6 flex items-center justify-center shrink-0 mt-0.5">
-                      {notifIcon[n.type] ?? (
-                        <Bell size={14} className="text-white/40" />
+              {(
+                notifications.items as {
+                  id: string;
+                  type:
+                    | "NEW_BOOKING"
+                    | "CANCELLED"
+                    | "RESCHEDULED"
+                    | "REMINDER"
+                    | string;
+                  title: string;
+                  body: string;
+                  createdAt: string;
+                  isRead: boolean;
+                }[]
+              ).map((n) => (
+                <button
+                  key={n.id}
+                  onClick={() => !n.isRead && markOneRead(n.id)}
+                  className={`w-full flex items-start gap-3 p-3 rounded-xl text-left transition-colors ${n.isRead ? "bg-white/2" : "bg-white/6 hover:bg-white/9"}`}
+                >
+                  <div className="w-7 h-7 rounded-lg bg-white/6 flex items-center justify-center shrink-0 mt-0.5">
+                    {notifIcon[n.type] ?? (
+                      <Bell size={14} className="text-white/40" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-[13px] font-medium text-white">
+                        {n.title}
+                      </p>
+                      {!n.isRead && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-(--green-mid) shrink-0" />
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-[13px] font-medium text-white">
-                          {n.title}
-                        </p>
-                        {!n.isRead && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-(--green-mid) shrink-0" />
-                        )}
-                      </div>
-                      <p className="text-[12px] text-white/45 mt-0.5">
-                        {n.body}
-                      </p>
-                      <p className="text-[11px] text-white/25 mt-1">
-                        {new Date(n.createdAt).toLocaleString("en-NG", {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                        })}
-                      </p>
-                    </div>
-                  </button>
-                ),
-              )}
+                    <p className="text-[12px] text-white/45 mt-0.5">{n.body}</p>
+                    <p className="text-[11px] text-white/25 mt-1">
+                      {new Date(n.createdAt).toLocaleString("en-NG", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
+                    </p>
+                  </div>
+                </button>
+              ))}
             </div>
           )}
         </motion.div>

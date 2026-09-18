@@ -13,46 +13,6 @@ import {
 } from "lucide-react";
 import { useSafetyAlerts, useConsultations } from "@/hooks/dashboard-hooks";
 
-// const mockAlerts = [
-//   {
-//     id: "1",
-//     severity: "DANGER",
-//     title: "Counterfeit Moringa Capsules Detected",
-//     productName: "SuperGreen Moringa 500mg",
-//     publishedAt: "2 hours ago",
-//   },
-//   {
-//     id: "2",
-//     severity: "WARNING",
-//     title: "St. John's Wort — Drug Interaction Warning",
-//     productName: "St. John\'s Wort Extract', publishedAt: '1 day ago",
-//   },
-//   {
-//     id: "3",
-//     severity: "INFO",
-//     title: "Recommended: New Turmeric Safety Guide",
-//     productName: "General Advisory",
-//     publishedAt: "3 days ago",
-//   },
-// ];
-
-// const mockConsultations = [
-//   {
-//     id: "1",
-//     type: "HERBALIST",
-//     status: "CONFIRMED",
-//     scheduledAt: "Thu 26 Jun · 10:00 AM",
-//     practitioner: "Dr. Adaeze Okonkwo",
-//   },
-//   {
-//     id: "2",
-//     type: "PHARMACIST",
-//     status: "REQUESTED",
-//     scheduledAt: "Pending assignment",
-//     practitioner: "—",
-//   },
-// ];
-
 type Alert = {
   id: string;
   severity: string;

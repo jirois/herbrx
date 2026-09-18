@@ -580,9 +580,9 @@ export function UsersManagementPage() {
               {/* Role */}
               <div className="hidden sm:block">
                 <span
-                  className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${rc.badge}`}
+                  className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full `}
                 >
-                  {rc.icon} {rc.label}
+                  {/* {rc.icon} {rc.label} */}
                 </span>
                 {user.role === "PRODUCER" && user.tier === "VERIFIED" && (
                   <span className="ml-1 inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400">

@@ -1,50 +1,46 @@
-import { PrismaClient } from "@prisma/client";
-import { PrismaMariaDb } from "@prisma/adapter-mariadb";
+import { PrismaClient } from '@prisma/client'
+import { PrismaMariaDb } from '@prisma/adapter-mariadb'
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
+let created = 0;
 
-function createPrismaClient() {
-  const databaseUrl = process.env.DATABASE_URL;
+const createPrismaClient = () => {
+   created++;
 
-  if (!databaseUrl) {
-    throw new Error("DATABASE_URL is not defined");
-  }
+  console.log("Prisma client created:", created);
+  const url = new URL(process.env.DATABASE_URL!)
 
-  let url: URL;
-
-  try {
-    url = new URL(databaseUrl);
-  } catch {
-    throw new Error(
-      "DATABASE_URL is invalid. Make sure special characters in the password are URL-encoded."
-    );
-  }
-
-  const adapter = new PrismaMariaDb({
+  // Note: pool tuning below is hardcoded, not read from DATABASE_URL's query
+  // string — any ?connectTimeout=...&connection_limit=... on the URL is
+  // silently ignored. Change the values in this object directly instead.
+  type PrismaMariaDbPoolConfig = Exclude<
+    ConstructorParameters<typeof PrismaMariaDb>[0],
+    string
+  >
+  const poolConfig: PrismaMariaDbPoolConfig = {
     host: url.hostname,
-    port: Number(url.port || 3306),
-
-    user: decodeURIComponent(url.username),
+    port: Number(url.port) || 3306,
+    user: url.username,
     password: decodeURIComponent(url.password),
+    database: url.pathname.replace(/^\//, ''),
+    connectionLimit: 3, // Kept small to respect Hostinger shared hosting limits
 
-    database: url.pathname.replace(/^\/+/, ""),
-
-    connectionLimit: 1,
-    connectTimeout: 15000,
-    acquireTimeout: 15000,
-    idleTimeout: 30000,
-  });
-
-  return new PrismaClient({
-    adapter,
-  });
+    // THESE TWO LINES ARE CRITICAL FOR HOSTINGER SHARED/REMOTE ROUTING
+    connectTimeout: 30000,       // Wait up to 10 seconds for initial socket setup
+    socketTimeout: 30000,        // Allow 10 seconds for standard packet handling
+    acquireTimeout: 30000,
+  }
+  
+  // TypeScript tracks that this specific instance utilizes a Driver Adapter
+  const adapter = new PrismaMariaDb(poolConfig)
+  return new PrismaClient({ adapter })
 }
+// 1. Extract the exact return type dynamically from the creation function
+type ExtendedPrismaClient = ReturnType<typeof createPrismaClient>
 
-export const prisma =
-  globalForPrisma.prisma ?? createPrismaClient();
+// 2. Cast globalThis using the inferred dynamic type instead of the rigid base PrismaClient
+const globalForPrisma = globalThis as unknown as { prisma: ExtendedPrismaClient }
 
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
-}
+
+export const prisma = globalForPrisma.prisma || createPrismaClient()
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma

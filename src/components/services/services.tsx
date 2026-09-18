@@ -57,7 +57,7 @@ export const services = [
     description:
       "Guides, articles, and video content explaining herbal benefits, risks, and best practices in your language.",
     linkText: "Explore resources",
-    href: "/resources",
+    href: "/guides",
   },
   {
     id: "producer-consultancy",
@@ -66,7 +66,7 @@ export const services = [
     description:
       "Help herbal brand owners improve formulation, labelling, and NAFDAC compliance for better product safety.",
     linkText: "For producers",
-    href: "/services/producers",
+    href: "/contact",
   },
   {
     id: "product-submission",
@@ -75,7 +75,7 @@ export const services = [
     description:
       "Submit your herbal product for a professional review and receive a detailed safety and efficacy report.",
     linkText: "Submit now",
-    href: "/submit",
+    href: "/dashboard/producer/incubation",
   },
   {
     id: "safety-alerts",

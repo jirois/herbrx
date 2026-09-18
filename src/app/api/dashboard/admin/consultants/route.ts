@@ -66,6 +66,7 @@ export async function GET(req: NextRequest) {
         yearsExperience: c.yearsExperience,
         avatarUrl: c.avatarUrl,
         status: c.status,
+        worksWeekends: c.worksWeekends,
         mustResetPassword: c.mustResetPassword,
         totalConsultations: c._count.consultations,
         completedConsultations: s?._count._all ?? 0,
@@ -97,7 +98,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const {
       firstName, lastName, email, phone,
-      specialization, bio, licenseNumber, yearsExperience,
+      specialization, bio, licenseNumber, yearsExperience, worksWeekends,
     } = body
 
     if (!firstName || !lastName || !email || !specialization) {
@@ -135,6 +136,9 @@ export async function POST(req: NextRequest) {
           licenseNumber: licenseNumber || null,
           yearsExperience: yearsExperience ? Number(yearsExperience) : null,
           status: 'ACTIVE',
+          // Defaults to true (bookable every day) unless the admin sets
+          // this consultant as weekend-unavailable at creation time.
+          worksWeekends: worksWeekends === false ? false : true,
           mustResetPassword: true,
           createdBy: adminId,
         },
@@ -180,7 +184,7 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json()
     const {
       consultantId, specialization, bio, licenseNumber, yearsExperience,
-      status, deactivationNote, firstName, lastName, phone,
+      status, deactivationNote, firstName, lastName, phone, worksWeekends,
     } = body
 
     if (!consultantId) return badRequest('consultantId is required')
@@ -201,6 +205,7 @@ export async function PATCH(req: NextRequest) {
         ...(bio !== undefined ? { bio } : {}),
         ...(licenseNumber !== undefined ? { licenseNumber } : {}),
         ...(yearsExperience !== undefined ? { yearsExperience: yearsExperience ? Number(yearsExperience) : null } : {}),
+        ...(worksWeekends !== undefined ? { worksWeekends: Boolean(worksWeekends) } : {}),
         ...(status ? {
           status,
           ...(status === 'INACTIVE'

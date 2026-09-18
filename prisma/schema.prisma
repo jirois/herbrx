@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
+  engineType = "binary"
 }
 
 datasource db {
@@ -143,10 +144,12 @@ model SavedMedication {
   @@index([userId])
 }
 
+// Customer: Telehealth Consultations
 model Consultation {
-  id               String                   @id @default(cuid())
-  userId           String
-  practitionerId   String?
+  id             String  @id @default(cuid())
+  userId         String
+  practitionerId String?
+
   type             ConsultationType
   status           ConsultationStatus       @default(REQUESTED)
   scheduledAt      DateTime?
@@ -184,6 +187,9 @@ model ConsultantProfile {
   avatarUrl         String?
   status            ConsultantStatus         @default(ACTIVE)
   mustResetPassword Boolean                  @default(true)
+  // Defaults to true: consultants are bookable every day of the week
+  // unless they explicitly opt out of weekend work.
+  worksWeekends     Boolean                  @default(true)
   createdBy         String
   deactivatedAt     DateTime?
   deactivatedBy     String?
@@ -260,10 +266,25 @@ model ProducerProfile {
   insuranceUrl       String?
   state              String?
   website            String?
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-  products           ProducerProduct[]
-  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Extended business profile (Settings → Profile tab)
+  address     String?
+  description String? @db.Text
+
+  // Payout account (Settings → Payout tab)
+  bankName       String?
+  accountNumber  String?
+  accountName    String?
+  bvn            String?
+  payoutVerified Boolean @default(false)
+
+  // Notification preferences (Settings → Notifications tab)
+  notificationPrefs Json?
+
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  products  ProducerProduct[]
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model ProducerProduct {

@@ -10,7 +10,7 @@ import { formatNaira } from "@/lib/utils";
 import { useCart } from "@/context/cart-context";
 import type { StoreProduct, Product } from "@/types";
 
-const DEFAULT_GRADIENT: [string, string] = ['#C8DABB', '#A8C999']
+const DEFAULT_GRADIENT: [string, string] = ["#C8DABB", "#A8C999"];
 
 interface ProductCardProps {
   product: StoreProduct;
@@ -37,7 +37,7 @@ export function ProductCard({
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   }
-const [gradientFrom, gradientTo] = DEFAULT_GRADIENT
+  const [gradientFrom, gradientTo] = DEFAULT_GRADIENT;
 
   return (
     <motion.div
