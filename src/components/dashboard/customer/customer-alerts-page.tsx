@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
-import { useSafetyAlerts } from "@/hooks/dashboard-hooks";
+import { useSafetyAlerts, useAlertSubscription } from "@/hooks/dashboard-hooks";
 import {
   Bell,
   CheckCircle,
@@ -39,6 +39,55 @@ interface Alert {
   batchNo?: string;
   publishedAt: string;
 }
+
+// Fallback mock while API loads
+// const MOCK_ALERTS: Alert[] = [
+//   {
+//     id: "a1",
+//     severity: "DANGER",
+//     status: "ACTIVE",
+//     title: "Counterfeit Moringa Capsules Detected in Lagos Markets",
+//     body: 'Multiple batches of counterfeit "SuperGreen Moringa 500mg" identified in Lagos Island and Alaba markets. Lab analysis reveals lead levels of 12.4 mg/kg — over 6× the safe limit. Do not consume. Dispose of immediately.',
+//     productName: "SuperGreen Moringa 500mg",
+//     batchNo: "B2024-FAKE-01",
+//     publishedAt: "2 hours ago",
+//   },
+//   {
+//     id: "a2",
+//     severity: "WARNING",
+//     status: "ACTIVE",
+//     title: "St. John's Wort + SSRI Antidepressants — Interaction Warning",
+//     body: "Significant risk of serotonin syndrome when combining St. John's Wort with SSRI antidepressants (sertraline, fluoxetine, citalopram). Stop St. John's Wort immediately if you take SSRIs and consult your doctor.",
+//     productName: "St. John's Wort Extract",
+//     publishedAt: "1 day ago",
+//   },
+//   {
+//     id: "a3",
+//     severity: "WARNING",
+//     status: "ACTIVE",
+//     title: "High-Dose Bitter Leaf — Hypoglycaemia Risk in Diabetics",
+//     body: "High-dose Bitter Leaf preparations (>500mg/day) may cause additive blood sugar-lowering effects alongside metformin or glibenclamide. Monitor glucose closely if combining these.",
+//     publishedAt: "3 days ago",
+//   },
+//   {
+//     id: "a4",
+//     severity: "DANGER",
+//     status: "RESOLVED",
+//     title: "Shea Butter Adulteration — Kano Batch B2024-11 Recalled",
+//     body: 'Batch B2024-11 of "PureShea Body Butter" failed microbial screening. All units have been recalled. The producer has been suspended from the marketplace.',
+//     productName: "PureShea Body Butter",
+//     batchNo: "B2024-11",
+//     publishedAt: "1 month ago",
+//   },
+//   {
+//     id: "a5",
+//     severity: "INFO",
+//     status: "RESOLVED",
+//     title: "Updated Safety Guidelines: Bitter Leaf (Vernonia amygdalina)",
+//     body: "Revised dosage guidelines and interaction warnings for Bitter Leaf now available in the Herb Directory and Safety Guides.",
+//     publishedAt: "2 months ago",
+//   },
+// ];
 
 const severityConfig: Record<
   AlertSeverity,
@@ -82,6 +131,8 @@ export function CustomerAlertsPage() {
   //Real alerts only -
   const alerts = (data?.alerts as Alert[] | undefined) ?? [];
 
+  const { data: subData } = useAlertSubscription();
+
   const [search, setSearch] = useState("");
 
   const [severityFilter, setSeverityFilter] = useState<AlertSeverity | "ALL">(
@@ -97,6 +148,9 @@ export function CustomerAlertsPage() {
   const [subLoading, setSubLoading] = useState(false);
   const [subDone, setSubDone] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+
+  // Combine the server state with the local state updated after subscribing.
+  const isSubscribed = subscribed || Boolean(subData?.subscribed);
 
   const filtered = alerts.filter((a) => {
     if (dismissed.has(a.id)) return false;
@@ -148,7 +202,7 @@ export function CustomerAlertsPage() {
     >
       {/* Subscription banner */}
       <AnimatePresence>
-        {!subscribed && !subDone && (
+        {!isSubscribed && !subDone && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -234,8 +288,8 @@ export function CustomerAlertsPage() {
           },
           {
             label: "Alert Status",
-            value: subscribed ? "On" : "Off",
-            color: subscribed ? "text-green-400" : "text-white/40",
+            value: isSubscribed ? "On" : "Off",
+            color: isSubscribed ? "text-green-400" : "text-white/40",
             bg: "bg-white/[0.04] border-white/[0.07]",
           },
         ].map((k, i) => (
@@ -250,7 +304,7 @@ export function CustomerAlertsPage() {
               className={`text-[24px] font-serif font-semibold ${k.color} flex items-center gap-2`}
             >
               {k.label === "Alert Status" &&
-                (subscribed ? <Bell size={20} /> : <BellOff size={20} />)}
+                (isSubscribed ? <Bell size={20} /> : <BellOff size={20} />)}
               {k.value}
             </div>
             <div className="text-[11px] text-white/35 mt-0.5">{k.label}</div>

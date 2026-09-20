@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
-import { useProducerBatches, producerApi } from "@/hooks/dashboard-hooks";
+import {
+  useProducerBatches,
+  producerApi,
+  uploadFile,
+} from "@/hooks/dashboard-hooks";
 import {
   FlaskConical,
   Upload,
@@ -26,6 +30,8 @@ import {
   Beaker,
   Loader2,
   Package,
+  ArrowLeft,
+  Check,
 } from "lucide-react";
 import type { BatchStatus } from "@/types";
 
@@ -53,6 +59,7 @@ interface MockBatch {
   reviewStatus: BatchStatus;
   reviewNotes: string | null;
   coaFileName: string;
+  coaFileUrl: string | null;
   submittedAt: string;
   supplyChain: SupplyChainStage[];
 }
@@ -218,6 +225,7 @@ export function BatchCOAPage() {
         reviewStatus: b.reviewStatus,
         reviewNotes: b.reviewNotes ?? null,
         coaFileName: b.coaFileUrl?.split("/").pop() ?? "COA_document.pdf",
+        coaFileUrl: b.coaFileUrl ?? null,
         submittedAt: b.createdAt
           ? new Date(b.createdAt).toISOString().split("T")[0]
           : "",
@@ -228,7 +236,8 @@ export function BatchCOAPage() {
     setHasSynced(true);
   }
   // Real products for the submission form
-  const formProducts: Product[] = (batchData?.products ?? []) as unknown as Product[];
+  const formProducts: Product[] = (batchData?.products ??
+    []) as unknown as Product[];
   const stepIndex = STEPS.findIndex((s) => s.key === step);
   const selectedProduct = formProducts.find(
     (p: Product) => p.id === form.productId,
@@ -273,9 +282,12 @@ export function BatchCOAPage() {
     setSubmitError(null);
 
     try {
-      // In production, upload COA file to Cloudinary/S3 first, get URL back
+      // Actually upload the COA file to Cloudinary and use the real hosted
+      // URL — this used to just fabricate a `cdn.herbrx.ng/...` string
+      // client-side with no upload ever happening, which is exactly why
+      // every saved COA link was dead the moment anyone tried to open it.
       const coaFileUrl = form.coaFile
-        ? `https://cdn.herbrx.ng/coa/${Date.now()}-${form.coaFile.name}`
+        ? await uploadFile(form.coaFile, "coa")
         : "";
 
       await producerApi.submitBatch({
@@ -332,7 +344,7 @@ export function BatchCOAPage() {
             disabled={!form.productId}
             className="mt-6 h-11 px-8 bg-(--green-mid) hover:bg-(--green-light) disabled:opacity-30 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors text-[14px]"
           >
-            Continue →
+            Continue <ArrowRight size={14} className="inline ml-1" />
           </button>
         </div>
       );
@@ -458,7 +470,7 @@ export function BatchCOAPage() {
               onClick={() => setStep("product")}
               className="h-11 px-6 border border-white/10 text-white/60 hover:text-white rounded-xl text-[14px] transition-colors"
             >
-              ← Back
+              <ArrowLeft size={14} className="inline mr-1.5" /> Back
             </button>
             <button
               onClick={() => setStep("upload")}
@@ -471,7 +483,7 @@ export function BatchCOAPage() {
               }
               className="h-11 px-8 bg-(--green-mid) hover:bg-(--green-light) disabled:opacity-30 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors text-[14px]"
             >
-              Continue →
+              Continue <ArrowRight size={14} className="inline ml-1" />
             </button>
           </div>
         </div>
@@ -585,14 +597,14 @@ export function BatchCOAPage() {
               onClick={() => setStep("batch")}
               className="h-11 px-6 border border-white/10 text-white/60 hover:text-white rounded-xl text-[14px] transition-colors"
             >
-              ← Back
+              <ArrowLeft size={14} className="inline mr-1.5" /> Back
             </button>
             <button
               onClick={() => setStep("chain")}
               disabled={!form.coaFile}
               className="h-11 px-8 bg-(--green-mid) hover:bg-(--green-light) disabled:opacity-30 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors text-[14px]"
             >
-              Continue →
+              Continue <ArrowRight size={14} className="inline ml-1" />
             </button>
           </div>
         </div>
@@ -711,14 +723,14 @@ export function BatchCOAPage() {
               onClick={() => setStep("upload")}
               className="h-11 px-6 border border-white/1 text-white/60 hover:text-white rounded-xl text-[14px] transition-colors"
             >
-              ← Back
+              <ArrowLeft size={14} className="inline mr-1.5" /> Back
             </button>
             <button
               onClick={() => setStep("review")}
               disabled={hasChainErrors}
               className="h-11 px-8 bg-(--green-mid) hover:bg-(--green-light) disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors text-[14px]"
             >
-              Review Submission →
+              Review Submission <ArrowRight size={14} className="inline ml-1" />
             </button>
           </div>
         </div>
@@ -835,7 +847,7 @@ export function BatchCOAPage() {
               onClick={() => setStep("chain")}
               className="h-11 px-6 border border-white/10 text-white/60 hover:text-white rounded-xl text-[14px] transition-colors"
             >
-              ← Back
+              <ArrowLeft size={14} className="inline mr-1.5" /> Back
             </button>
             <button
               onClick={handleSubmit}
@@ -847,7 +859,9 @@ export function BatchCOAPage() {
                   <Loader2 size={15} className="animate-spin" /> Submitting…
                 </>
               ) : (
-                <>Submit for Review ✓</>
+                <>
+                  Submit for Review <Check size={14} className="inline ml-1" />
+                </>
               )}
             </button>
           </div>
@@ -1084,9 +1098,20 @@ export function BatchCOAPage() {
                               <span className="text-[13px] text-white flex-1">
                                 {batch.coaFileName}
                               </span>
-                              <button className="flex items-center gap-1.5 text-[12px] text-(--green-pale) hover:text-white transition-colors">
-                                <ExternalLink size={12} /> View COA
-                              </button>
+                              {batch.coaFileUrl ? (
+                                <a
+                                  href={batch.coaFileUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1.5 text-[12px] text-(--green-pale) hover:text-white transition-colors"
+                                >
+                                  <ExternalLink size={12} /> View COA
+                                </a>
+                              ) : (
+                                <span className="text-[12px] text-white/25">
+                                  No file on record
+                                </span>
+                              )}
                             </div>
 
                             {/* Supply chain */}

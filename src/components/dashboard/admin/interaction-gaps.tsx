@@ -16,7 +16,12 @@ import {
   Info,
 } from "lucide-react";
 
-type Severity = "DANGER" | "WARNING" | "INFO" | "BENEFICIAL";
+type Severity =
+  | "CONTRAINDICATED"
+  | "DANGER"
+  | "WARNING"
+  | "INFO"
+  | "BENEFICIAL";
 interface GapEntry {
   drug: string;
   count: number;
@@ -26,10 +31,29 @@ interface Report {
   id: string;
   drugName: string;
   herbName: string;
-  severity: Severity;
+  severity: Severity | null;
   description: string;
   outcome: string | null;
   createdAt: string;
+  submittedAsConsultant?: boolean;
+  verified?: boolean;
+  promotedToDb?: boolean;
+  verifiedAt?: string | null;
+}
+interface FeedbackEntry {
+  id: string;
+  type: "CONFIRM" | "DISPUTE";
+  drugName: string | null;
+  herbName: string | null;
+  description: string;
+  outcome: string | null;
+  createdAt: string;
+  submittedAsConsultant?: boolean;
+  interaction: {
+    drugName: string;
+    herbName: string;
+    severity: Severity;
+  } | null;
 }
 interface Disputed {
   id: string;
@@ -47,6 +71,8 @@ interface Stats {
   totalGapQueries: number;
   gapRate: number;
   uniqueGaps: number;
+  pendingReports?: number;
+  pendingFeedback?: number;
 }
 
 const inputCls =
@@ -54,21 +80,34 @@ const inputCls =
 const labelCls =
   "block text-[10px] text-white/35 uppercase tracking-wider mb-1.5";
 const sevColors: Record<Severity, string> = {
+  CONTRAINDICATED: "bg-red-950/40 text-red-300 border border-red-500/40",
   DANGER: "bg-red-500/15 text-red-400",
   WARNING: "bg-amber-500/15 text-amber-400",
   INFO: "bg-blue-500/15 text-blue-400",
   BENEFICIAL: "bg-green-500/15 text-green-400",
 };
+const NO_SEVERITY_CLS = "bg-white/8 text-white/40";
+function sevBadgeCls(s: Severity | null | undefined) {
+  return s ? (sevColors[s] ?? NO_SEVERITY_CLS) : NO_SEVERITY_CLS;
+}
 
 export function InteractionGapsPage() {
   const [gaps, setGaps] = useState<GapEntry[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
+  const [feedbackEntries, setFeedbackEntries] = useState<FeedbackEntry[]>([]);
+  const [history, setHistory] = useState<Report[]>([]);
   const [disputed, setDisputed] = useState<Disputed[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"gaps" | "reports" | "disputed">("gaps");
+  const [lastLoaded, setLastLoaded] = useState<Date | null>(null);
+  const [tab, setTab] = useState<
+    "gaps" | "reports" | "feedback" | "disputed" | "history"
+  >("gaps");
   const [search, setSearch] = useState("");
   const [promote, setPromote] = useState<Report | null>(null);
+  const [confirmDismiss, setConfirmDismiss] = useState<Report | null>(null);
+  const [ackBusyId, setAckBusyId] = useState<string | null>(null);
+  const [restoreBusyId, setRestoreBusyId] = useState<string | null>(null);
   type PromoteForm = {
     drugName: string;
     drugClass: string;
@@ -105,8 +144,11 @@ export function InteractionGapsPage() {
       const d = await r.json();
       setGaps(d.gaps ?? []);
       setReports(d.reports ?? []);
+      setFeedbackEntries(d.feedbackEntries ?? []);
+      setHistory(d.history ?? []);
       setDisputed(d.disputed ?? []);
       setStats(d.stats ?? null);
+      setLastLoaded(new Date());
     } catch {
     } finally {
       setLoading(false);
@@ -124,7 +166,7 @@ export function InteractionGapsPage() {
       ...p,
       drugName: r.drugName ?? "",
       herbName: r.herbName ?? "",
-      severity: r.severity,
+      severity: r.severity ?? "WARNING",
     }));
     setPMsg("");
   }
@@ -181,9 +223,7 @@ export function InteractionGapsPage() {
       if (r.ok) {
         setReports((prev) => prev.filter((x) => x.id !== promote.id));
         setPMsg(
-          action === "PROMOTE"
-            ? "✓ Promoted to database."
-            : "✓ Report dismissed.",
+          action === "PROMOTE" ? "Promoted to database." : "Report dismissed.",
         );
         setTimeout(() => {
           setPromote(null);
@@ -197,6 +237,58 @@ export function InteractionGapsPage() {
     }
   }
 
+  async function confirmDismissAction() {
+    if (!confirmDismiss) return;
+    const target = confirmDismiss;
+    setConfirmDismiss(null);
+    try {
+      const r = await fetch("/api/dashboard/admin/interaction-gaps", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ feedbackId: target.id, action: "REJECT" }),
+      });
+      if (r.ok) {
+        setReports((prev) => prev.filter((x) => x.id !== target.id));
+        load();
+      }
+    } catch {
+      // no-op — they can retry from the list
+    }
+  }
+
+  async function acknowledgeFeedback(id: string) {
+    setAckBusyId(id);
+    try {
+      const r = await fetch("/api/dashboard/admin/interaction-gaps", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ feedbackId: id, action: "ACKNOWLEDGE" }),
+      });
+      if (r.ok) setFeedbackEntries((prev) => prev.filter((f) => f.id !== id));
+    } catch {
+    } finally {
+      setAckBusyId(null);
+    }
+  }
+
+  async function restoreReport(id: string) {
+    setRestoreBusyId(id);
+    try {
+      const r = await fetch("/api/dashboard/admin/interaction-gaps", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ feedbackId: id, action: "RESTORE" }),
+      });
+      if (r.ok) {
+        setHistory((prev) => prev.filter((h) => h.id !== id));
+        load();
+      }
+    } catch {
+    } finally {
+      setRestoreBusyId(null);
+    }
+  }
+
   const fGaps = gaps.filter(
     (g) => !search || g.drug.includes(search.toLowerCase()),
   );
@@ -206,8 +298,24 @@ export function InteractionGapsPage() {
       r.drugName?.includes(search.toLowerCase()) ||
       r.herbName?.includes(search.toLowerCase()),
   );
+  const fFeedback = feedbackEntries.filter(
+    (f) =>
+      !search ||
+      (f.drugName ?? f.interaction?.drugName)
+        ?.toLowerCase()
+        .includes(search.toLowerCase()) ||
+      (f.herbName ?? f.interaction?.herbName)
+        ?.toLowerCase()
+        .includes(search.toLowerCase()),
+  );
   const fDisputed = disputed.filter(
     (d) => !search || d.drugName?.includes(search.toLowerCase()),
+  );
+  const fHistory = history.filter(
+    (h) =>
+      !search ||
+      h.drugName?.includes(search.toLowerCase()) ||
+      h.herbName?.includes(search.toLowerCase()),
   );
 
   return (
@@ -216,7 +324,7 @@ export function InteractionGapsPage() {
       subheading="Gap report, community reports, and disputed entries — the engine's self-building feed."
     >
       {stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 mb-7">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 mb-7">
           {[
             {
               label: "DB Pairs",
@@ -248,6 +356,16 @@ export function InteractionGapsPage() {
               value: stats.uniqueGaps,
               color: "text-white/60",
             },
+            {
+              label: "Pending Reports",
+              value: stats.pendingReports ?? reports.length,
+              color: "text-(--green-pale)",
+            },
+            {
+              label: "Pending Feedback",
+              value: stats.pendingFeedback ?? feedbackEntries.length,
+              color: "text-purple-300",
+            },
           ].map((s) => (
             <div
               key={s.label}
@@ -277,12 +395,14 @@ export function InteractionGapsPage() {
             className="w-full h-10 pl-9 pr-4 bg-white/5 border border-white/8 rounded-xl text-[14px] text-white placeholder:text-white/25 outline-none focus:border-(--green-mid) transition-all"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {(
             [
-              ["gaps", "Gaps", "database"],
-              ["reports", "Reports", "flag"],
-              ["disputed", "Disputed", "thumbsdown"],
+              ["gaps", "Gaps"],
+              ["reports", "Reports"],
+              ["feedback", "Feedback"],
+              ["disputed", "Disputed"],
+              ["history", "History"],
             ] as const
           ).map(([key, label]) => (
             <button
@@ -295,18 +415,34 @@ export function InteractionGapsPage() {
                 ? gaps.length
                 : key === "reports"
                   ? reports.length
-                  : disputed.length}
+                  : key === "feedback"
+                    ? feedbackEntries.length
+                    : key === "disputed"
+                      ? disputed.length
+                      : history.length}
               )
             </button>
           ))}
           <button
             onClick={load}
-            className="h-10 px-3 border border-white/8 text-white/40 hover:text-white rounded-xl transition-colors"
+            title={
+              lastLoaded
+                ? `Last refreshed ${lastLoaded.toLocaleTimeString("en-NG")}`
+                : "Refresh"
+            }
+            className="flex items-center gap-1.5 h-10 px-3 border border-white/8 text-white/40 hover:text-white rounded-xl transition-colors text-[12px]"
           >
-            <RotateCcw size={14} />
+            <RotateCcw size={14} /> Refresh
           </button>
         </div>
       </div>
+
+      {lastLoaded && !loading && (
+        <p className="text-[11px] text-white/25 -mt-3 mb-4">
+          Last refreshed {lastLoaded.toLocaleTimeString("en-NG")} — data
+          doesn&apos;t update live, use Refresh to pull in new submissions.
+        </p>
+      )}
 
       {loading && (
         <div className="flex items-center justify-center h-32">
@@ -379,13 +515,18 @@ export function InteractionGapsPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
                     <span
-                      className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${sevColors[r.severity]}`}
+                      className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${sevBadgeCls(r.severity)}`}
                     >
-                      {r.severity}
+                      {r.severity ?? "SEVERITY UNSET"}
                     </span>
                     <span className="text-[12px] text-white/40">
                       {new Date(r.createdAt).toLocaleDateString("en-NG")}
                     </span>
+                    {r.submittedAsConsultant && (
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-(--green-mid)/20 text-(--green-pale) border border-(--green-mid)/30">
+                        From Consultant
+                      </span>
+                    )}
                   </div>
                   <p className="text-[15px] font-semibold text-white mb-1">
                     {r.drugName ?? "—"} × {r.herbName ?? "—"}
@@ -407,11 +548,7 @@ export function InteractionGapsPage() {
                     <Plus size={12} /> Promote
                   </button>
                   <button
-                    onClick={async () => {
-                      setPromote(r);
-                      await doAction("REJECT");
-                      setPromote(null);
-                    }}
+                    onClick={() => setConfirmDismiss(r)}
                     className="flex items-center gap-1.5 text-[12px] px-4 py-2 rounded-xl border border-white/8 text-white/35 hover:text-white/60 transition-colors"
                   >
                     <X size={12} /> Dismiss
@@ -446,7 +583,7 @@ export function InteractionGapsPage() {
                     {d.drugName} × {d.herbName}
                   </p>
                   <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${sevColors[d.severity]}`}
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${sevBadgeCls(d.severity)}`}
                   >
                     {d.severity}
                   </span>
@@ -454,15 +591,202 @@ export function InteractionGapsPage() {
                 <p className="text-[12px] text-white/40">{d.evidenceLevel}</p>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-[13px] text-white/60">
-                  <span className="text-green-400">{d.confirmedCount} ✓</span> ·{" "}
-                  <span className="text-red-400">{d.disputedCount} ✗</span>
+                <p className="text-[13px] text-white/60 flex items-center gap-2">
+                  <span className="flex items-center gap-1 text-green-400">
+                    {d.confirmedCount} <CheckCircle size={12} />
+                  </span>
+                  ·
+                  <span className="flex items-center gap-1 text-red-400">
+                    {d.disputedCount} <X size={12} />
+                  </span>
                 </p>
               </div>
             </motion.div>
           ))}
         </div>
       )}
+
+      {/* FEEDBACK TAB — individual CONFIRM/DISPUTE notes, previously only
+          ever visible as an aggregate count on the interaction itself */}
+      {!loading && tab === "feedback" && (
+        <div className="space-y-3">
+          {fFeedback.length === 0 && (
+            <p className="text-center py-16 text-white/25 text-[14px]">
+              No feedback awaiting review.
+            </p>
+          )}
+          {fFeedback.map((f, i) => (
+            <motion.div
+              key={f.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.04 }}
+              className={`p-5 rounded-2xl border ${f.type === "CONFIRM" ? "border-green-500/15 bg-green-500/5" : "border-red-500/15 bg-red-500/5"}`}
+            >
+              <div className="flex items-start gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <span
+                      className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${f.type === "CONFIRM" ? "bg-green-500/15 text-green-400" : "bg-red-500/15 text-red-400"}`}
+                    >
+                      {f.type}
+                    </span>
+                    <span className="text-[12px] text-white/40">
+                      {new Date(f.createdAt).toLocaleDateString("en-NG")}
+                    </span>
+                    {f.submittedAsConsultant && (
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-(--green-mid)/20 text-(--green-pale) border border-(--green-mid)/30">
+                        From Consultant
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[15px] font-semibold text-white mb-1">
+                    {f.herbName ?? f.interaction?.herbName ?? "—"}{" "}
+                    <span className="text-white/35">
+                      × {f.drugName ?? f.interaction?.drugName ?? "—"}
+                    </span>
+                  </p>
+                  <p className="text-[13px] text-white/60 leading-relaxed mb-1">
+                    {f.description}
+                  </p>
+                  {f.outcome && (
+                    <p className="text-[12px] text-white/40 italic">
+                      Outcome: {f.outcome}
+                    </p>
+                  )}
+                </div>
+                <div className="shrink-0">
+                  <button
+                    onClick={() => acknowledgeFeedback(f.id)}
+                    disabled={ackBusyId === f.id}
+                    className="flex items-center gap-1.5 text-[12px] px-4 py-2 rounded-xl border border-white/8 text-white/40 hover:text-white disabled:opacity-40 transition-colors"
+                  >
+                    {ackBusyId === f.id ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : (
+                      <CheckCircle size={12} />
+                    )}
+                    Mark Reviewed
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+          {fFeedback.length > 0 && (
+            <div className="flex items-start gap-2 p-4 rounded-xl bg-white/3 border border-white/6 mt-3">
+              <Info size={13} className="text-white/25 shrink-0 mt-0.5" />
+              <p className="text-[12px] text-white/30">
+                Confirming or disputing an existing entry already updates its
+                confirmed/disputed counts on submission — &quot;Mark
+                Reviewed&quot; just acknowledges you&apos;ve read the note, it
+                doesn&apos;t change the interaction.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* HISTORY TAB — previously reviewed reports (promoted or dismissed).
+          Dismissing used to be permanent and invisible with no confirmation
+          step at all; this keeps a trail and lets a mistaken dismiss be
+          undone. */}
+      {!loading && tab === "history" && (
+        <div className="space-y-3">
+          {fHistory.length === 0 && (
+            <p className="text-center py-16 text-white/25 text-[14px]">
+              No reviewed reports yet.
+            </p>
+          )}
+          {fHistory.map((h, i) => (
+            <motion.div
+              key={h.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.04 }}
+              className="flex items-start gap-4 p-5 rounded-2xl border border-white/[0.07] bg-white/3"
+            >
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <span
+                    className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${h.promotedToDb ? "bg-green-500/15 text-green-400" : "bg-white/8 text-white/40"}`}
+                  >
+                    {h.promotedToDb ? "PROMOTED" : "DISMISSED"}
+                  </span>
+                  {h.verifiedAt && (
+                    <span className="text-[12px] text-white/40">
+                      {new Date(h.verifiedAt).toLocaleDateString("en-NG")}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[14px] font-semibold text-white mb-1">
+                  {h.drugName ?? "—"} × {h.herbName ?? "—"}
+                </p>
+                <p className="text-[13px] text-white/50 leading-relaxed">
+                  {h.description}
+                </p>
+              </div>
+              {!h.promotedToDb && (
+                <button
+                  onClick={() => restoreReport(h.id)}
+                  disabled={restoreBusyId === h.id}
+                  className="shrink-0 flex items-center gap-1.5 text-[12px] px-4 py-2 rounded-xl border border-white/8 text-white/40 hover:text-white disabled:opacity-40 transition-colors"
+                >
+                  {restoreBusyId === h.id ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : (
+                    <RotateCcw size={12} />
+                  )}
+                  Restore
+                </button>
+              )}
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* CONFIRM DISMISS MODAL */}
+      <AnimatePresence>
+        {confirmDismiss && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setConfirmDismiss(null);
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-[#1A2030] border border-white/10 rounded-2xl w-full max-w-sm p-5"
+            >
+              <p className="text-[14px] font-semibold text-white mb-2">
+                Dismiss this report?
+              </p>
+              <p className="text-[13px] text-white/50 mb-5">
+                &quot;{confirmDismiss.drugName} × {confirmDismiss.herbName}
+                &quot; will move to History, where it can still be restored
+                later if needed.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setConfirmDismiss(null)}
+                  className="flex-1 h-10 border border-white/10 text-white/50 hover:text-white rounded-xl text-[13px] transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDismissAction}
+                  className="flex-1 h-10 bg-red-600 hover:bg-red-500 text-white font-medium rounded-xl text-[13px] transition-colors"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* PROMOTE MODAL */}
       <AnimatePresence>
@@ -545,13 +869,17 @@ export function InteractionGapsPage() {
                         }
                         className={`${inputCls} cursor-pointer`}
                       >
-                        {["DANGER", "WARNING", "INFO", "BENEFICIAL"].map(
-                          (s) => (
-                            <option key={s} value={s}>
-                              {s}
-                            </option>
-                          ),
-                        )}
+                        {[
+                          "CONTRAINDICATED",
+                          "DANGER",
+                          "WARNING",
+                          "INFO",
+                          "BENEFICIAL",
+                        ].map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div>

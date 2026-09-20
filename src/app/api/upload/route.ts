@@ -1,25 +1,43 @@
 import { NextRequest }  from 'next/server'
 import { requireAuth, created, badRequest, serverError } from '@/lib/api-helpers'
+import cloudinary, { isCloudinaryConfigured } from '@/lib/cloudinary'
+import type { UploadApiResponse, UploadApiErrorResponse } from 'cloudinary'
+
+// Cloudinary's SDK can't run on the Edge runtime.
+export const runtime = 'nodejs'
 
 /**
  * POST /api/upload
- * Accepts a multipart/form-data file and returns a CDN URL.
+ * Accepts a multipart/form-data file and uploads it to Cloudinary.
  *
- * Production: wire to Cloudinary or AWS S3.
- * Development: returns a mock URL so the rest of the flow works.
+ * This route previously returned a fabricated `https://cdn.herbrx.ng/...`
+ * URL with no upload ever happening — a leftover placeholder from before
+ * Cloudinary was wired up, which is exactly why any link saved from it was
+ * dead on arrival. Nothing in the app currently calls this route directly
+ * (uploads go through /api/upload/document instead), but it's fixed here
+ * too rather than left as a trap for the next thing that calls it.
  *
  * Body (FormData):
  *   file    — the file to upload
  *   folder  — optional subfolder: 'coa' | 'verification' | 'general'
  */
 export async function POST(req: NextRequest) {
-  const {  error } = await requireAuth(req)
+  const { session, error } = await requireAuth(req)
   if (error) return error
+
+  if (!isCloudinaryConfigured) {
+    return serverError(
+      new Error('Cloudinary is not configured — set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET')
+    )
+  }
 
   try {
     const formData = await req.formData()
     const file     = formData.get('file') as File | null
-    const folder   = (formData.get('folder') as string) ?? 'general'
+    const folderInput = (formData.get('folder') as string) ?? 'general'
+    const folder = (['coa', 'verification', 'general'] as const).includes(folderInput as never)
+      ? folderInput
+      : 'general'
 
     if (!file) return badRequest('No file provided')
 
@@ -31,23 +49,31 @@ export async function POST(req: NextRequest) {
       return badRequest('Invalid file type. Allowed: PDF, JPEG, PNG, WEBP')
     }
 
-    // ── Production: upload to Cloudinary ─────────────────────────────────
-    // const cloudinary = require('cloudinary').v2
-    // const bytes  = await file.arrayBuffer()
-    // const buffer = Buffer.from(bytes)
-    // const result = await new Promise((resolve, reject) => {
-    //   cloudinary.uploader.upload_stream(
-    //     { folder: `herbrx/${folder}`, resource_type: 'auto' },
-    //     (err: any, res: any) => err ? reject(err) : resolve(res)
-    //   ).end(buffer)
-    // }) as any
-    // return created({ url: result.secure_url, publicId: result.public_id })
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const userId = (session!.user as { id?: string }).id ?? 'anon'
+    const safeName = file.name
+      .replace(/\.[^/.]+$/, '')
+      .replace(/[^a-zA-Z0-9_-]/g, '_')
+      .slice(0, 60)
 
-    // ── Development: return a mock URL ────────────────────────────────────
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-    const mockUrl  = `https://cdn.herbrx.ng/${folder}/${Date.now()}-${safeName}`
+    const result = await new Promise<UploadApiResponse>((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder: `herbrx/${folder}`,
+          resource_type: 'auto',
+          public_id: `${userId}-${Date.now()}-${safeName}`,
+          overwrite: false,
+          use_filename: false,
+        },
+        (err: UploadApiErrorResponse | undefined, res: UploadApiResponse | undefined) => {
+          if (err || !res) reject(err ?? new Error('Cloudinary upload failed'))
+          else resolve(res)
+        },
+      )
+      stream.end(buffer)
+    })
 
-    return created({ url: mockUrl, name: file.name, size: file.size })
+    return created({ url: result.secure_url, name: file.name, size: file.size, public_id: result.public_id })
   } catch (e) {
     return serverError(e)
   }

@@ -43,6 +43,7 @@ import {
   MapPin,
   ExternalLink,
   ArrowRight,
+  ArrowLeft,
   Edit3,
 } from "lucide-react";
 import Link from "next/link";
@@ -637,7 +638,16 @@ export function VerificationPage() {
 
   // Derive status from real API response
   const apiStatus = verificationData?.status as VerificationStatus | undefined;
-  const effectiveStatus = apiStatus ?? verificationStatus;
+  // Reapplying after a REJECTED status needs to locally override the fetched
+  // status until a fresh submission actually changes it server-side —
+  // `apiStatus ?? verificationStatus` alone can't do that, since apiStatus
+  // is a real, non-null "REJECTED" value at exactly this moment, so it was
+  // always winning regardless of what the Reapply button tried to set
+  // locally. That's why clicking it appeared to do nothing.
+  const [reapplying, setReapplying] = useState(false);
+  const effectiveStatus = reapplying
+    ? "UNVERIFIED"
+    : (apiStatus ?? verificationStatus);
 
   const [profileSynced, setProfileSynced] = useState(false);
 
@@ -663,7 +673,8 @@ export function VerificationPage() {
     setSubmitError(null);
     try {
       // Upload any newly-selected files first, so we submit real hosted URLs
-      // rather than placeholder strings.
+      // rather than placeholder strings. Files that weren't re-selected on a
+      // resubmission keep their previously-stored URL from the profile.
       const existingProfile =
         (verificationData?.profile as
           | (VerifiedProfilePayload & {
@@ -703,12 +714,10 @@ export function VerificationPage() {
         nafdacUrl,
         insuranceUrl,
       });
-      //   // Document URLs — in production upload to Cloudinary/S3 first
-
       await refetchVerification();
+      setReapplying(false);
       setVerificationStatus("SUBMITTED");
     } catch (e) {
-      /* optimistic fallback */
       setSubmitError(
         e instanceof Error
           ? e.message
@@ -769,6 +778,7 @@ export function VerificationPage() {
               ?.verificationNote
           }
           onReapply={() => {
+            setReapplying(true);
             setVerificationStatus("UNVERIFIED");
             setStep(1);
           }}
@@ -776,6 +786,7 @@ export function VerificationPage() {
       </DashboardShell>
     );
   }
+
   // ── Application flow (UNVERIFIED / DRAFT) ───────
   return (
     <DashboardShell
@@ -1206,7 +1217,7 @@ export function VerificationPage() {
                   onClick={() => setStep(0)}
                   className="h-11 px-6 border border-white/10 text-white/50 hover:text-white rounded-xl text-[14px] transition-colors"
                 >
-                  ← Back
+                  <ArrowLeft size={14} className="inline mr-1.5" /> Back
                 </button>
                 <button
                   onClick={() => {
@@ -1277,7 +1288,7 @@ export function VerificationPage() {
                   onClick={() => setStep(1)}
                   className="h-11 px-6 border border-white/10 text-white/50 hover:text-white rounded-xl text-[14px] transition-colors"
                 >
-                  ← Back
+                  <ArrowLeft size={14} className="inline mr-1.5" /> Back
                 </button>
                 <button
                   onClick={() => setStep(3)}
@@ -1430,7 +1441,7 @@ export function VerificationPage() {
                   onClick={() => setStep(2)}
                   className="h-11 px-6 border border-white/10 text-white/50 hover:text-white rounded-xl text-[14px] transition-colors"
                 >
-                  ← Back
+                  <ArrowLeft size={14} className="inline mr-1.5" /> Back
                 </button>
                 <button
                   onClick={handleSubmit}

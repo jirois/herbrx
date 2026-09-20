@@ -28,7 +28,7 @@ const dmSans = DM_Sans({
 
 export const metadata: Metadata = {
   title: {
-    default: "HerbRx — Trusted Herbal Health for Nigerians",
+    default: "HerbRx - Trusted Herbal Health for Nigerians",
     template: "%s | HerbRx",
   },
   description:
@@ -50,11 +50,11 @@ export const metadata: Metadata = {
     siteName: "HerbRx",
     title: "HerbRx — Trusted Herbal Health for Nigerians",
     description:
-      "Science-backed safety reviews, expert consultations, and verified natural products — made for Nigerians.",
+      "Science-backed safety reviews, expert consultations, and verified natural products - made for Nigerians.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "HerbRx — Trusted Herbal Health for Nigerians",
+    title: "HerbRx - Trusted Herbal Health for Nigerians",
     description: "Science-backed herbal wellness for Nigerians.",
   },
   robots: {

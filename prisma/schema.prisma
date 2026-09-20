@@ -146,30 +146,39 @@ model SavedMedication {
 
 // Customer: Telehealth Consultations
 model Consultation {
-  id             String  @id @default(cuid())
-  userId         String
-  practitionerId String?
+  id               String  @id @default(cuid())
+  userId           String
+  practitionerId   String?
+  practitionerName String? // snapshot at booking time - practitioner list is currently static, not a DB table
 
-  type             ConsultationType
-  status           ConsultationStatus       @default(REQUESTED)
-  scheduledAt      DateTime?
-  notes            String?                  @db.Text
-  meetingUrl       String?
-  amount           Int?
-  paystackRef      String?                  @unique
-  paymentStatus    ConsultPayStatus         @default(PENDING)
-  createdAt        DateTime                 @default(now())
-  updatedAt        DateTime                 @updatedAt
-  consultantId     String?
-  feedback         String?                  @db.Text
-  payoutStatus     PayoutStatus             @default(NONE)
-  platformFeeRate  Float?
-  practitionerName String?
-  ratedAt          DateTime?
-  rating           Int?
-  notifications    ConsultantNotification[]
-  consultant       ConsultantProfile?       @relation(fields: [consultantId], references: [id])
-  user             User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  consultantId String?
+  type         ConsultationType
+  status       ConsultationStatus @default(REQUESTED)
+
+  scheduledAt   DateTime?
+  notes         String?          @db.Text
+  meetingUrl    String?
+  amount        Int?
+  paystackRef   String?          @unique
+  paymentStatus ConsultPayStatus @default(PENDING)
+
+  // platformFeeRate snapshot at completion time so historical earnings
+  // don't shift if the platform fee percentage changes later.
+  platformFeeRate Float? // e.g 0.15 = platform keeps 15%
+  payoutStatus    PayoutStatus @default(NONE)
+
+  // Client rates the consultant after COMPLETED — powers the consultant
+  rating   Int?
+  feedback String?   @db.Text
+  ratedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  notifications      ConsultantNotification[]
+  interactionReports InteractionFeedback[]
+  consultant         ConsultantProfile?       @relation(fields: [consultantId], references: [id])
+  user               User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([status])
@@ -215,20 +224,22 @@ model ConsultantNotification {
   createdAt      DateTime             @default(now())
   consultant     ConsultantProfile    @relation(fields: [consultantId], references: [id], onDelete: Cascade)
   consultation   Consultation?        @relation(fields: [consultationId], references: [id])
+  // @@index([consultationId], map: "ConsultantNotification_consultationId_fkey")
 
   @@index([consultantId])
   @@index([consultantId, isRead])
   @@index([createdAt])
-  @@index([consultationId], map: "ConsultantNotification_consultationId_fkey")
 }
 
 model AlertSubscription {
   id        String   @id @default(cuid())
-  userId    String   @unique
-  herbIds   String?  @db.LongText
-  channels  String?  @db.LongText
+  userId    String
+  herbIds   String?  @db.Text
+  channels  String?  @db.Text
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
 }
 
 model SafetyAlert {
@@ -541,19 +552,29 @@ model IncubationDocument {
 }
 
 model DrugHerbInteraction {
-  id             String                @id @default(cuid())
-  drugName       String
-  drugAliases    Json
-  drugClass      String?
-  herbName       String
-  herbScientific String?
-  herbLocalNames Json
-  severity       Severity
-  mechanism      String?               @db.Text
-  effect         String                @db.Text
-  advice         String                @db.Text
-  evidenceLevel  EvidenceLevel
-  references     Json
+  id               String        @id @default(cuid())
+  drugName         String
+  drugAliases      Json
+  drugClass        String?
+  rxCui            String? // RxNorm Concept Unique Identifier for drugNamen
+  herbName         String
+  herbScientific   String?
+  herbAliases      Json? // string[] - alternate common names/synonyms for the SAME herb (e.g. "Hypericum", "Klamath weed")
+  herbLocalNames   Json
+  severity         Severity
+  mechanism        String?       @db.Text
+  mechanismTypes   Json? // MechanismType[] values, stored as string[] (see enum below) — e.g. ["CYP450_INDUCTION","PGP_INDUCTION"]
+  affectedPathways Json? // string[] - e.g. ["CYP3A4","P-gp"], deliberately free-text since new pathways surface often
+  effect           String        @db.Text
+  advice           String        @db.Text
+  evidenceLevel    EvidenceLevel
+
+  herbDosageThresholdMg Float?
+  drugDosageThresholdMg Float?
+  formulationContext    Json? // string[] - e.g. ["extract","capsule","tea"] — forms in which this interaction has been documented
+
+  references Json // string[] - DOI / URL citations
+
   source         String                @default("PHARMACIST_CURATED")
   isPublished    Boolean               @default(true)
   confirmedCount Int                   @default(0)
@@ -570,6 +591,7 @@ model DrugHerbInteraction {
   @@index([herbName])
   @@index([severity])
   @@index([isPublished])
+  @@index([rxCui])
 }
 
 model InteractionQuery {
@@ -589,27 +611,36 @@ model InteractionQuery {
 }
 
 model InteractionFeedback {
-  id            String               @id @default(cuid())
-  userId        String
-  interactionId String?
-  type          String
-  drugName      String?
-  herbName      String?
-  severity      Severity?
-  description   String               @db.Text
-  outcome       String?              @db.Text
-  verified      Boolean              @default(false)
-  verifiedBy    String?
-  verifiedAt    DateTime?
-  promotedToDb  Boolean              @default(false)
-  createdAt     DateTime             @default(now())
-  interaction   DrugHerbInteraction? @relation(fields: [interactionId], references: [id])
-  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                    String    @id @default(cuid())
+  userId                String
+  interactionId         String?
+  // session it came out of, without storing anything about the client here.
+  submittedAsConsultant Boolean   @default(false)
+  consultationId        String?
+  type                  String
+  drugName              String?
+  herbName              String?
+  severity              Severity?
+  description           String    @db.Text
+  outcome               String?   @db.Text
+  verified              Boolean   @default(false)
+  verifiedBy            String?
+  verifiedAt            DateTime?
+  promotedToDb          Boolean   @default(false)
+  createdAt             DateTime  @default(now())
+
+  interaction DrugHerbInteraction? @relation(fields: [interactionId], references: [id], onDelete: SetNull)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  consultation Consultation? @relation(fields: [consultationId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([interactionId])
   @@index([type])
   @@index([verified])
+  @@index([consultationId])
+  @@index([submittedAsConsultant])
 }
 
 model NewsletterSubscriber {
@@ -814,7 +845,17 @@ enum IncubationDocType {
   LAUNCH_PLAN
 }
 
+enum MechanismType {
+  CYP450_INDUCTION
+  CYP450_INHIBITION
+  PGP_INDUCTION
+  PGP_INHIBITION
+  PHARMACODYNAMIC
+  OTHER
+}
+
 enum Severity {
+  CONTRAINDICATED
   DANGER
   WARNING
   INFO

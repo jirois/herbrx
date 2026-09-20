@@ -25,15 +25,34 @@ const LocaleContext = createContext<LocaleContextValue | null>(null);
 
 // ── Provider ──────────────────────────────────────────────────────────────
 export function LocaleProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(() => {
+  // Always start from DEFAULT_LOCALE on the very first render, on both
+  // server and client — localStorage doesn't exist during SSR, so reading
+  // it inside this initializer meant the server always rendered
+  // DEFAULT_LOCALE while the client's first paint (during hydration) could
+  // immediately pick up a different saved locale, before any effect had a
+  // chance to run. That mismatch between server and client text on the
+  // very first render is exactly what React's hydration check caught.
+  // Reading the saved locale is moved into the effect below instead, which
+  // only ever runs on the client, after hydration has already succeeded.
+  const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
+
+  useEffect(() => {
     const valid: Locale[] = ["en", "pcm", "ig", "ha", "yo"];
-    try {
-      const stored = localStorage.getItem(LOCALE_STORAGE_KEY) as Locale | null;
-      return stored && valid.includes(stored) ? stored : DEFAULT_LOCALE;
-    } catch {
-      return DEFAULT_LOCALE;
-    }
-  });
+    const frame = requestAnimationFrame(() => {
+      try {
+        const stored = localStorage.getItem(
+          LOCALE_STORAGE_KEY,
+        ) as Locale | null;
+        if (stored && valid.includes(stored) && stored !== DEFAULT_LOCALE) {
+          setLocaleState(stored);
+        }
+      } catch {}
+    });
+
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, []);
 
   useEffect(() => {
     document.documentElement.lang = locale === "pcm" ? "pcm" : locale;

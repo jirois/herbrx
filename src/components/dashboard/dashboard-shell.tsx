@@ -193,6 +193,11 @@ const consultantNav: NavSection[] = [
         label: "Appointments",
       },
       {
+        href: "/dashboard/consultant/interaction-reports",
+        icon: FlaskConical,
+        label: "Interaction Reports",
+      },
+      {
         href: "/dashboard/consultant/settings",
         icon: Settings,
         label: "Settings",

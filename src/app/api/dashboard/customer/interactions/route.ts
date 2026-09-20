@@ -3,6 +3,8 @@ import { prisma }       from '@/lib/prisma'
 import {  ok, serverError, badRequest } from '@/lib/api-helpers'
 import { getServerSession } from 'next-auth'
 import { authOptions }  from '@/lib/auth'
+import { findClosestMatch } from '@/lib/fuzzy-match'
+import { parseJsonArray } from '@/lib/json-field'
 
 // GET /api/dashboard/customer/interactions
 // Returns the current user's saved medications.
@@ -18,15 +20,74 @@ export async function GET() {
   } catch (e) { return serverError(e) }
 }
 
+// Explicit shape rather than deriving from `ReturnType<typeof prisma...>` —
+// keeps this file's typing stable regardless of Prisma client generation.
+interface InteractionRow {
+  id: string
+  drugName: string
+  drugAliases: unknown
+  drugClass: string | null
+  rxCui: string | null
+  herbName: string
+  herbScientific: string | null
+  herbAliases: unknown
+  herbLocalNames: unknown
+  severity: string
+  mechanism: string | null
+  mechanismTypes: unknown
+  affectedPathways: unknown
+  effect: string
+  advice: string
+  evidenceLevel: string
+  herbDosageThresholdMg: number | null
+  drugDosageThresholdMg: number | null
+  formulationContext: unknown
+  source: string
+  confirmedCount: number
+  disputedCount: number
+  reportedCount: number
+  feedback: unknown[]
+}
+
+function drugCandidates(i: InteractionRow): string[] {
+  return [i.drugName, ...parseJsonArray(i.drugAliases)]
+}
+function herbCandidates(i: InteractionRow): string[] {
+  return [
+    i.herbName,
+    ...parseJsonArray(i.herbAliases),
+    ...parseJsonArray(i.herbLocalNames),
+  ]
+}
+
+// Exact or substring match, either direction — catches "aspirin" vs "aspirin
+// 100mg", brand vs generic (via aliases), and most partial typing.
+function looseMatches(input: string, candidates: string[]): boolean {
+  return candidates.some(c => {
+    const norm = c.toLowerCase().trim()
+    return norm === input || norm.includes(input) || input.includes(norm)
+  })
+}
+
+const SEVERITY_ORDER: Record<string, number> = {
+  CONTRAINDICATED: 0, DANGER: 1, WARNING: 2, INFO: 3, BENEFICIAL: 4,
+}
+
 // POST /api/dashboard/customer/interactions
 // Body: { drugs: string[], herbs?: string[], sessionId?: string }
 //
 // The core query engine:
-//   1. Normalises drug names (lowercase, strips punctuation)
-//   2. Looks up all matching interactions for those drugs against known herbs
-//   3. If herb filter provided, restricts results to those herbs
-//   4. Attaches per-result feedback counts
-//   5. Logs the query — including any missing drug names — to power the gap report
+//   1. Normalises drug/herb names (lowercase, trim)
+//   2. Matches in three tiers per name: exact/alias, substring (either
+//      direction), then — only if NEITHER of those found anything at all —
+//      a Levenshtein-distance fuzzy match against every known name/alias,
+//      to tolerate typos without ever overriding a real substring match.
+//   3. If a herb filter is provided, restricts results to those herbs
+//   4. Attaches per-result feedback counts and the full clinical metadata
+//      (mechanism types, affected CYP/P-gp pathways, dosage thresholds,
+//      formulation context, RxNorm CUI where known)
+//   5. Logs the query — including any still-missing names after all three
+//      tiers — to power the admin gap report
 export async function POST(req: NextRequest) {
   try {
     const session  = await getServerSession(authOptions)
@@ -38,118 +99,107 @@ export async function POST(req: NextRequest) {
       return badRequest('drugs must be a non-empty array')
     }
 
-    // Normalise: lowercase, trim, de-duplicate
-    const normalisedDrugs = [...new Set(
-      drugs.map((d: string) => d.toLowerCase().trim())
-    )]
+    const normalisedDrugs = [...new Set(drugs.map((d: string) => d.toLowerCase().trim()))]
+    const normalisedHerbs = herbs && herbs.length > 0
+      ? [...new Set((herbs as string[]).map(h => h.toLowerCase().trim()))]
+      : []
 
-    // Search: match on drugName OR any drugAliases element
-    // We fetch all published interactions for these drugs, then filter by herbs if specified
+    // Table is small enough (low hundreds of rows) that fetching everything
+    // published and matching in-memory is simpler and more flexible than
+    // trying to express fuzzy matching as a DB query — this is what makes
+    // the fuzzy fallback tier possible at all, since it needs to compare
+    // against the full universe of known names, not just a pre-filtered
+    // subset. Revisit with a proper search index if this table grows to
+    // tens of thousands of rows.
     const allInteractions = await prisma.drugHerbInteraction.findMany({
-      where: {
-        isPublished: true,
-        OR: normalisedDrugs.map(drug => ({
-          OR: [
-            { drugName: drug },
-            { drugName: { contains: drug } },
-            // drugAliases is a JSON array — search handled post-fetch for aliases
-          ],
-        })),
-      },
-      include: {
-        feedback: { select: { id: true, type: true } },
-      },
-    })
+      where: { isPublished: true },
+      include: { feedback: { select: { id: true, type: true } } },
+    }) as InteractionRow[]
 
-    // Filter: also match drugAliases (JSON array, can't query natively in MySQL)
+    const allDrugNames = [...new Set(allInteractions.flatMap(drugCandidates))]
+    const allHerbNames = [...new Set(allInteractions.flatMap(herbCandidates))]
+
+    // Resolve each input drug/herb name to the tier it matched at, trying
+    // loose matching first and only falling back to fuzzy if loose found
+    // nothing for that specific name.
+    const fuzzyCorrections: { input: string; matchedAs: string; type: 'drug' | 'herb' }[] = []
+
+    function resolveDrug(input: string): { matched: boolean; effectiveTerm: string } {
+      if (looseMatches(input, allDrugNames)) return { matched: true, effectiveTerm: input }
+      const fuzzy = findClosestMatch(input, allDrugNames)
+      if (fuzzy) {
+        fuzzyCorrections.push({ input, matchedAs: fuzzy.match, type: 'drug' })
+        return { matched: true, effectiveTerm: fuzzy.match.toLowerCase() }
+      }
+      return { matched: false, effectiveTerm: input }
+    }
+    function resolveHerb(input: string): { matched: boolean; effectiveTerm: string } {
+      if (looseMatches(input, allHerbNames)) return { matched: true, effectiveTerm: input }
+      const fuzzy = findClosestMatch(input, allHerbNames)
+      if (fuzzy) {
+        fuzzyCorrections.push({ input, matchedAs: fuzzy.match, type: 'herb' })
+        return { matched: true, effectiveTerm: fuzzy.match.toLowerCase() }
+      }
+      return { matched: false, effectiveTerm: input }
+    }
+
+    const drugResolutions = normalisedDrugs.map(d => ({ input: d, ...resolveDrug(d) }))
+    const herbResolutions = normalisedHerbs.map(h => ({ input: h, ...resolveHerb(h) }))
+
+    const effectiveDrugTerms = drugResolutions.filter(r => r.matched).map(r => r.effectiveTerm)
+    const effectiveHerbTerms = herbResolutions.filter(r => r.matched).map(r => r.effectiveTerm)
+
     const matchingInteractions = allInteractions.filter(interaction => {
-      const aliases = Array.isArray(interaction.drugAliases)
-        ? interaction.drugAliases
-        : typeof interaction.drugAliases === 'string'
-          ? [interaction.drugAliases]
-          : []
-
-      const matchesDrug = normalisedDrugs.some(drug =>
-        interaction.drugName === drug ||
-        interaction.drugName.includes(drug) ||
-        drug.includes(interaction.drugName) ||
-        aliases.some(a =>
-          typeof a === 'string' &&
-          (a.toLowerCase() === drug || a.toLowerCase().includes(drug))
-        )
-      )
+      const matchesDrug = effectiveDrugTerms.some(term => looseMatches(term, drugCandidates(interaction)))
       if (!matchesDrug) return false
-
-      // Apply herb filter if provided
-      if (herbs && herbs.length > 0) {
-        const normHerbs = (herbs as string[]).map((h: string) => h.toLowerCase())
-        return normHerbs.some(h =>
-          interaction.herbName.toLowerCase().includes(h) ||
-          h.includes(interaction.herbName.toLowerCase())
-        )
+      // Check whether the user asked for specific herbs at all — NOT
+      // whether any of them successfully resolved. Using
+      // effectiveHerbTerms.length here was the bug: if someone typed a
+      // herb that failed to resolve, effectiveHerbTerms went empty and
+      // this silently fell through to "match every herb for this drug",
+      // ignoring the herb filter entirely and returning results for
+      // completely unrelated herbs the person never asked about.
+      if (normalisedHerbs.length > 0) {
+        return effectiveHerbTerms.some(term => looseMatches(term, herbCandidates(interaction)))
       }
       return true
     })
 
-    // Sort: DANGER first, then WARNING, INFO, BENEFICIAL
-    const severityOrder: Record<string, number> = { DANGER: 0, WARNING: 1, INFO: 2, BENEFICIAL: 3 }
     matchingInteractions.sort((a, b) =>
-      (severityOrder[a.severity] ?? 4) - (severityOrder[b.severity] ?? 4)
+      (SEVERITY_ORDER[a.severity] ?? 99) - (SEVERITY_ORDER[b.severity] ?? 99)
     )
 
-    // Shape results — include community signal counts and total feedback
-    const results = matchingInteractions.map(i => {
-      const herbLocalNames = Array.isArray(i.herbLocalNames)
-        ? i.herbLocalNames
-        : typeof i.herbLocalNames === 'string'
-          ? [i.herbLocalNames]
-          : []
+    const results = matchingInteractions.map(i => ({
+      id:                    i.id,
+      drugName:              i.drugName,
+      drugClass:             i.drugClass,
+      rxCui:                 i.rxCui,
+      herbName:              i.herbName,
+      herbScientific:        i.herbScientific,
+      herbAliases:           parseJsonArray(i.herbAliases),
+      herbLocalNames:        parseJsonArray(i.herbLocalNames),
+      severity:              i.severity,
+      mechanism:             i.mechanism,
+      mechanismTypes:        parseJsonArray(i.mechanismTypes),
+      affectedPathways:      parseJsonArray(i.affectedPathways),
+      effect:                i.effect,
+      advice:                i.advice,
+      evidenceLevel:         i.evidenceLevel,
+      herbDosageThresholdMg: i.herbDosageThresholdMg,
+      drugDosageThresholdMg: i.drugDosageThresholdMg,
+      formulationContext:    parseJsonArray(i.formulationContext),
+      source:                i.source,
+      confirmedCount:        i.confirmedCount,
+      disputedCount:         i.disputedCount,
+      reportedCount:         i.reportedCount,
+      feedbackCount:         i.feedback.length,
+    }))
 
-      return {
-        id:             i.id,
-        drugName:       i.drugName,
-        drugClass:      i.drugClass,
-        herbName:       i.herbName,
-        herbScientific: i.herbScientific,
-        herbLocalNames,
-        severity:       i.severity,
-        mechanism:      i.mechanism,
-        effect:         i.effect,
-        advice:         i.advice,
-        evidenceLevel:  i.evidenceLevel,
-        source:         i.source,
-        confirmedCount: i.confirmedCount,
-        disputedCount:  i.disputedCount,
-        reportedCount:  i.reportedCount,
-        feedbackCount:  i.feedback.length,
-      }
-    })
+    // Anything that didn't resolve at ANY tier (loose or fuzzy) is a real
+    // gap — not just a typo we could catch.
+    const missingDrugs = drugResolutions.filter(r => !r.matched).map(r => r.input)
+    const missingHerbs = herbResolutions.filter(r => !r.matched).map(r => r.input)
 
-    // Identify which drugs had zero results — these become gap signals
-    const foundDrugs = new Set(
-      matchingInteractions.flatMap(i => {
-        const aliases = Array.isArray(i.drugAliases)
-          ? i.drugAliases
-          : typeof i.drugAliases === 'string'
-            ? [i.drugAliases]
-            : []
-
-        return [
-          i.drugName,
-          ...aliases.flatMap(a =>
-            typeof a === 'string' ? [a.toLowerCase()] : []
-          ),
-        ]
-      })
-    )
-    const missingDrugs = normalisedDrugs.filter(drug =>
-      !foundDrugs.has(drug) &&
-      !matchingInteractions.some(i =>
-        i.drugName.includes(drug) || drug.includes(i.drugName)
-      )
-    )
-
-    // Log the query for the gap report (fire-and-forget — don't block the response)
     prisma.interactionQuery.create({
       data: {
         userId:       userId ?? null,
@@ -160,8 +210,8 @@ export async function POST(req: NextRequest) {
         hadMissingDrug: missingDrugs.length > 0,
         missingDrugs: JSON.stringify(missingDrugs),
       },
-    }).catch(err => console.error('[InteractionQuery log]', err))
+    }).catch((err: unknown) => console.error('[InteractionQuery log]', err))
 
-    return ok({ results, missingDrugs, totalFound: results.length })
+    return ok({ results, missingDrugs, missingHerbs, fuzzyCorrections, totalFound: results.length })
   } catch (e) { return serverError(e) }
 }

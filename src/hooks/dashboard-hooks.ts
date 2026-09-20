@@ -95,6 +95,12 @@ export function useSafetyAlerts(status = 'ACTIVE') {
   )
 } 
 
+export function useAlertSubscription() {
+  return useFetch<{ subscribed: boolean; channels: string[]; herbIds: string[] }>(
+    '/api/alerts/subscribe'
+  )
+}
+
 export function usePublicAlerts(params?: {severity?: string; status?: string}){
   const queryParams = new URLSearchParams()
   if (params?.severity) queryParams.set('severity', params.severity)
@@ -277,6 +283,15 @@ export const customerApi = {
   bookConsultation: (body: unknown) => apiPost('/api/dashboard/customer/consultations', body),
   verifyConsultationPayment: (reference: string) =>
     apiPost('/api/dashboard/customer/consultations/verify', { reference }),
+  submitInteractionFeedback: (body: {
+    type: 'CONFIRM' | 'DISPUTE' | 'REPORT'
+    interactionId?: string
+    drugName?: string
+    herbName?: string
+    severity?: string | null
+    description: string
+    outcome?: string
+  }) => apiPost('/api/dashboard/customer/interactions/feedback', body),
 }
 
 export const adminApi = {
@@ -413,6 +428,20 @@ export const consultantApi = {
     apiPatch('/api/dashboard/consultant/queue', { consultationId, action, scheduledAt }),
   updateProfile: (body: { bio?: string; avatarUrl?: string; newPassword?: string; worksWeekends?: boolean }) =>
     apiPatch('/api/dashboard/consultant/profile', body),
+  submitInteractionReport: (body: {
+    type: 'CONFIRM' | 'DISPUTE' | 'REPORT'
+    interactionId?: string
+    drugName?: string
+    herbName?: string
+    severity?: string | null
+    description: string
+    outcome?: string
+    consultationId?: string
+  }) => apiPost('/api/dashboard/consultant/interaction-reports', body),
+}
+
+export function useConsultantInteractionReports() {
+  return useFetch<{ reports: Record<string, unknown>[] }>('/api/dashboard/consultant/interaction-reports')
 }
 
 // ── Incubation hooks ───

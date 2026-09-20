@@ -86,7 +86,7 @@ async function main() {
           emoji:       p.emoji,
           productType: p.category,
           ingredients: p.ing.join(', '),
-          warnings:    p.warn.join(','),
+          warnings:    p.warn.join(', '),
           nafdacNo:    p.nafdac,
           inStore:     p.inStore,
           stock:       p.stock,
@@ -98,24 +98,10 @@ async function main() {
     }
   }
 
-  // ── Safety Alerts ──────────────────────────────────────────────────────
-  const alerts = [
-    { title: 'Counterfeit Moringa Capsules Detected in Lagos Markets', body: 'Multiple batches of counterfeit "SuperGreen Moringa 500mg" identified in Lagos Island and Alaba markets. Lab analysis reveals lead levels of 12.4 mg/kg — over 6× the safe limit of 2 mg/kg. Do not consume. Dispose of immediately.', severity: 'DANGER' as const, status: 'ACTIVE' as const, productName: 'SuperGreen Moringa 500mg', batchNo: 'B2024-FAKE-01' },
-    { title: "St. John's Wort + SSRI Antidepressants — Serotonin Syndrome Risk", body: 'Significant risk of serotonin syndrome when combining St. John\'s Wort (Hypericum perforatum) with SSRI antidepressants including sertraline, fluoxetine, and citalopram. Patients taking SSRIs must discontinue St. John\'s Wort immediately and consult their physician.', severity: 'WARNING' as const, status: 'ACTIVE' as const, productName: "St. John's Wort Extract", batchNo: undefined },
-    { title: 'High-Dose Bitter Leaf — Hypoglycaemia Risk in Diabetic Patients', body: 'High-dose Bitter Leaf preparations exceeding 500mg/day may cause additive blood glucose-lowering effects when combined with metformin, glibenclamide, or insulin. Diabetic patients should monitor blood glucose closely.', severity: 'WARNING' as const, status: 'ACTIVE' as const, productName: undefined, batchNo: undefined },
-    { title: 'Shea Butter Adulteration — Kano Batch B2024-11 Recalled', body: 'Batch B2024-11 of "PureShea Body Butter" failed microbial count screening. All units recalled. Producer suspended pending compliance review.', severity: 'DANGER' as const, status: 'RESOLVED' as const, productName: 'PureShea Body Butter', batchNo: 'B2024-11' },
-    { title: 'Updated Safety Guidelines: Bitter Leaf (Vernonia amygdalina)', body: 'HerbRx has published updated safety guidelines for all Bitter Leaf preparations incorporating new pharmacological research. Revised guides now available in the Herb Directory.', severity: 'INFO' as const, status: 'RESOLVED' as const, productName: undefined, batchNo: undefined },
-  ]
-
-  for (const a of alerts) {
-    const exists = await prisma.safetyAlert.findFirst({ where: { title: a.title } })
-    if (!exists) {
-      await prisma.safetyAlert.create({
-        data: { ...a, createdBy: admin.id },
-      })
-      console.log(`  ✓ Alert: ${a.title.slice(0, 50)}…`)
-    }
-  }
+  // Safety Alerts are no longer seeded with canned demo content — they were
+  // indistinguishable from mock data to customers even though the query
+  // path is real. Publish genuine alerts from Admin → Safety Alerts instead
+  // (POST /api/dashboard/admin/alerts), which writes straight to this table.
 
   // ── Herb Directory ─────────────────────────────────────────────────────
   const herbs = [
@@ -575,17 +561,15 @@ async function seedInteractions() {
     try {
       await prisma.drugHerbInteraction.upsert({
         where:  { drugName_herbName: { drugName: pair.drugName, herbName: pair.herbName } },
-        update: {
-          ...rest,
-          drugAliases: JSON.stringify(drugAliases),
-          herbLocalNames: JSON.stringify(herbLocalNames),
-          isPublished: true,
-        },
+        update: { ...rest, drugAliases, herbLocalNames, isPublished: true },
         create: {
           ...rest,
-          drugAliases: JSON.stringify(drugAliases),
-          herbLocalNames: JSON.stringify(herbLocalNames),
-          references: JSON.stringify([]),
+          drugAliases,
+          herbAliases: [],
+          herbLocalNames,
+          affectedPathways: [],
+          formulationContext: '',
+          references: [],
           isPublished: true,
         },
       })
