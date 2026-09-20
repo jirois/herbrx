@@ -467,7 +467,7 @@ export function InteractionEngine() {
               ) : (
                 <>
                   {fuzzyCorrections.length > 0 && (
-                    <div className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-white/[0.04] border border-white/[0.08] mb-4">
+                    <div className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-white/4 border border-white/8 mb-4">
                       <Search
                         size={14}
                         className="text-white/35 shrink-0 mt-0.5"
@@ -578,7 +578,7 @@ export function InteractionEngine() {
                                   {result.affectedPathways.map((p) => (
                                     <span
                                       key={p}
-                                      className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white/[0.04] text-white/35 border border-white/[0.08]"
+                                      className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white/4 text-white/35 border border-white/8"
                                     >
                                       {p}
                                     </span>
@@ -624,7 +624,7 @@ export function InteractionEngine() {
                               </div>
 
                               {/* Confirm / dispute feedback loop */}
-                              <div className="mt-3 pt-3 border-t border-white/[0.06]">
+                              <div className="mt-3 pt-3 border-t border-white/6">
                                 {feedbackDoneIds.has(result.id) ? (
                                   <p className="text-[11px] text-white/35">
                                     Thanks — your feedback was recorded.
@@ -747,7 +747,7 @@ export function InteractionEngine() {
                   type, reviewed by pharmacists), it just had no visible
                   entry point anywhere in the customer dashboard. */}
               {(missingDrugs.length > 0 || missingHerbs.length > 0) && (
-                <div className="mt-3 p-4 rounded-2xl border border-white/8 bg-white/[0.02]">
+                <div className="mt-3 p-4 rounded-2xl border border-white/8 bg-white/2">
                   {reportMessage ? (
                     <p className="text-[13px] text-emerald-400 flex items-center gap-2">
                       <CheckCircle size={15} /> {reportMessage}
