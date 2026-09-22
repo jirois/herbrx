@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { CheckCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { BrandIcon, type BrandIconName } from "@/components/icons/brand-icons";
 
 export function HeroCard() {
   return (
@@ -39,21 +40,23 @@ export function HeroCard() {
           }}
         >
           {/* Decorative circles */}
-          {[
-            { size: 100, fontSize: 40, emoji: "🌿" },
-            { size: 70, fontSize: 28, emoji: "🌱" },
-            { size: 80, fontSize: 32, emoji: "🍃" },
-          ].map((item, i) => (
+          {(
+            [
+              { size: 100, iconSize: 44, icon: "leaf" },
+              { size: 70, iconSize: 32, icon: "sprout" },
+              { size: 80, iconSize: 36, icon: "plant" },
+            ] as { size: number; iconSize: number; icon: BrandIconName }[]
+          ).map((item, i) => (
             <div
               key={i}
-              className="rounded-full bg-white/15 flex items-center justify-center"
-              style={{
-                width: item.size,
-                height: item.size,
-                fontSize: item.fontSize,
-              }}
+              className="rounded-full bg-white/15 flex items-center justify-center text-white/90"
+              style={{ width: item.size, height: item.size }}
             >
-              {item.emoji}
+              <BrandIcon
+                name={item.icon}
+                size={item.iconSize}
+                strokeWidth={1.4}
+              />
             </div>
           ))}
         </div>

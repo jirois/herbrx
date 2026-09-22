@@ -16,6 +16,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import { useHerbs } from "@/hooks/dashboard-hooks";
+import { BrandIcon, IconTile } from "@/components/icons/brand-icons";
 
 type SafetyRating = "SAFE" | "CAUTION" | "DANGER" | "INSUFFICIENT_DATA";
 type HerbCategory =
@@ -511,7 +512,7 @@ export default function HerbsPage() {
                     onClick={() => setExpanded(isOpen ? null : herb.id)}
                   >
                     <div className="flex items-start gap-4">
-                      <div className="text-[36px] shrink-0">{herb.emoji}</div>
+                      <IconTile emoji={herb.emoji} size="lg" tone="sage" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                           <h3 className="font-serif text-[19px] font-semibold text-(--green-deep)">
@@ -530,8 +531,12 @@ export default function HerbsPage() {
                           {herb.localNames.join(" · ")}
                         </p>
                       </div>
-                      <span className="text-(--text-muted) text-[20px] shrink-0">
-                        {isOpen ? "▲" : "▼"}
+                      <span className="text-(--text-muted) shrink-0 mt-1">
+                        <BrandIcon
+                          name="chevron-down"
+                          size={20}
+                          className={`transition-transform ${isOpen ? "rotate-180" : ""}`}
+                        />
                       </span>
                     </div>
                     <p className="text-[13px] text-(--text-body) leading-relaxed mt-3 font-light">
@@ -554,7 +559,11 @@ export default function HerbsPage() {
                                 className="flex items-start gap-2 text-[13px] text-(--text-body)"
                               >
                                 <span className="text-(--green-mid) mt-0.5 shrink-0">
-                                  ✓
+                                  <BrandIcon
+                                    name="check"
+                                    size={14}
+                                    strokeWidth={2.4}
+                                  />
                                 </span>{" "}
                                 {b}
                               </li>
@@ -630,7 +639,12 @@ export default function HerbsPage() {
       <section className="py-16 bg-(--green-deep)">
         <div className="max-w-(--max-width) mx-auto px-6 lg:px-10 text-center">
           <motion.div {...fadeUp(0)}>
-            <div className="text-[40px] mb-4">🌱</div>
+            <IconTile
+              name="sprout"
+              size="xl"
+              tone="dark"
+              className="mx-auto mb-5"
+            />
             <h2 className="font-serif text-[clamp(22px,3vw,34px)] font-medium text-white mb-4">
               Know a herb we haven&apos;t covered?
             </h2>

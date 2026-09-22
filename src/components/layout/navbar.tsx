@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ShoppingBag, Menu, LogIn } from "lucide-react";
 import { motion } from "framer-motion";
+import { BrandIcon } from "@/components/icons/brand-icons";
 import { Logo } from "./logo";
 import { MobileMenu } from "./mobile-menu";
 import { LanguageSwitcher } from "./language-switcher";
@@ -51,7 +52,12 @@ export function Navbar() {
     <>
       {/* Topbar */}
       <div className="bg-(--green-deep) text-white/75 text-center py-2 px-4 text-[12px] tracking-[0.06em]">
-        🌿 {t("topbar_text")} &nbsp;·&nbsp;{" "}
+        <BrandIcon
+          name="leaf"
+          size={13}
+          className="mr-1 inline-block align-[-2px]"
+        />{" "}
+        {t("topbar_text")} &nbsp;·&nbsp;{" "}
         <span className="text-(--gold-light) font-medium">
           {t("topbar_offer")}
         </span>

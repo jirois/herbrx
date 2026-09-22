@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { BrandIcon } from "@/components/icons/brand-icons";
 import {
   Calendar,
   Clock,
@@ -673,8 +674,9 @@ export function BookingPage() {
                     <p className="text-[13px] text-white/50">
                       {session.user.email}
                     </p>
-                    <p className="text-[11px] text-(--green-pale)] mt-0.5">
-                      ✓ Logged in — your booking will be saved to your account
+                    <p className="mt-0.5 flex items-center gap-1 text-[11px] text-(--green-pale)">
+                      <BrandIcon name="check" size={12} strokeWidth={2.4} />{" "}
+                      Logged in — your booking will be saved to your account
                     </p>
                   </div>
                 </div>

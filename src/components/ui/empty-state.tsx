@@ -1,8 +1,10 @@
 import { cn } from "@/lib/utils";
+import { IconTile, type BrandIconName } from "@/components/icons/brand-icons";
 import { Button } from "./button";
 
 interface EmptyStateProps {
-  emoji?: string;
+  /** Icon shown above the title */
+  icon?: BrandIconName;
   title: string;
   description?: string;
   action?: {
@@ -17,7 +19,7 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({
-  emoji = "🌿",
+  icon = "leaf",
   title,
   description,
   action,
@@ -31,13 +33,7 @@ export function EmptyState({
         className,
       )}
     >
-      <div
-        className="text-[64px] mb-5 select-none"
-        role="img"
-        aria-hidden="true"
-      >
-        {emoji}
-      </div>
+      <IconTile name={icon} size="2xl" tone="green" className="mb-6" />
       <h3 className="font-serif text-[24px] font-semibold text-(--green-deep) mb-2">
         {title}
       </h3>

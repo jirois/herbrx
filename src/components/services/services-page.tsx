@@ -6,11 +6,26 @@ import { SectionTitle } from "@/components/ui/section-title";
 import { Button } from "@/components/ui/button";
 import { Newsletter } from "@/components/sections/newsletter";
 import { Footer } from "@/components/sections/footer";
+import {
+  BrandIcon,
+  IconTile,
+  type BrandIconName,
+} from "@/components/icons/brand-icons";
 
-const servicesFull = [
+const servicesFull: {
+  id: string;
+  icon: BrandIconName;
+  title: string;
+  tagline: string;
+  desc: string;
+  features: string[];
+  cta: string;
+  href: string;
+  highlight: boolean;
+}[] = [
   {
     id: "safety-reviews",
-    icon: "🛡️",
+    icon: "shield",
     title: "Safety Reviews",
     tagline: "Unbiased. Science-backed. Free from sponsorship.",
     desc: "We independently evaluate herbal products circulating in Nigeria — assessing efficacy, potential interactions, contaminants, and label accuracy. Our review reports are published openly and are free to access.",
@@ -26,7 +41,7 @@ const servicesFull = [
   },
   {
     id: "expert-consultation",
-    icon: "👨‍⚕️",
+    icon: "consult",
     title: "Expert Consultation",
     tagline: "One-on-one with a herbal pharmacist.",
     desc: "Book a private session with one of our certified herbal pharmacists. We'll review your current remedies, health goals, and existing medications to build a safe, personalised herbal wellness plan for you.",
@@ -42,7 +57,7 @@ const servicesFull = [
   },
   {
     id: "educational-resources",
-    icon: "📚",
+    icon: "library",
     title: "Educational Resources",
     tagline: "In your language. At no cost.",
     desc: "Browse our library of guides, articles, and explainer videos covering common Nigerian herbs, their benefits, risks, and proper use. Available in English, Igbo, Yoruba, Hausa, and Pidgin.",
@@ -58,7 +73,7 @@ const servicesFull = [
   },
   {
     id: "producer-consultancy",
-    icon: "🏭",
+    icon: "factory",
     title: "Producer Consultancy",
     tagline: "For brands that want to do it right.",
     desc: "We work with Nigerian herbal producers to improve formulation quality, packaging, labelling, and NAFDAC compliance. Whether you're an artisan producer or a growing brand, we'll help you build trust.",
@@ -74,7 +89,7 @@ const servicesFull = [
   },
   {
     id: "product-submission",
-    icon: "📋",
+    icon: "clipboard",
     title: "Product Submission",
     tagline: "Get your product professionally reviewed.",
     desc: "Submit your herbal product to receive a detailed, independent safety and efficacy report. Use the report to improve your product, satisfy customers, or support your NAFDAC application.",
@@ -90,7 +105,7 @@ const servicesFull = [
   },
   {
     id: "safety-alerts",
-    icon: "🔔",
+    icon: "bell-ring",
     title: "Safety Alerts",
     tagline: "Know before you consume.",
     desc: "Subscribe to receive immediate alerts when harmful, adulterated, or counterfeit herbal products are identified in the Nigerian market. Stay protected in real time.",
@@ -191,7 +206,12 @@ export function ServicesPage() {
                     Most Popular
                   </span>
                 )}
-                <div className="text-[36px] mb-4">{svc.icon}</div>
+                <IconTile
+                  name={svc.icon}
+                  size="lg"
+                  tone={svc.highlight ? "dark" : "green"}
+                  className="mb-5"
+                />
                 <h3
                   className={[
                     "font-serif text-[22px] font-semibold mb-1",
@@ -227,7 +247,7 @@ export function ServicesPage() {
                             : "bg-(--green-pale) text-(--green-deep)",
                         ].join(" ")}
                       >
-                        ✓
+                        <BrandIcon name="check" size={10} strokeWidth={3} />
                       </span>
                       <span
                         className={[

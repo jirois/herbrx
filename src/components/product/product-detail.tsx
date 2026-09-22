@@ -14,6 +14,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { BrandIcon, EmojiIcon } from "@/components/icons/brand-icons";
 import { Button } from "@/components/ui/button";
 import { QuantitySelector } from "@/components/ui/quantity-selector";
 import { ProductCard } from "@/components/store/product-card";
@@ -131,10 +132,7 @@ export function ProductDetail({ slug }: { slug: string }) {
       {/* Breadcrumb */}
       <div className="border-b border-(--cream-dark)] bg-white">
         <div className="max-w-(--max-width) mx-auto px-6 lg:px-10 py-3.5 flex items-center gap-2 text-[13px] text-(--text-muted)">
-          <Link
-            href="/"
-            className="hover:text-(--green-mid) transition-colors"
-          >
+          <Link href="/" className="hover:text-(--green-mid) transition-colors">
             Home
           </Link>
           <ChevronRight size={13} />
@@ -174,11 +172,15 @@ export function ProductDetail({ slug }: { slug: string }) {
                 />
               ) : (
                 <span
-                  className="text-[120px] select-none"
+                  className="flex h-40 w-40 items-center justify-center rounded-full bg-white/40 text-(--green-deep) select-none sm:h-52 sm:w-52"
                   role="img"
                   aria-label={product.name}
                 >
-                  {product.emoji ?? "🌿"}
+                  <EmojiIcon
+                    emoji={product.emoji}
+                    size={96}
+                    strokeWidth={1.4}
+                  />
                 </span>
               )}
               {product.badge && (
@@ -421,7 +423,7 @@ export function ProductDetail({ slug }: { slug: string }) {
                     className="flex items-start gap-2.5 text-[14px] text-(--text-body)"
                   >
                     <span className="text-orange-500 mt-0.5 shrink-0">
-                      ⚠️
+                      <BrandIcon name="alert" size={16} />
                     </span>
                     {w}
                   </li>

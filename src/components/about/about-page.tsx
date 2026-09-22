@@ -5,25 +5,26 @@ import { SectionTitle } from "@/components/ui/section-title";
 import { Button } from "@/components/ui/button";
 import { Newsletter } from "@/components/sections/newsletter";
 import { Footer } from "@/components/sections/footer";
+import { IconTile, type BrandIconName } from "@/components/icons/brand-icons";
 
-const values = [
+const values: { icon: BrandIconName; title: string; desc: string }[] = [
   {
-    icon: "🔬",
+    icon: "microscope",
     title: "Science-First",
     desc: "Every claim we publish is grounded in peer-reviewed research and evidence-based pharmacognosy — not tradition alone.",
   },
   {
-    icon: "🤝",
+    icon: "handshake",
     title: "Community-Centred",
     desc: "We exist to serve Nigerians. Our work is shaped by the communities we reach — from Lagos to Kano to Enugu.",
   },
   {
-    icon: "🛡️",
+    icon: "shield",
     title: "Radical Transparency",
     desc: "No sponsorships. No paid reviews. Our safety ratings are independent and will always be free from commercial influence.",
   },
   {
-    icon: "🗣️",
+    icon: "languages",
     title: "Inclusive Access",
     desc: "We publish in English, Igbo, Yoruba, Hausa, and Pidgin — because safety information should reach everyone.",
   },
@@ -132,7 +133,7 @@ export function AboutPage() {
             className="text-white/60 text-[17px] font-light leading-relaxed max-w-xl mx-auto mb-10"
           >
             HerbRx bridges centuries of Nigerian herbal tradition with modern
-            pharmaceutical science — so you can trust every remedy you take.
+            pharmaceutical science - so you can trust every remedy you take.
           </motion.p>
           <motion.div
             {...fadeUp(0.22)}
@@ -214,7 +215,12 @@ export function AboutPage() {
                 {...fadeUp(i * 0.08)}
                 className="bg-white border border-(--cream-dark) rounded-2xl p-7 hover:shadow-md transition-shadow duration-300"
               >
-                <div className="text-[32px] mb-4">{v.icon}</div>
+                <IconTile
+                  name={v.icon}
+                  size="lg"
+                  tone="sage"
+                  className="mb-4"
+                />
                 <h3 className="font-serif text-[18px] font-semibold text-(--green-deep) mb-2">
                   {v.title}
                 </h3>

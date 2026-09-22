@@ -4,7 +4,7 @@ export default function NotFound() {
   return (
     <div className="min-h-screen bg-(--cream)">
       <EmptyState
-        emoji="🌿"
+        icon="leaf"
         title="Page Not Found"
         description="The page you're looking for doesn't exist or has been moved. Let's get you back on track."
         action={{ label: "Go to Store", href: "/store" }}

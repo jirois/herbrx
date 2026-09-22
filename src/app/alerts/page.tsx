@@ -9,6 +9,11 @@ import { Newsletter } from "@/components/sections/newsletter";
 import { Footer } from "@/components/sections/footer";
 import { AlertTriangle, Search, Package, Hash } from "lucide-react";
 import { alertsApi, usePublicAlerts } from "@/hooks/dashboard-hooks";
+import {
+  BrandIcon,
+  IconTile,
+  type BrandIconName,
+} from "@/components/icons/brand-icons";
 
 type Severity = "DANGER" | "WARNING" | "INFO";
 type Status = "ACTIVE" | "RESOLVED";
@@ -89,7 +94,8 @@ const severityConfig: Record<
     bg: string;
     border: string;
     badge: string;
-    icon: string;
+    icon: BrandIconName;
+    tone: "danger" | "warning" | "info";
     label: string;
     dot: string;
   }
@@ -98,7 +104,8 @@ const severityConfig: Record<
     bg: "bg-red-50",
     border: "border-red-200",
     badge: "bg-red-100 text-red-700 border-red-200",
-    icon: "🚨",
+    icon: "siren",
+    tone: "danger",
     label: "Danger",
     dot: "bg-red-500",
   },
@@ -106,7 +113,8 @@ const severityConfig: Record<
     bg: "bg-amber-50",
     border: "border-amber-200",
     badge: "bg-amber-100 text-amber-700 border-amber-200",
-    icon: "⚠️",
+    icon: "alert",
+    tone: "warning",
     label: "Warning",
     dot: "bg-amber-500",
   },
@@ -114,7 +122,8 @@ const severityConfig: Record<
     bg: "bg-blue-50",
     border: "border-blue-200",
     badge: "bg-blue-100 text-blue-700 border-blue-200",
-    icon: "ℹ️",
+    icon: "info",
+    tone: "info",
     label: "Info",
     dot: "bg-blue-500",
   },
@@ -335,9 +344,12 @@ export default function AlertsPage() {
                     onClick={() => setExpanded(isExpanded ? null : alert.id)}
                   >
                     <div className="flex items-start gap-4">
-                      <span className="text-[24px] shrink-0 mt-0.5">
-                        {cfg.icon}
-                      </span>
+                      <IconTile
+                        name={cfg.icon}
+                        tone={cfg.tone}
+                        size="sm"
+                        className="mt-0.5"
+                      />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
                           <span
@@ -346,13 +358,28 @@ export default function AlertsPage() {
                             {cfg.label}
                           </span>
                           <span
-                            className={`text-[11px] font-medium px-2.5 py-0.5 rounded-full border ${isResolved ? "bg-(--cream-dark) text-(--text-muted) border-(--cream-dark)" : "bg-green-100 text-green-700 border-green-200"}`}
+                            className={`inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-0.5 rounded-full border ${isResolved ? "bg-(--cream-dark) text-(--text-muted) border-(--cream-dark)" : "bg-green-100 text-green-700 border-green-200"}`}
                           >
-                            {isResolved ? "✓ Resolved" : "● Active"}
+                            {isResolved ? (
+                              <>
+                                <BrandIcon
+                                  name="check"
+                                  size={11}
+                                  strokeWidth={2.6}
+                                />{" "}
+                                Resolved
+                              </>
+                            ) : (
+                              <>
+                                <span className="h-1.5 w-1.5 rounded-full bg-green-500" />{" "}
+                                Active
+                              </>
+                            )}
                           </span>
                           {alert.affectedArea && (
-                            <span className="text-[11px] text-(--text-muted)">
-                              📍 {alert.affectedArea}
+                            <span className="inline-flex items-center gap-1 text-[11px] text-(--text-muted)">
+                              <BrandIcon name="pin" size={11} />{" "}
+                              {alert.affectedArea}
                             </span>
                           )}
                         </div>
@@ -375,8 +402,13 @@ export default function AlertsPage() {
                           )}
                         </div>
                       </div>
-                      <span className="text-(--text-muted) text-[12px] shrink-0 mt-1">
-                        {isExpanded ? "▲ Less" : "▼ More"}
+                      <span className="inline-flex items-center gap-1 text-(--text-muted) text-[12px] shrink-0 mt-1">
+                        {isExpanded ? "Less" : "More"}
+                        <BrandIcon
+                          name="chevron-down"
+                          size={14}
+                          className={`transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                        />
                       </span>
                     </div>
                   </button>

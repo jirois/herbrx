@@ -8,6 +8,7 @@ import { useStoreProducts } from "@/hooks/store-hooks";
 import { useReviewSummaries } from "@/hooks/review-hooks";
 import type { Product } from "@/types";
 import { cn } from "@/lib/utils";
+import { IconTile } from "@/components/icons/brand-icons";
 
 type SortOption = "featured" | "price-asc" | "price-desc" | "rating" | "newest";
 
@@ -222,7 +223,11 @@ export function StorePage() {
                     animate={{ opacity: 1 }}
                     className="text-center py-24"
                   >
-                    <div className="text-[48px] mb-4">🔍</div>
+                    <IconTile
+                      name="search"
+                      size="xl"
+                      className="mx-auto mb-5"
+                    />
                     <h3 className="font-serif text-[22px] text-(--green-deep) mb-2">
                       No products found
                     </h3>

@@ -19,7 +19,9 @@ import {
   Clock,
   FileText,
   Download,
+  ChevronDown,
 } from "lucide-react";
+import { BrandIcon } from "@/components/icons/brand-icons";
 
 type ReviewVerdict = "APPROVED" | "REJECTED" | "CAUTION" | "PENDING";
 
@@ -318,6 +320,80 @@ const verdictConfig: Record<
 const scoreColor = (s: number) =>
   s >= 8 ? "text-green-600" : s >= 6 ? "text-amber-600" : "text-red-600";
 
+const scoreBar = (s: number) =>
+  s >= 8 ? "bg-green-500" : s >= 6 ? "bg-amber-500" : "bg-red-500";
+
+/** One COA parameter. Stacked on phones, four-column table row from `sm` up. */
+function ParameterRow({
+  p,
+}: {
+  p: { name: string; result: string; limit: string; pass: boolean };
+}) {
+  const status = p.pass ? (
+    <CheckCircle
+      size={16}
+      className="text-green-500"
+      aria-label="Passed"
+      role="img"
+    />
+  ) : (
+    <XCircle
+      size={16}
+      className="text-red-500"
+      aria-label="Failed"
+      role="img"
+    />
+  );
+
+  return (
+    <div
+      className={`border-t border-(--cream-dark) px-3.5 py-3 text-[13px] sm:px-4 ${!p.pass ? "bg-red-50" : ""}`}
+    >
+      {/* Phones */}
+      <div className="sm:hidden">
+        <div className="flex items-start justify-between gap-3">
+          <span className="font-medium text-(--text-body) leading-snug">
+            {p.name}
+          </span>
+          <span className="mt-0.5 shrink-0">{status}</span>
+        </div>
+        <dl className="mt-2 grid grid-cols-2 gap-3 text-[12px]">
+          <div className="min-w-0">
+            <dt className="mb-0.5 text-[10px] font-medium uppercase tracking-wider text-(--text-muted)">
+              Result
+            </dt>
+            <dd
+              className={`wrap-break-word ${p.pass ? "text-(--text-body)" : "font-semibold text-red-600"}`}
+            >
+              {p.result}
+            </dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="mb-0.5 text-[10px] font-medium uppercase tracking-wider text-(--text-muted)">
+              Limit
+            </dt>
+            <dd className="wrap-break-word text-(--text-muted)">{p.limit}</dd>
+          </div>
+        </dl>
+      </div>
+
+      {/* Tablet and up */}
+      <div className="hidden items-center gap-4 sm:grid sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,1fr)_1.5rem]">
+        <span className="font-medium text-(--text-body)">{p.name}</span>
+        <span
+          className={
+            p.pass ? "text-(--text-body)" : "font-semibold text-red-600"
+          }
+        >
+          {p.result}
+        </span>
+        <span className="text-(--text-muted)">{p.limit}</span>
+        <span className="flex justify-end">{status}</span>
+      </div>
+    </div>
+  );
+}
+
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 20 },
   whileInView: { opacity: 1, y: 0 },
@@ -554,19 +630,21 @@ export default function SafetyReviewsPage() {
                 >
                   {/* Header */}
                   <button
-                    className="w-full text-left p-6"
+                    type="button"
+                    aria-expanded={isOpen}
+                    className="w-full text-left p-4 sm:p-6"
                     onClick={() => setExpanded(isOpen ? null : review.id)}
                   >
-                    <div className="flex items-start gap-4">
+                    <div className="flex items-start gap-3 sm:gap-4">
                       <ProductImage
                         src={review.imageUrl ?? null}
                         emoji={review.emoji}
-                        size="w-14 h-14"
+                        size="w-12 h-12 sm:w-14 sm:h-14"
                         theme="light"
                         className="shrink-0"
                       />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                        <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 flex-wrap">
                           <span
                             className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${cfg.badge}`}
                           >
@@ -574,7 +652,8 @@ export default function SafetyReviewsPage() {
                           </span>
                           {review.verifiedBadge && (
                             <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
-                              ✓ HerbRx Verified
+                              <BrandIcon name="verified" size={12} /> HerbRx
+                              Verified
                             </span>
                           )}
                           {review.nafdacNo && (
@@ -583,40 +662,84 @@ export default function SafetyReviewsPage() {
                             </span>
                           )}
                         </div>
-                        <h3 className="font-serif text-[20px] font-semibold text-(--green-deep)">
+                        <h3 className="font-serif text-[18px] sm:text-[20px] leading-snug font-semibold text-(--green-deep) wrap-break-word">
                           {review.productName}
                         </h3>
-                        <div className="flex items-center gap-3 text-[13px] text-(--text-muted) mt-1 flex-wrap">
-                          <span>{review.producer}</span>
-                          <span>·</span>
-                          <span>{review.category}</span>
-                          <span>·</span>
-                          <span>Batch {review.batchNo}</span>
-                          <span>·</span>
-                          <span>Reviewed {review.reviewDate}</span>
+                        <div className="mt-1 space-y-0.5 text-[12px] sm:text-[13px] text-(--text-muted)">
+                          <p className="flex flex-wrap items-center gap-x-2">
+                            <span className="font-medium text-(--text-body)">
+                              {review.producer}
+                            </span>
+                            <span aria-hidden="true">·</span>
+                            <span>{review.category}</span>
+                          </p>
+                          <p className="flex flex-wrap items-center gap-x-2">
+                            <span>Batch {review.batchNo}</span>
+                            <span aria-hidden="true">·</span>
+                            <span>Reviewed {review.reviewDate}</span>
+                          </p>
                         </div>
                       </div>
-                      <div className="text-right shrink-0">
-                        <div
-                          className={`font-serif text-[28px] font-semibold ${scoreColor(review.overallScore)}`}
-                        >
-                          {review.overallScore}
-                          <span className="text-[14px] text-(--text-muted) font-normal">
-                            /10
-                          </span>
+
+                      {/* Score: side column from `sm` up */}
+                      <div className="hidden sm:flex items-start gap-3 shrink-0">
+                        <div className="text-right">
+                          <div
+                            className={`font-serif text-[28px] leading-none font-semibold ${scoreColor(review.overallScore)}`}
+                          >
+                            {review.overallScore}
+                            <span className="text-[14px] text-(--text-muted) font-normal">
+                              /10
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-(--text-muted) mt-1.5">
+                            {failCount > 0
+                              ? `${failCount} param${failCount > 1 ? "s" : ""} failed`
+                              : "All params passed"}
+                          </div>
                         </div>
-                        <div className="text-[11px] text-(--text-muted) mt-0.5">
+                        <ChevronDown
+                          size={18}
+                          className={`mt-1 text-(--text-muted) transition-transform ${isOpen ? "rotate-180" : ""}`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Score: full-width strip on phones */}
+                    <div className="sm:hidden mt-3.5 flex items-center gap-3 rounded-xl bg-(--cream) px-3.5 py-2.5">
+                      <div
+                        className={`font-serif text-[22px] leading-none font-semibold ${scoreColor(review.overallScore)}`}
+                      >
+                        {review.overallScore}
+                        <span className="text-[12px] text-(--text-muted) font-normal">
+                          /10
+                        </span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="h-1.5 overflow-hidden rounded-full bg-(--cream-dark)">
+                          <div
+                            className={`h-full rounded-full ${scoreBar(review.overallScore)}`}
+                            style={{
+                              width: `${Math.min(100, Math.max(0, review.overallScore * 10))}%`,
+                            }}
+                          />
+                        </div>
+                        <p className="mt-1 text-[11px] text-(--text-muted)">
                           {failCount > 0
                             ? `${failCount} param${failCount > 1 ? "s" : ""} failed`
                             : "All params passed"}
-                        </div>
+                        </p>
                       </div>
+                      <ChevronDown
+                        size={18}
+                        className={`shrink-0 text-(--text-muted) transition-transform ${isOpen ? "rotate-180" : ""}`}
+                      />
                     </div>
                   </button>
 
                   {/* Expanded */}
                   {isOpen && (
-                    <div className="border-t border-(--cream-dark) px-6 pb-6 pt-5">
+                    <div className="border-t border-(--cream-dark) px-4 pb-5 pt-5 sm:px-6 sm:pb-6">
                       {/* Summary */}
                       <div
                         className={`p-4 rounded-xl ${cfg.bg} border ${cfg.border} mb-5`}
@@ -630,48 +753,21 @@ export default function SafetyReviewsPage() {
                       </div>
 
                       {/* Parameters table */}
-                      <p className="text-[11px] text-(--text-muted) uppercase tracking-wider font-semibold mb-3 flex items-center gap-2">
-                        <FlaskConical size={13} /> COA Parameters —{" "}
-                        {review.labName}
+                      <p className="text-[11px] text-(--text-muted) uppercase tracking-wider font-semibold mb-3 flex items-start gap-2 leading-snug">
+                        <FlaskConical size={13} className="mt-px shrink-0" />
+                        <span className="min-w-0">
+                          COA Parameters — {review.labName}
+                        </span>
                       </p>
                       <div className="rounded-xl border border-(--cream-dark) overflow-hidden mb-5">
-                        <div className="grid grid-cols-[1fr_auto_auto_auto] text-[10px] text-(--text-muted) uppercase tracking-wider px-4 py-2.5 bg-(--cream-dark) gap-4">
+                        <div className="hidden sm:grid grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,1fr)_1.5rem] gap-4 px-4 py-2.5 bg-(--cream-dark) text-[10px] text-(--text-muted) uppercase tracking-wider">
                           <span>Parameter</span>
                           <span>Result</span>
                           <span>Limit</span>
-                          <span>Pass</span>
+                          <span className="text-right">Pass</span>
                         </div>
                         {review.parameters.map((p) => (
-                          <div
-                            key={p.name}
-                            className={`grid grid-cols-[1fr_auto_auto_auto] px-4 py-3 text-[13px] border-t border(--cream-dark) gap-4 ${!p.pass ? "bg-red-50" : ""}`}
-                          >
-                            <span className="text-(--text-body) font-medium">
-                              {p.name}
-                            </span>
-                            <span
-                              className={
-                                p.pass
-                                  ? "text-(--text-body)"
-                                  : "text-red-600 font-semibold"
-                              }
-                            >
-                              {p.result}
-                            </span>
-                            <span className="text-(--text-muted)">
-                              {p.limit}
-                            </span>
-                            <span>
-                              {p.pass ? (
-                                <CheckCircle
-                                  size={14}
-                                  className="text-green-500"
-                                />
-                              ) : (
-                                <XCircle size={14} className="text-red-500" />
-                              )}
-                            </span>
-                          </div>
+                          <ParameterRow key={p.name} p={p} />
                         ))}
                       </div>
 
@@ -691,16 +787,21 @@ export default function SafetyReviewsPage() {
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                         <Button
                           variant="outline"
                           size="sm"
                           href="#"
-                          className="flex items-center gap-1.5"
+                          className="flex items-center justify-center gap-1.5"
                         >
                           <Download size={12} /> Download Full Report (PDF)
                         </Button>
-                        <Button variant="ghost" size="sm" href="/booking">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          href="/booking"
+                          className="justify-center"
+                        >
                           Speak to a Pharmacist →
                         </Button>
                       </div>

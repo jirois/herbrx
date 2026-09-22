@@ -4,6 +4,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Clock, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EmojiIcon } from "@/components/icons/brand-icons";
 import type { BlogPost } from "@/data/blog";
 
 interface BlogCardProps {
@@ -33,11 +34,14 @@ export function BlogCard({ post, index = 0, featured = false }: BlogCardProps) {
             }}
           >
             <span
-              className="text-[72px] select-none transition-transform duration-500 group-hover:scale-110"
+              className={cn(
+                "flex items-center justify-center rounded-full bg-white/35 text-(--green-deep) select-none transition-transform duration-500 group-hover:scale-110",
+                featured ? "h-28 w-28" : "h-24 w-24",
+              )}
               role="img"
               aria-label={post.title}
             >
-              {post.emoji}
+              <EmojiIcon emoji={post.emoji} size={featured ? 52 : 44} />
             </span>
             {/* Category pill */}
             <div className="absolute bottom-3 left-3">

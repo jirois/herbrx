@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/layout/logo";
+import { BrandIcon, type BrandIconName } from "@/components/icons/brand-icons";
 
 const footerCols = [
   {
@@ -34,15 +35,23 @@ const footerCols = [
   },
 ];
 
-const socials = [
-  { label: "Twitter / X", icon: "𝕏", href: "https://x.com/herbrxng" },
+const socials: { label: string; icon: BrandIconName; href: string }[] = [
+  { label: "Twitter / X", icon: "x", href: "https://x.com/herbrxng" },
   {
     label: "LinkedIn",
-    icon: "in",
+    icon: "linkedin",
     href: "https://linkedin.com/company/herbrx",
   },
-  { label: "Facebook", icon: "f", href: "https://facebook.com/herbrxng" },
-  { label: "Instagram", icon: "◎", href: "https://instagram.com/herbrxng" },
+  {
+    label: "Facebook",
+    icon: "facebook",
+    href: "https://facebook.com/herbrxng",
+  },
+  {
+    label: "Instagram",
+    icon: "instagram",
+    href: "https://instagram.com/herbrxng",
+  },
 ];
 
 export function Footer() {
@@ -78,9 +87,9 @@ export function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={s.label}
-                  className="w-9 h-9 bg-white/[8 rounded-lg flex items-center justify-center text-white/50 text-[14px] font-semibold hover:bg-(--green-mid) hover:text-white transition-all duration-200"
+                  className="w-9 h-9 bg-white/8 rounded-lg flex items-center justify-center text-white/50 hover:bg-(--green-mid) hover:text-white transition-all duration-200"
                 >
-                  {s.icon}
+                  <BrandIcon name={s.icon} size={18} />
                 </a>
               ))}
             </div>

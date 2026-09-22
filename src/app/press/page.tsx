@@ -7,12 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Newsletter } from "@/components/sections/newsletter";
 import { Footer } from "@/components/sections/footer";
 import { usePress } from "@/hooks/dashboard-hooks";
+import { BrandIcon, EmojiIcon } from "@/components/icons/brand-icons";
 
 // Static fallback
 const PRESS_COVERAGE = [
   {
     outlet: "TechCabal",
-    logo: "📰",
+    logo: "newspaper",
     headline:
       "This Nigerian startup is making herbal medicine safer through science — and it's free",
     date: "March 2025",
@@ -23,7 +24,7 @@ const PRESS_COVERAGE = [
   },
   {
     outlet: "BusinessDay",
-    logo: "📊",
+    logo: "chart",
     headline:
       "The ₦60bn herbal medicine market has a safety problem. HerbRx wants to fix it.",
     date: "January 2025",
@@ -34,7 +35,7 @@ const PRESS_COVERAGE = [
   },
   {
     outlet: "Channels TV",
-    logo: "📺",
+    logo: "tv",
     headline:
       "HerbRx pharmacists speak out on rising counterfeit herbal products in Lagos",
     date: "November 2024",
@@ -45,7 +46,7 @@ const PRESS_COVERAGE = [
   },
   {
     outlet: "Pulse Nigeria",
-    logo: "📱",
+    logo: "mobile",
     headline:
       "Why Nigerians are switching from self-medication to verified herbal consultations",
     date: "October 2024",
@@ -56,7 +57,7 @@ const PRESS_COVERAGE = [
   },
   {
     outlet: "The Punch",
-    logo: "🗞️",
+    logo: "newspaper",
     headline:
       "NAFDAC and HerbRx partner to improve herbal product compliance monitoring",
     date: "August 2024",
@@ -67,7 +68,7 @@ const PRESS_COVERAGE = [
   },
   {
     outlet: "Ventures Africa",
-    logo: "🌍",
+    logo: "globe",
     headline: "African healthtech is going beyond hospitals — HerbRx is proof",
     date: "June 2024",
     excerpt:
@@ -195,7 +196,9 @@ export default function PressPage() {
               >
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2.5">
-                    <span className="text-[22px]">{item.logo}</span>
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-(--green-pale)/45 text-(--green-mid)">
+                      <EmojiIcon emoji={item.logo} size={18} />
+                    </span>
                     <span className="font-semibold text-(--green-deep) text-[15px]">
                       {item.outlet}
                     </span>
@@ -305,7 +308,12 @@ export default function PressPage() {
                     <span
                       className={`text-[11px] ${item.textColor} opacity-0 group-hover:opacity-60 transition-opacity`}
                     >
-                      ↓ Download
+                      <BrandIcon
+                        name="download"
+                        size={11}
+                        className="mr-1 inline-block align-[-1px]"
+                      />{" "}
+                      Download
                     </span>
                   </div>
                 ))}
@@ -367,7 +375,11 @@ export default function PressPage() {
                 </p>
                 <div className="space-y-2 mb-5 text-[14px] text-white/70">
                   <p>
-                    📧{" "}
+                    <BrandIcon
+                      name="mail"
+                      size={15}
+                      className="mr-1.5 inline-block align-[-3px] text-(--gold-light)"
+                    />
                     <a
                       href="mailto:press@herbrx.ng"
                       className="hover:text-white transition-colors"
@@ -376,7 +388,11 @@ export default function PressPage() {
                     </a>
                   </p>
                   <p>
-                    📞{" "}
+                    <BrandIcon
+                      name="phone"
+                      size={15}
+                      className="mr-1.5 inline-block align-[-3px] text-(--gold-light)"
+                    />
                     <a
                       href="tel:+2348004372793"
                       className="hover:text-white transition-colors"
@@ -384,7 +400,14 @@ export default function PressPage() {
                       +234 800 HERBRX
                     </a>
                   </p>
-                  <p>⏱ Response within 4 business hours</p>
+                  <p>
+                    <BrandIcon
+                      name="timer"
+                      size={15}
+                      className="mr-1.5 inline-block align-[-3px] text-(--gold-light)"
+                    />
+                    Response within 4 business hours
+                  </p>
                 </div>
                 <Button
                   variant="secondary"

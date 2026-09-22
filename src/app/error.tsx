@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { IconTile } from "@/components/icons/brand-icons";
 
 interface ErrorProps {
   error: Error & { digest?: string };
@@ -17,7 +18,12 @@ export default function GlobalError({ error, reset }: ErrorProps) {
   return (
     <div className="min-h-screen bg-(--cream) flex items-center justify-center px-6">
       <div className="text-center max-w-105">
-        <div className="text-[64px] mb-5">⚠️</div>
+        <IconTile
+          name="alert"
+          size="2xl"
+          tone="warning"
+          className="mx-auto mb-6"
+        />
         <h2 className="font-serif text-[28px] font-semibold text-(--green-deep) mb-3">
           Something went wrong
         </h2>

@@ -4,6 +4,7 @@ import { useState, useRef, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { BrandIcon } from "@/components/icons/brand-icons";
 import {
   Loader2,
   Mail,
@@ -237,7 +238,7 @@ function ForgotPasswordContent() {
               exit={{ opacity: 0 }}
               className="bg-red-50 border border-red-200 text-red-700 text-[13px] px-4 py-3 rounded-xl mb-5 flex items-center gap-2"
             >
-              ⚠ {error}
+              <BrandIcon name="alert" size={16} className="shrink-0" /> {error}
             </motion.div>
           )}
         </AnimatePresence>

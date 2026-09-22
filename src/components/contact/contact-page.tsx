@@ -5,31 +5,38 @@ import { motion } from "framer-motion";
 import { SectionTitle } from "@/components/ui/section-title";
 import { Button } from "@/components/ui/button";
 import { Footer } from "@/components/sections/footer";
+import { IconTile, type BrandIconName } from "@/components/icons/brand-icons";
 
-const contactChannels = [
+const contactChannels: {
+  icon: BrandIconName;
+  label: string;
+  value: string;
+  href: string;
+  note: string;
+}[] = [
   {
-    icon: "📧",
+    icon: "mail",
     label: "Email",
     value: "info@herbrx.ng",
     href: "mailto:info@herbrx.ng",
     note: "We respond within 24 hours",
   },
   {
-    icon: "📞",
+    icon: "phone",
     label: "Phone",
     value: "+234 800 HERBRX",
     href: "tel:+2348004372793",
     note: "Mon – Fri, 9 AM – 5 PM WAT",
   },
   {
-    icon: "📍",
+    icon: "pin",
     label: "Office",
     value: "Lagos, Nigeria",
     href: "#",
     note: "Visit by appointment only",
   },
   {
-    icon: "💬",
+    icon: "chat",
     label: "WhatsApp",
     value: "Chat with us",
     href: "https://wa.me/2348004372793",
@@ -151,7 +158,12 @@ export function ContactPage() {
                 {...fadeUp(i * 0.08)}
                 className="bg-white border border-(--cream-dark) rounded-2xl p-6 flex flex-col gap-1.5 hover:border-(--green-mid) hover:shadow-md transition-all duration-200 group"
               >
-                <div className="text-[28px] mb-1">{ch.icon}</div>
+                <IconTile
+                  name={ch.icon}
+                  size="sm"
+                  tone="sage"
+                  className="mb-2 transition-colors group-hover:bg-(--green-pale)"
+                />
                 <div className="text-[12px] font-semibold text-(--text-muted) uppercase tracking-wide">
                   {ch.label}
                 </div>
@@ -181,7 +193,12 @@ export function ContactPage() {
 
               <div className="space-y-5">
                 <div className="bg-(--green-pale)/30 border border-(--green-pale) rounded-2xl p-6">
-                  <div className="text-[22px] mb-2">🌿</div>
+                  <IconTile
+                    name="leaf"
+                    size="sm"
+                    tone="green"
+                    className="mb-3"
+                  />
                   <h4 className="font-serif text-[17px] font-semibold text-(--green-deep) mb-1">
                     Prefer a consultation?
                   </h4>
@@ -195,7 +212,12 @@ export function ContactPage() {
                 </div>
 
                 <div className="bg-[#FFF8EC] border border-(--gold-light)/30 rounded-2xl p-6">
-                  <div className="text-[22px] mb-2">📋</div>
+                  <IconTile
+                    name="clipboard"
+                    size="sm"
+                    tone="gold"
+                    className="mb-3"
+                  />
                   <h4 className="font-serif text-[17px] font-semibold text-(--green-deep) mb-1">
                     Have a product to review?
                   </h4>
@@ -218,7 +240,12 @@ export function ContactPage() {
             <motion.div {...fadeUp(0.1)}>
               {status === "success" ? (
                 <div className="bg-white border border-(--cream-dark) rounded-2xl p-10 text-center">
-                  <div className="text-[48px] mb-4">🌿</div>
+                  <IconTile
+                    name="check-circle"
+                    size="xl"
+                    tone="green"
+                    className="mx-auto mb-5"
+                  />
                   <h3 className="font-serif text-[24px] font-semibold text-(--green-deep) mb-2">
                     Message received!
                   </h3>

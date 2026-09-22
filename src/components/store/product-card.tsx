@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ProductImage } from "@/components/ui/product-image";
+import { EmojiIcon } from "@/components/icons/brand-icons";
 import { motion } from "framer-motion";
 import { ShoppingCart, Star, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -63,11 +64,11 @@ export function ProductCard({
               />
             ) : (
               <span
-                className="text-[52px] select-none transition-transform duration-300 group-hover:scale-110"
+                className="flex h-24 w-24 items-center justify-center rounded-full bg-white/40 text-(--green-deep) select-none transition-transform duration-300 group-hover:scale-110"
                 role="img"
                 aria-label={product.name}
               >
-                {product.emoji}
+                <EmojiIcon emoji={product.emoji} size={46} />
               </span>
             )}
             <div className="absolute top-3 left-3">

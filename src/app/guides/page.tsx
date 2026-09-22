@@ -9,6 +9,7 @@ import { Newsletter } from "@/components/sections/newsletter";
 import { Footer } from "@/components/sections/footer";
 import { Search, Download, Globe, Clock, ChevronRight } from "lucide-react";
 import { useGuides } from "@/hooks/dashboard-hooks";
+import { IconTile, LanguageMark } from "@/components/icons/brand-icons";
 
 type Language = "English" | "Igbo" | "Yoruba" | "Hausa" | "Pidgin";
 type Category =
@@ -154,14 +155,6 @@ const CATEGORIES: Category[] = [
 ];
 const LANGUAGES: Language[] = ["English", "Igbo", "Yoruba", "Hausa", "Pidgin"];
 
-const langFlag: Record<Language, string> = {
-  English: "🇬🇧",
-  Igbo: "🟢",
-  Yoruba: "🟡",
-  Hausa: "🔵",
-  Pidgin: "🇳🇬",
-};
-
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 20 },
   whileInView: { opacity: 1, y: 0 },
@@ -223,9 +216,9 @@ export default function GuidesPage() {
             ).map((lang) => (
               <span
                 key={lang}
-                className="inline-flex items-center gap-1.5 text-[13px] text-white/60 bg-white/8 px-3.5 py-1.5 rounded-full"
+                className="inline-flex items-center gap-2 text-[13px] text-white/60 bg-white/8 px-3.5 py-1.5 rounded-full"
               >
-                {langFlag[lang]} {lang}
+                <LanguageMark language={lang} onDark /> {lang}
               </span>
             ))}
           </motion.div>
@@ -247,7 +240,12 @@ export default function GuidesPage() {
                 {...fadeUp(i * 0.08)}
                 className="bg-white border border-(--cream-dark)] rounded-2xl p-7 hover:shadow-lg hover:border-(--green-pale)transition-all group"
               >
-                <div className="text-[36px] mb-4">{guide.emoji}</div>
+                <IconTile
+                  emoji={guide.emoji}
+                  size="lg"
+                  tone="sage"
+                  className="mb-4"
+                />
                 <span className="text-[11px] font-semibold text-(--green-mid) uppercase tracking-wider bg-(--green-pale)/40 px-2.5 py-1 rounded-full">
                   {guide.category}
                 </span>
@@ -274,9 +272,9 @@ export default function GuidesPage() {
                   {guide.languages.map((lang) => (
                     <span
                       key={lang}
-                      className="text-[11px] text-(--text-muted) bg-(--cream-dark) px-2 py-0.5 rounded-lg"
+                      className="inline-flex items-center gap-1.5 text-[11px] text-(--text-muted) bg-(--cream-dark) px-2 py-0.5 rounded-lg"
                     >
-                      {langFlag[lang]} {lang}
+                      <LanguageMark language={lang} /> {lang}
                     </span>
                   ))}
                 </div>
@@ -339,9 +337,9 @@ export default function GuidesPage() {
                 <button
                   key={l}
                   onClick={() => setLanguage(l)}
-                  className={`text-[12px] font-medium px-3 py-2 rounded-lg border transition-all ${language === l ? "bg-(--green-mid) text-white border-(--green-mid)" : "bg-white text-(--text-muted) border-(--cream-dark)"}`}
+                  className={`inline-flex items-center gap-1.5 text-[12px] font-medium px-3 py-2 rounded-lg border transition-all ${language === l ? "bg-(--green-mid) text-white border-(--green-mid)" : "bg-white text-(--text-muted) border-(--cream-dark)"}`}
                 >
-                  {langFlag[l]} {l}
+                  <LanguageMark language={l} onDark={language === l} /> {l}
                 </button>
               ))}
             </div>
@@ -362,7 +360,7 @@ export default function GuidesPage() {
                 transition={{ delay: i * 0.04 }}
                 className="bg-white border border-(--cream-dark) rounded-2xl px-6 py-5 flex flex-col sm:flex-row sm:items-center gap-4 hover:border-(--green-pale) hover:shadow-sm transition-all group"
               >
-                <span className="text-[28px] shrink-0">{guide.emoji}</span>
+                <IconTile emoji={guide.emoji} size="md" tone="sage" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className="text-[11px] font-semibold text-(--green-mid) uppercase tracking-wider">
@@ -380,9 +378,9 @@ export default function GuidesPage() {
                     {guide.languages.map((lang) => (
                       <span
                         key={lang}
-                        className="text-[11px] text-(--text-muted) bg-(--cream-dark) px-2 py-0.5 rounded-lg"
+                        className="inline-flex items-center gap-1.5 text-[11px] text-(--text-muted) bg-(--cream-dark) px-2 py-0.5 rounded-lg"
                       >
-                        {langFlag[lang]} {lang}
+                        <LanguageMark language={lang} /> {lang}
                       </span>
                     ))}
                   </div>

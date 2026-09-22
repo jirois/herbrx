@@ -1,10 +1,11 @@
 import { Package } from "lucide-react";
 import Image from "next/image";
+import { EmojiIcon } from "@/components/icons/brand-icons";
 
 interface Props {
   /** Data URL, hosted URL, or null/undefined */
   src?: string | null;
-  /** Legacy emoji fallback — shown when no src available */
+  /** Stored emoji (or icon name) — drawn as a HerbRx icon when no src is available */
   emoji?: string | null;
   /** Tailwind size classes for the wrapper, e.g. "w-10 h-10" */
   size?: string;
@@ -19,7 +20,8 @@ interface Props {
 
 /**
  * Renders a real product image if `src` is present.
- * Falls back to the legacy emoji, then to a generic Package icon.
+ * Falls back to the HerbRx icon for the stored emoji/icon key, then to a
+ * generic Package icon.
  *
  * Drop-in replacement for every `{product.emoji}` render site —
  * just pass `src={product.imageUrl}` and `emoji={product.emoji}`.
@@ -53,32 +55,40 @@ export function ProductImage({
   }
 
   if (emoji) {
-    // Determine font size from the size class
-    const textSize = size.includes("w-6")
-      ? "text-[14px]"
+    // Icon size (px) follows the wrapper size class
+    const iconSize = size.includes("w-6")
+      ? 14
       : size.includes("w-8")
-        ? "text-[18px]"
+        ? 18
         : size.includes("w-9")
-          ? "text-[20px]"
+          ? 20
           : size.includes("w-10")
-            ? "text-[22px]"
-            : size.includes("w-12")
-              ? "text-[26px]"
-              : size.includes("w-14")
-                ? "text-[30px]"
-                : size.includes("w-16")
-                  ? "text-[34px]"
-                  : size.includes("w-20")
-                    ? "text-[40px]"
-                    : size.includes("w-24")
-                      ? "text-[48px]"
-                      : "text-[22px]";
+            ? 22
+            : size.includes("w-11")
+              ? 24
+              : size.includes("w-12")
+                ? 26
+                : size.includes("w-14")
+                  ? 30
+                  : size.includes("w-16")
+                    ? 34
+                    : size.includes("w-20")
+                      ? 40
+                      : size.includes("w-24")
+                        ? 48
+                        : 22;
 
     return (
       <div
         className={`${size} ${rounded} ${bgCls} flex items-center justify-center shrink-0 ${className}`}
       >
-        <span className={textSize}>{emoji}</span>
+        <EmojiIcon
+          emoji={emoji}
+          size={iconSize}
+          className={
+            theme === "dark" ? "text-(--gold-light)" : "text-(--green-mid)"
+          }
+        />
       </div>
     );
   }
