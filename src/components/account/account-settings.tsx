@@ -13,6 +13,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useToast } from "@/context/toast-context";
+import { BrandIcon } from "@/components/icons/brand-icons";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -33,7 +34,7 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   {
     id: "profile",
     label: "Profile",
-    icon: <span className="text-[16px]">👤</span>,
+    icon: <BrandIcon name="user" size={16} />,
   },
   { id: "security", label: "Security", icon: <Shield size={16} /> },
   { id: "notifications", label: "Notifications", icon: <Bell size={16} /> },
@@ -88,7 +89,11 @@ function Field({
       {hint && !error && (
         <p className="text-[11px] text-(--text-muted) mt-1">{hint}</p>
       )}
-      {error && <p className="text-[12px] text-red-500 mt-1">⚠ {error}</p>}
+      {error && (
+        <p className="mt-1 flex items-center gap-1 text-[12px] text-red-500">
+          <BrandIcon name="alert" size={12} /> {error}
+        </p>
+      )}
     </div>
   );
 }

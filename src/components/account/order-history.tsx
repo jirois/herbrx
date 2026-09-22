@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { formatNaira } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/empty-state";
+import { BrandIcon } from "@/components/icons/brand-icons";
 import { ProductImage } from "@/components/ui/product-image";
 import type { Order } from "@/types";
 
@@ -85,7 +86,11 @@ function OrderProgressBar({ status }: { status: string }) {
                   : "bg-(--cream-dark) text-(--text-muted)"
               }`}
             >
-              {done ? "✓" : i + 1}
+              {done ? (
+                <BrandIcon name="check" size={12} strokeWidth={3} />
+              ) : (
+                i + 1
+              )}
             </div>
             {i < steps.length - 1 && (
               <div
@@ -123,8 +128,8 @@ function OrderCard({ order, index }: { order: Order; index: number }) {
               {st.icon} {st.label}
             </span>
             {order.paymentStatus === "paid" && (
-              <span className="text-[11px] bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">
-                Paid ✓
+              <span className="inline-flex items-center gap-1 text-[11px] bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                Paid <BrandIcon name="check" size={11} strokeWidth={2.6} />
               </span>
             )}
           </div>
@@ -269,7 +274,7 @@ export function OrderHistory({ orders }: { orders: Order[] }) {
       <div className="max-w-(--max-width) mx-auto px-6 lg:px-10 py-10">
         {orders.length === 0 ? (
           <EmptyState
-            emoji="📦"
+            icon="package"
             title="No orders yet"
             description="Once you place an order, it will appear here with live status tracking."
             action={{ label: "Start Shopping", href: "/store" }}

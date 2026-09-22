@@ -7,6 +7,7 @@ import { useCart } from "@/context/cart-context";
 import { CartItem } from "./cart-item";
 import { Button } from "@/components/ui/button";
 import { formatNaira } from "@/lib/utils";
+import { IconTile } from "@/components/icons/brand-icons";
 
 const SHIPPING_THRESHOLD = 15000;
 
@@ -80,7 +81,7 @@ export function CartDrawer() {
                   </p>
                 ) : (
                   <p className="text-[12px] text-(--green-mid) font-medium mb-2 flex items-center gap-1">
-                    <Truck size={13} /> You&apos; ve unlocked free shipping! 🎉
+                    <Truck size={13} /> You&apos;ve unlocked free shipping!
                   </p>
                 )}
                 <div className="h-1.5 bg-(--cream-dark) rounded-full overflow-hidden">
@@ -107,7 +108,7 @@ export function CartDrawer() {
                     animate={{ opacity: 1 }}
                     className="flex flex-col items-center justify-center h-full py-20 text-center"
                   >
-                    <div className="text-[56px] mb-4">🌿</div>
+                    <IconTile name="leaf" size="xl" className="mb-5" />
                     <h3 className="font-serif text-[19px] font-semibold text-(--green-deep) mb-2">
                       Your cart is empty
                     </h3>

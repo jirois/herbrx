@@ -7,27 +7,6 @@ import { useLocale } from "@/context/locale-context";
 import { LOCALES } from "@/i18n/types";
 import { cn } from "@/lib/utils";
 
-/** Two-letter language badge (replaces the old flag emoji). */
-function LocaleBadge({
-  short,
-  className,
-}: {
-  short: string;
-  className?: string;
-}) {
-  return (
-    <span
-      aria-hidden="true"
-      className={cn(
-        "inline-flex h-5 min-w-6 shrink-0 items-center justify-center rounded-md bg-(--green-pale) px-1 text-[10px] font-bold leading-none tracking-wide text-(--green-deep)",
-        className,
-      )}
-    >
-      {short}
-    </span>
-  );
-}
-
 interface LanguageSwitcherProps {
   /** 'navbar' = compact pill, 'footer' = full list */
   variant?: "navbar" | "footer";
@@ -77,7 +56,7 @@ export function LanguageSwitcher({
             aria-pressed={locale === l.code}
             lang={l.code}
           >
-            <LocaleBadge short={l.code.toLowerCase()} />
+            <span>{l.flag}</span>
             {l.label}
           </button>
         ))}
@@ -101,7 +80,9 @@ export function LanguageSwitcher({
             : "bg-white border-(--cream-dark) text-(--text-body) hover:border-(--green-mid) hover:text-(--green-deep)",
         )}
       >
-        <LocaleBadge short={current.code.toLowerCase()} />
+        <span className="text-[15px]" role="img" aria-hidden>
+          {current.flag}
+        </span>
         <span className="hidden sm:inline">{current.label}</span>
         <ChevronDown
           size={13}
@@ -152,10 +133,7 @@ export function LanguageSwitcher({
                       : "text-(--text-body) hover:bg-(--cream) hover:text-(--green-deep)",
                   )}
                 >
-                  <LocaleBadge
-                    short={l.code.toLocaleLowerCase()}
-                    className="h-6 min-w-7 text-[11px]"
-                  />
+                  <span className="text-[18px] shrink-0">{l.flag}</span>
                   <span className="flex-1 text-left">
                     {l.label}
                     <span className="block text-[10px] text-(--text-muted) font-normal">

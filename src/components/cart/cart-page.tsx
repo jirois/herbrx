@@ -10,6 +10,7 @@ import { ProductCard } from "@/components/store/product-card";
 import { useFeaturedProducts } from "@/hooks/store-hooks";
 import { useReviewSummaries } from "@/hooks/review-hooks";
 import { formatNaira } from "@/lib/utils";
+import { BrandIcon, IconTile } from "@/components/icons/brand-icons";
 
 const SHIPPING_THRESHOLD = 15000;
 
@@ -55,7 +56,7 @@ export function CartPage() {
         {items.length === 0 ? (
           /* Empty state */
           <div className="text-center py-24">
-            <div className="text-[72px] mb-5">🌿</div>
+            <IconTile name="leaf" size="2xl" className="mx-auto mb-6" />
             <h2 className="font-serif text-[28px] text-(--green-deep) mb-3">
               Your cart is empty
             </h2>
@@ -121,7 +122,7 @@ export function CartPage() {
                         shipping === 0 ? "text-(--green-mid) font-medium" : ""
                       }
                     >
-                      {shipping === 0 ? "Free 🎉" : formatNaira(shipping)}
+                      {shipping === 0 ? "Free" : formatNaira(shipping)}
                     </span>
                   </div>
                   <div className="pt-3 border-t border-(--cream-dark) flex justify-between font-serif text-[20px] font-semibold text-(--green-deep)">
@@ -138,8 +139,9 @@ export function CartPage() {
                 >
                   Proceed to Checkout
                 </Button>
-                <p className="text-center text-[12px] text-(--text-muted)">
-                  🔒 Secured with SSL encryption
+                <p className="flex items-center justify-center gap-1.5 text-center text-[12px] text-(--text-muted)">
+                  <BrandIcon name="lock" size={13} /> Secured with SSL
+                  encryption
                 </p>
 
                 {/* Payment icons */}

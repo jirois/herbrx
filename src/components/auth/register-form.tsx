@@ -14,6 +14,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useT } from "@/context/locale-context";
+import { BrandIcon } from "@/components/icons/brand-icons";
 import { AuthField, AuthDivider, GoogleButton } from "./auth-form";
 import { Logo } from "@/components/layout/logo";
 import { signIn } from "next-auth/react";
@@ -210,7 +211,7 @@ export function RegisterForm() {
           animate={{ opacity: 1, y: 0 }}
           className="bg-red-50 border border-red-200 text-red-700 text-[13px] px-4 py-3 rounded-xl mb-5 flex items-center gap-2"
         >
-          <span>⚠</span> {serverErr}
+          <BrandIcon name="alert" size={16} className="shrink-0" /> {serverErr}
         </motion.div>
       )}
 
@@ -450,8 +451,9 @@ export function RegisterForm() {
                 </button>
               </div>
               {errors.password && (
-                <p className="text-[12px] text-red-500 mt-1">
-                  ⚠ {errors.password}
+                <p className="mt-1 flex items-center gap-1 text-[12px] text-red-500">
+                  <BrandIcon name="alert" size={12} className="shrink-0" />{" "}
+                  {errors.password}
                 </p>
               )}
             </div>

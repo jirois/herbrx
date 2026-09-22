@@ -15,6 +15,7 @@ import { useCart } from "@/context/cart-context";
 import { useAuth } from "@/context/auth-context";
 import { formatNaira, cn } from "@/lib/utils";
 import { ProductImage } from "@/components/ui/product-image";
+import { BrandIcon } from "@/components/icons/brand-icons";
 import type { OrderCustomer } from "@/types";
 
 const NIGERIAN_STATES = [
@@ -147,7 +148,11 @@ const Field = ({
         )}
       />
     )}
-    {error && <p className="text-[12px] text-red-500 mt-1">⚠ {error}</p>}
+    {error && (
+      <p className="mt-1 flex items-center gap-1 text-[12px] text-red-500">
+        <BrandIcon name="alert" size={12} /> {error}
+      </p>
+    )}
   </div>
 );
 
@@ -398,7 +403,8 @@ export function CheckoutForm() {
           animate={{ opacity: 1, y: 0 }}
           className="bg-red-50 border border-red-200 text-red-700 text-[13px] px-4 py-3 rounded-xl mb-6 flex items-center gap-2"
         >
-          <span>⚠️</span> {errors._global}
+          <BrandIcon name="alert" size={16} className="shrink-0" />{" "}
+          {errors._global}
         </motion.div>
       )}
 
@@ -647,7 +653,7 @@ export function CheckoutForm() {
                     shipping === 0 ? "text-(--green-mid) font-medium" : ""
                   }
                 >
-                  {shipping === 0 ? "Free 🎉" : formatNaira(shipping)}
+                  {shipping === 0 ? "Free" : formatNaira(shipping)}
                 </span>
               </div>
               <div className="flex justify-between font-serif text-[20px] font-semibold text-(--green-deep) pt-2 border-t border-(--cream-dark)">

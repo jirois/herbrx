@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { BrandIcon } from "@/components/icons/brand-icons";
 import type { InputHTMLAttributes } from "react";
 
 interface AuthFieldProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -41,7 +42,7 @@ export function AuthField({
       )}
       {error && (
         <p className="text-[12px] text-red-500 mt-1 flex items-center gap-1">
-          <span>⚠</span> {error}
+          <BrandIcon name="alert" size={12} className="shrink-0" /> {error}
         </p>
       )}
     </div>

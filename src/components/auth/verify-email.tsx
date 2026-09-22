@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { signIn } from "next-auth/react";
 import { CheckCircle, RefreshCw, ArrowLeft, Loader2, Mail } from "lucide-react";
 import { Logo } from "@/components/layout/logo";
+import { BrandIcon } from "@/components/icons/brand-icons";
 
 const CODE_LENGTH = 6;
 const RESEND_COOLDOWN = 60; // seconds
@@ -273,7 +274,11 @@ export function VerifyEmailContent() {
                     status === "error" ? "text-red-500" : "text-(--green-mid)"
                   }`}
                 >
-                  {status === "error" ? "⚠ " : "✓ "}
+                  <BrandIcon
+                    name={status === "error" ? "alert" : "check"}
+                    size={14}
+                    className="mr-1 inline-block align-[-2px]"
+                  />
                   {message}
                 </motion.p>
               )}

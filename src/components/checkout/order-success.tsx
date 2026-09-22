@@ -56,7 +56,7 @@ export function OrderSuccessContent() {
           transition={{ delay: 0.3 }}
         >
           <h1 className="font-serif text-[clamp(28px,4vw,42px)] font-medium text-(--green-deep) mb-3">
-            Order Confirmed! 🎉
+            Order Confirmed!
           </h1>
           <p className="text-[16px] text-(--text-muted) font-light mb-10 leading-relaxed max-w-110 mx-auto">
             Thank you for shopping with HerbRx. Your order has been received and

@@ -9,6 +9,7 @@ import { signIn } from "next-auth/react";
 import { useT } from "@/context/locale-context";
 import { AuthField, AuthDivider, GoogleButton } from "./auth-form";
 import { Logo } from "@/components/layout/logo";
+import { BrandIcon } from "@/components/icons/brand-icons";
 
 export function LoginForm() {
   const router = useRouter();
@@ -92,7 +93,8 @@ export function LoginForm() {
           animate={{ opacity: 1, y: 0 }}
           className="bg-green-50 border border-green-200 text-green-700 text-[13px] px-4 py-3 rounded-xl mb-5 flex items-center gap-2"
         >
-          ✅ Email verified! You can now sign in.
+          <BrandIcon name="check-circle" size={16} className="shrink-0" /> Email
+          verified! You can now sign in.
         </motion.div>
       )}
 
@@ -109,7 +111,7 @@ export function LoginForm() {
           animate={{ opacity: 1, y: 0 }}
           className="bg-red-50 border border-red-200 text-red-700 text-[13px] px-4 py-3 rounded-xl mb-5 flex items-center gap-2"
         >
-          <span>⚠</span> {error}
+          <BrandIcon name="alert" size={16} className="shrink-0" /> {error}
         </motion.div>
       )}
 

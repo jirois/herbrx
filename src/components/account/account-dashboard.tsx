@@ -14,6 +14,7 @@ import {
 import { formatNaira } from "@/lib/utils";
 import type { Order } from "@/types";
 import { ProductImage } from "../ui/product-image";
+import { IconTile, type BrandIconName } from "@/components/icons/brand-icons";
 import Image from "next/image";
 
 interface Props {
@@ -132,22 +133,22 @@ export function AccountDashboard({ user, recentOrders }: Props) {
             {
               label: "Total Orders",
               value: recentOrders.length.toString(),
-              icon: "📦",
+              icon: "package" as BrandIconName,
             },
             {
               label: "Total Spent",
               value: formatNaira(totalSpend),
-              icon: "💳",
+              icon: "card" as BrandIconName,
             },
             {
               label: "Saved Address",
               value: recentOrders[0]?.customer.city ?? "—",
-              icon: "📍",
+              icon: "pin" as BrandIconName,
             },
             {
               label: "Member Since",
               value: new Date().getFullYear().toString(),
-              icon: "🌿",
+              icon: "leaf" as BrandIconName,
             },
           ].map((stat) => (
             <motion.div
@@ -156,7 +157,12 @@ export function AccountDashboard({ user, recentOrders }: Props) {
               animate={{ opacity: 1, y: 0 }}
               className="bg-white rounded-2xl border border-(--cream-dark) p-5"
             >
-              <p className="text-[24px] mb-2">{stat.icon}</p>
+              <IconTile
+                name={stat.icon}
+                size="sm"
+                tone="sage"
+                className="mb-3"
+              />
               <p className="font-serif text-[20px] font-semibold text-(--green-deep)">
                 {stat.value}
               </p>
@@ -184,7 +190,7 @@ export function AccountDashboard({ user, recentOrders }: Props) {
 
             {recentOrders.length === 0 ? (
               <div className="bg-white rounded-2xl border border-(--cream-dark) p-10 text-center">
-                <p className="text-[40px] mb-3">🌿</p>
+                <IconTile name="leaf" size="lg" className="mx-auto mb-4" />
                 <p className="font-serif text-[18px] text-(--green-deep) mb-2">
                   No orders yet
                 </p>

@@ -11,8 +11,9 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle, AlertCircle, Info, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BrandIcon } from "@/components/icons/brand-icons";
 
-// ── Types ─────────────────────────────────────────────────────────────────
+// ── Types ─────
 type ToastVariant = "success" | "error" | "info" | "cart";
 
 interface Toast {
@@ -30,15 +31,15 @@ interface ToastContextValue {
   cartAdd: (productName: string) => void;
 }
 
-// ── Context ───────────────────────────────────────────────────────────────
+// ── Context ────
 const ToastContext = createContext<ToastContextValue | null>(null);
 
-// ── Icons ─────────────────────────────────────────────────────────────────
+// ── Icons ───
 const icons: Record<ToastVariant, React.ReactNode> = {
   success: <CheckCircle size={16} />,
   error: <AlertCircle size={16} />,
   info: <Info size={16} />,
-  cart: <span className="text-[16px]">🛒</span>,
+  cart: <BrandIcon name="cart" size={16} />,
 };
 
 const styles: Record<ToastVariant, string> = {
@@ -55,7 +56,7 @@ const iconStyles: Record<ToastVariant, string> = {
   cart: "text-[var(--green-mid)]",
 };
 
-// ── Provider ──────────────────────────────────────────────────────────────
+// ── Provider ──────
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const timerMap = useRef<Map<string, ReturnType<typeof setTimeout>>>(
