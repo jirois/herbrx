@@ -462,3 +462,24 @@ export function useProducerAnalytics() {
     categories: { category: string; revenue: number; sales: number; count: number }[]
   }>('/api/dashboard/producer/analytics')
 }
+
+// ── Public blog hooks ────────────────────────────────────────────────
+export function useBlogPosts(category?: string) {
+  const qs = category && category !== 'All' ? `?category=${encodeURIComponent(category)}` : ''
+  return useFetch<{ posts: Record<string, unknown>[]; categories: string[] }>(`/api/blog${qs}`)
+}
+
+// ── Writer hooks ─────────────────────────────────────────────────────
+export function useWriterPosts() {
+  return useFetch<{ posts: Record<string, unknown>[] }>('/api/dashboard/writer/posts')
+}
+
+export function useWriterPost(id: string | null) {
+  return useFetch<{ post: Record<string, unknown> }>(id ? `/api/dashboard/writer/posts/${id}` : null)
+}
+
+// ── Editor hooks ─────────────────────────────────────────────────────
+export function useEditorPosts(status?: string) {
+  const qs = status ? `?status=${status}` : ''
+  return useFetch<{ posts: Record<string, unknown>[] }>(`/api/dashboard/editor/posts${qs}`)
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { HeroCard } from "./hero-card";
+import { HeroCard, type LatestPostSummary } from "./hero-card";
 import { HeroStats } from "./stats";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/context/locale-context";
@@ -12,7 +12,13 @@ const container = {
   show: { transition: { staggerChildren: 0.12, delayChildren: 0.1 } },
 };
 
-export function Hero() {
+interface HeroProps {
+  /** Most recently published blog post, fetched server-side by the page
+   * rendering <Hero /> and forwarded to the floating "New Post" card. */
+  latestPost?: LatestPostSummary | null;
+}
+
+export function Hero({ latestPost }: HeroProps = {}) {
   const t = useT();
   return (
     <section
@@ -82,7 +88,7 @@ export function Hero() {
       </motion.div>
 
       <div className="hidden lg:flex items-center justify-center px-10 relative z-10 py-16">
-        <HeroCard />
+        <HeroCard latestPost={latestPost} />
       </div>
     </section>
   );

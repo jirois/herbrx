@@ -1,6 +1,10 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { blogPosts, getBlogPostBySlug } from "@/data/blog";
+import {
+  getPublishedPostBySlug,
+  getAllPublishedSlugs,
+  getRecentPublishedPosts,
+} from "@/lib/blog";
 import { BlogPost } from "@/components/blog/blog-post";
 
 interface Props {
@@ -8,12 +12,13 @@ interface Props {
 }
 
 export async function generateStaticParams() {
-  return blogPosts.map((p) => ({ slug: p.slug }));
+  const slugs = await getAllPublishedSlugs();
+  return slugs.map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const post = getBlogPostBySlug(slug);
+  const post = await getPublishedPostBySlug(slug);
   if (!post) return {};
   return {
     title: post.title,
@@ -23,7 +28,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function BlogPostPage({ params }: Props) {
   const { slug } = await params;
-  const post = getBlogPostBySlug(slug);
+  const post = await getPublishedPostBySlug(slug);
   if (!post) notFound();
-  return <BlogPost post={post} />;
+  const related = await getRecentPublishedPosts(3, slug);
+  return <BlogPost post={post} related={related} />;
 }

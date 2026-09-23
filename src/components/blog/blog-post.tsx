@@ -4,7 +4,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Clock, ChevronRight, ArrowLeft, Tag } from "lucide-react";
 import { BlogCard } from "./blog-card";
-import { getRecentPosts } from "@/data/blog";
+import { BlogImage } from "@/components/ui/blog-image";
 import type { BlogPost as BlogPostType } from "@/data/blog";
 
 // Simple markdown-to-JSX renderer for our subset of markdown
@@ -59,11 +59,13 @@ function renderContent(content: string) {
 
 interface Props {
   post: BlogPostType;
+  /** Other published posts to show under "More Articles" — fetched
+   * server-side from the DB so it reflects real published content
+   * rather than the static seed list. */
+  related?: BlogPostType[];
 }
 
-export function BlogPost({ post }: Props) {
-  const related = getRecentPosts(3, post.slug);
-
+export function BlogPost({ post, related = [] }: Props) {
   return (
     <div className="min-h-screen bg-(--cream)">
       {/* Hero */}
@@ -124,6 +126,25 @@ export function BlogPost({ post }: Props) {
               </span>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Cover image */}
+      <div className="max-w-(--max-width) mx-auto px-6 lg:px-10 -mt-10 relative z-10">
+        <div
+          className="h-64 lg:h-90 rounded-3xl overflow-hidden relative shadow-[0_16px_40px_rgba(26,58,42,0.16)]"
+          style={{
+            background: `linear-gradient(135deg, ${post.gradientFrom}, ${post.gradientTo})`,
+          }}
+        >
+          <BlogImage
+            src={post.imageUrl}
+            emoji={post.emoji}
+            alt={post.title}
+            className="absolute inset-0"
+            fallbackIconSize={64}
+            priority
+          />
         </div>
       </div>
 

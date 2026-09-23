@@ -4,7 +4,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Clock, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { EmojiIcon } from "@/components/icons/brand-icons";
+import { BlogImage } from "@/components/ui/blog-image";
 import type { BlogPost } from "@/data/blog";
 
 interface BlogCardProps {
@@ -26,23 +26,22 @@ export function BlogCard({ post, index = 0, featured = false }: BlogCardProps) {
           {/* Thumbnail */}
           <div
             className={cn(
-              "flex items-center justify-center overflow-hidden relative",
+              "overflow-hidden relative transition-transform duration-500 group-hover:scale-[1.03]",
               featured ? "h-70" : "h-50",
             )}
             style={{
               background: `linear-gradient(135deg, ${post.gradientFrom}, ${post.gradientTo})`,
             }}
           >
-            <span
-              className={cn(
-                "flex items-center justify-center rounded-full bg-white/35 text-(--green-deep) select-none transition-transform duration-500 group-hover:scale-110",
-                featured ? "h-28 w-28" : "h-24 w-24",
-              )}
-              role="img"
-              aria-label={post.title}
-            >
-              <EmojiIcon emoji={post.emoji} size={featured ? 52 : 44} />
-            </span>
+            <BlogImage
+              src={post.imageUrl}
+              emoji={post.emoji}
+              alt={post.title}
+              className="absolute inset-0"
+              fallbackIconSize={featured ? 52 : 44}
+            />
+            {/* Subtle bottom scrim so the category pill stays legible over any photo */}
+            <div className="absolute inset-x-0 bottom-0 h-16 bg-linear-to-t from-black/35 to-transparent pointer-events-none" />
             {/* Category pill */}
             <div className="absolute bottom-3 left-3">
               <span className="bg-white/20 backdrop-blur-sm text-white text-[11px] font-medium px-3 py-1 rounded-full tracking-wide">

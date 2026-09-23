@@ -3,17 +3,24 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BlogCard } from "./blog-card";
-import { blogPosts, blogCategories, getFeaturedPost } from "@/data/blog";
+import type { BlogPost as BlogPostType } from "@/data/blog";
 import { cn } from "@/lib/utils";
 
-export function BlogListing() {
+interface Props {
+  /** Published posts, fetched server-side from the DB (falls back to the
+   * static seed data automatically if the DB isn't reachable). */
+  posts: BlogPostType[];
+  categories: string[];
+}
+
+export function BlogListing({ posts, categories }: Props) {
   const [activeCategory, setActiveCategory] = useState("All");
-  const featured = getFeaturedPost();
+  const featured = posts.find((p) => p.featured);
 
   const filtered =
     activeCategory === "All"
-      ? blogPosts
-      : blogPosts.filter((p) => p.category === activeCategory);
+      ? posts
+      : posts.filter((p) => p.category === activeCategory);
 
   return (
     <div className="min-h-screen bg-(--cream)">
@@ -46,7 +53,7 @@ export function BlogListing() {
 
         {/* Category filters */}
         <div className="flex flex-wrap gap-2 mb-8">
-          {blogCategories.map((cat) => (
+          {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}

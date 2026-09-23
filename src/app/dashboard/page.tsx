@@ -16,7 +16,7 @@ type DashboardUser = {
   name?: string | null;
   email?: string | null;
   image?: string | null;
-  role?: "ADMIN" | "PRODUCER" | "CUSTOMER" | "CONSULTANT";
+  role?: "ADMIN" | "PRODUCER" | "CUSTOMER" | "CONSULTANT" | "WRITER" | "EDITOR";
 };
 
 export default async function DashboardPage() {
@@ -36,6 +36,16 @@ export default async function DashboardPage() {
         <ProducerDashboard user={user} tier="UNVERIFIED" />
       </DashboardShell>
     );
+  }
+
+  // Writers and editors land straight on their own queue/list pages —
+  // those already serve as a full "overview" for these roles.
+  if (role === "WRITER") {
+    redirect("/dashboard/writer");
+  }
+
+  if (role === "EDITOR") {
+    redirect("/dashboard/editor");
   }
 
   // CONSULTANT accounts were previously falling through to the CUSTOMER

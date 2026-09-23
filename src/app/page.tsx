@@ -7,11 +7,24 @@ import { WhySection } from "@/components/sections/why-section";
 import { Services } from "@/components/services/services";
 import { Products } from "@/components/store/products";
 import { TrustBar } from "@/components/trust/trust-bar";
+import { getLatestPublishedPost } from "@/lib/blog";
 
-export default function Homepage() {
+export default async function Homepage() {
+  const latest = await getLatestPublishedPost();
+
   return (
     <>
-      <Hero />
+      <Hero
+        latestPost={
+          latest
+            ? {
+                title: latest.title,
+                category: latest.category,
+                publishedAt: latest.date,
+              }
+            : null
+        }
+      />
       <TrustBar />
       <Services />
       <Products />

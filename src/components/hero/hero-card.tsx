@@ -5,7 +5,20 @@ import { CheckCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { BrandIcon, type BrandIconName } from "@/components/icons/brand-icons";
 
-export function HeroCard() {
+export interface LatestPostSummary {
+  title: string;
+  category: string;
+  publishedAt: string; // ISO date string
+}
+
+interface HeroCardProps {
+  /** Most recently published blog post — when present, the floating
+   * bottom card announces it instead of the static placeholder copy.
+   * Updates automatically every time a new post goes live. */
+  latestPost?: LatestPostSummary | null;
+}
+
+export function HeroCard({ latestPost }: HeroCardProps = {}) {
   return (
     <div className="relative w-full max-w-100">
       {/* Floating top badge */}
@@ -88,14 +101,15 @@ export function HeroCard() {
         </div>
         <div>
           <div className="text-[13px] font-medium text-(--text-dark)">
-            Latest Review Published
+            {latestPost ? "New Post Published" : "Latest Review Published"}
           </div>
-          <div className="text-[11px] text-(--text-muted)">
-            Liver Detox Blend —{" "}
-            {new Date().toLocaleDateString("en-NG", {
-              month: "long",
-              year: "numeric",
-            })}
+          <div className="text-[11px] text-(--text-muted) max-w-52 truncate">
+            {latestPost
+              ? latestPost.title
+              : `Liver Detox Blend — ${new Date().toLocaleDateString("en-NG", {
+                  month: "long",
+                  year: "numeric",
+                })}`}
           </div>
         </div>
       </motion.div>

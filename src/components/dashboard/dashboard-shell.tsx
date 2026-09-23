@@ -34,6 +34,10 @@ import {
   ShieldCheck,
   CalendarDays,
   CheckCircle2,
+  FileText,
+  PenSquare,
+  BookOpen,
+  ClipboardCheck,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -206,17 +210,53 @@ const consultantNav: NavSection[] = [
   },
 ];
 
+const writerNav: NavSection[] = [
+  {
+    label: "Blog",
+    items: [
+      { href: "/dashboard", icon: LayoutDashboard, label: "Overview" },
+      { href: "/dashboard/writer", icon: FileText, label: "My Posts" },
+      { href: "/dashboard/writer/new", icon: PenSquare, label: "New Post" },
+      { href: "/blog", icon: BookOpen, label: "View Blog", external: true },
+    ],
+  },
+];
+
+const editorNav: NavSection[] = [
+  {
+    label: "Editorial",
+    items: [
+      { href: "/dashboard", icon: LayoutDashboard, label: "Overview" },
+      {
+        href: "/dashboard/editor",
+        icon: ClipboardCheck,
+        label: "Review Queue",
+      },
+      {
+        href: "/dashboard/editor?status=PUBLISHED",
+        icon: CheckCircle2,
+        label: "Published",
+      },
+      { href: "/blog", icon: BookOpen, label: "View Blog", external: true },
+    ],
+  },
+];
+
 const roleLabel: Record<string, string> = {
   CUSTOMER: "Customer",
   PRODUCER: "Producer",
   ADMIN: "Admin",
   CONSULTANT: "Consultant",
+  WRITER: "Writer",
+  EDITOR: "Editor",
 };
 const roleBadgeColor: Record<string, string> = {
   CUSTOMER: "bg-[var(--green-mid)]/30 text-[var(--green-pale)]",
   PRODUCER: "bg-amber-500/20 text-amber-300",
   ADMIN: "bg-red-500/20 text-red-300",
   CONSULTANT: "bg-blue-500/20 text-blue-300",
+  WRITER: "bg-purple-500/20 text-purple-300",
+  EDITOR: "bg-teal-500/20 text-teal-300",
 };
 
 interface DashboardShellProps {
@@ -263,7 +303,11 @@ export function DashboardShell({
         ? producerNav
         : role === "CONSULTANT"
           ? consultantNav
-          : customerNav;
+          : role === "WRITER"
+            ? writerNav
+            : role === "EDITOR"
+              ? editorNav
+              : customerNav;
 
   const initials = session?.user
     ? `${(session.user as { firstName: string }).firstName?.[0] ?? ""}${(session.user as { lastName: string }).lastName?.[0] ?? ""}`.toUpperCase()

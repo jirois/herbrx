@@ -2,11 +2,11 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { BlogCard } from "@/components/blog/blog-card";
 import { SectionTitle } from "@/components/ui/section-title";
-import { getFeaturedPost, getRecentPosts } from "@/data/blog";
+import { getFeaturedPublishedPost, getRecentPublishedPosts } from "@/lib/blog";
 
-export function BlogSection() {
-  const featured = getFeaturedPost();
-  const recent = getRecentPosts(2, featured?.slug);
+export async function BlogSection() {
+  const featured = await getFeaturedPublishedPost();
+  const recent = await getRecentPublishedPosts(2, featured?.slug);
 
   return (
     <section className="bg-(--cream) py-20 lg:py-24">
