@@ -5,6 +5,8 @@ import slugify from 'slugify'
 
 // const prisma = new PrismaClient()
 import {prisma} from '@/lib/prisma'
+import { blogPosts as staticBlogPosts } from '@/data/blog'
+
 
 async function main() {
   console.log('🌿 Seeding HerbRx database…')
@@ -313,7 +315,87 @@ async function main() {
 
   console.log('\n✅ Core seed complete!')
   await seedInteractions()
+  await seedBlog(admin.id)
   console.log('\n🌿 Full seed done!')
+}
+
+// ── Blog: writer/editor demo accounts + the 6 legacy posts, published ──
+async function seedBlog(adminId: string) {
+  console.log('\n  Seeding blog (writer/editor accounts + legacy posts)…')
+
+  const writerHash = await bcrypt.hash('writer123', 12)
+  const editorHash = await bcrypt.hash('editor123', 12)
+
+  const writer = await prisma.user.upsert({
+    where: { email: 'writer@herbrx.ng' },
+    update: { firstName: 'Ngozi', lastName: 'Eze', role: 'WRITER' },
+    create: {
+      email: 'writer@herbrx.ng', firstName: 'Ngozi', lastName: 'Eze', phone: '08011122233',
+      passwordHash: writerHash, emailVerified: true, role: 'WRITER',
+    },
+  })
+  console.log('  ✓ Writer:', writer.email)
+
+  const editor = await prisma.user.upsert({
+    where: { email: 'editor@herbrx.ng' },
+    update: { firstName: 'Tunde', lastName: 'Bakare', role: 'EDITOR' },
+    create: {
+      email: 'editor@herbrx.ng', firstName: 'Tunde', lastName: 'Bakare', phone: '08033344455',
+      passwordHash: editorHash, emailVerified: true, role: 'EDITOR',
+    },
+  })
+  console.log('  ✓ Editor:', editor.email)
+
+  for (const p of staticBlogPosts) {
+    const slug = slugify(p.title, { lower: true, strict: true })
+    const publishedAt = new Date(p.date)
+    await prisma.blogPost.upsert({
+      where: { slug },
+      update: {
+        title: p.title,
+        excerpt: p.excerpt,
+        content: p.content,
+        category: p.category,
+        tags: p.tags,
+        imageUrl: p.imageUrl ?? null,
+        readTime: p.readTime,
+        featured: p.featured ?? false,
+        authorTitle: p.authorRole,
+      },
+      create: {
+        slug,
+        title: p.title,
+        excerpt: p.excerpt,
+        content: p.content,
+        category: p.category,
+        tags: p.tags,
+        imageUrl: p.imageUrl ?? null,
+        readTime: p.readTime,
+        featured: p.featured ?? false,
+        authorTitle: p.authorRole,
+        authorId: writer.id,
+        status: 'PUBLISHED',
+        submittedAt: publishedAt,
+        reviewedAt: publishedAt,
+        publishedAt,
+        reviewerId: editor.id,
+        reviewNotes: 'Looks solid — approved for launch content.',
+      },
+    })
+    console.log(`  ✓ Blog post: ${p.title}`)
+  }
+
+  // Audit trail for the admin who ran the seed, matching the convention
+  // used for batch/product decisions elsewhere.
+  await prisma.adminAction.create({
+    data: {
+      adminId,
+      action: 'BLOG_SEED',
+      targetType: 'BlogPost',
+      targetId: 'seed',
+      reason: `Seeded ${staticBlogPosts.length} launch blog posts`,
+    },
+  })
 }
 
 // ── Seed helper ────────────────────────────────────────────────────────────
@@ -590,4 +672,3 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
-

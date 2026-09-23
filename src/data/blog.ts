@@ -11,6 +11,7 @@ export interface BlogPost {
   date: string
   readTime: number
   emoji: string
+  imageUrl?: string
   gradientFrom: string
   gradientTo: string
   featured?: boolean
@@ -68,6 +69,7 @@ The rule of thumb: the more dramatic the claim, the more skeptical you should be
     date: '2025-07-12',
     readTime: 6,
     emoji: '🌿',
+    imageUrl: '/blog/5-common-herbal-products.svg',
     gradientFrom: '#2D5A3D',
     gradientTo: '#4A7C59',
     featured: true,
@@ -109,6 +111,7 @@ Phrases like "cures cancer," "reverses diabetes," or "100% guaranteed" are red f
     date: '2025-06-20',
     readTime: 4,
     emoji: '🧪',
+    imageUrl: '/blog/how-to-tell-if-safe.svg',
     gradientFrom: '#B8832A',
     gradientTo: '#D4A85C',
     tags: ['NAFDAC', 'Consumer Safety', 'Buying Guide'],
@@ -149,6 +152,7 @@ Moringa is a legitimate nutritional supplement with genuine evidence. Buy whole-
     date: '2025-05-15',
     readTime: 5,
     emoji: '🌱',
+    imageUrl: '/blog/moringa-benefits-risks.svg',
     gradientFrom: '#4A7C59',
     gradientTo: '#2D5A3D',
     tags: ['Moringa', 'Research', 'Nutrition', 'Evidence-Based'],
@@ -193,6 +197,7 @@ Our Producer Consultancy service guides small producers through this entire proc
     date: '2025-04-08',
     readTime: 7,
     emoji: '📋',
+    imageUrl: '/blog/nafdac-registration-guide.svg',
     gradientFrom: '#C8DABB',
     gradientTo: '#4A7C59',
     tags: ['NAFDAC', 'Producers', 'Registration', 'Regulatory'],
@@ -231,6 +236,7 @@ Drug interactions: combine with caution with antidiabetic medications, anticoagu
     date: '2025-03-22',
     readTime: 5,
     emoji: '🌼',
+    imageUrl: '/blog/bitter-leaf-ewuro.svg',
     gradientFrom: '#C2DDD5',
     gradientTo: '#9BCABB',
     tags: ['Bitter Leaf', 'Ewuro', 'Malaria', 'Traditional Medicine'],
@@ -269,6 +275,7 @@ For healthy adults: 1–2 glasses of unsweetened Zobo daily is safe and may conf
     date: '2025-02-14',
     readTime: 4,
     emoji: '🌺',
+    imageUrl: '/blog/zobo-hibiscus.svg',
     gradientFrom: '#F5C4C4',
     gradientTo: '#E8A0A0',
     tags: ['Zobo', 'Hibiscus', 'Blood Pressure', 'Heart Health'],

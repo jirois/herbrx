@@ -41,6 +41,10 @@ model User {
   productReviews        ProductReview[]
   consultantProfile     ConsultantProfile?
 
+  // Blog: Writer / Editor
+  blogPosts   BlogPost[] @relation("BlogAuthor")
+  blogReviews BlogPost[] @relation("BlogReviewer")
+
   @@index([email])
   @@index([role])
 }
@@ -683,11 +687,57 @@ model ReviewHelpfulVote {
   @@unique([reviewId, userId])
 }
 
+// ── Blog: multi-writer editorial workflow ──────────────────────────────
+// DRAFT -> PENDING_REVIEW -> PUBLISHED (editor approves)
+//                         -> CHANGES_REQUESTED (editor sends back; writer edits and resubmits)
+// PUBLISHED -> ARCHIVED (editor/admin can retire a live post)
+model BlogPost {
+  id       String         @id @default(cuid())
+  slug     String         @unique
+  title    String
+  excerpt  String         @db.Text
+  content  String         @db.LongText
+  category String
+  tags     Json // string[]
+  imageUrl String?        @db.MediumText // hosted URL or compressed data: URI from the cover-image uploader
+  readTime Int            @default(4)
+  featured Boolean        @default(false)
+  status   BlogPostStatus @default(DRAFT)
+
+  // Byline shown on the public post — the writer's account provides the
+  // name/avatar-initials, this is just their editorial title (e.g. "Herbal
+  // Pharmacist", "Health Journalist"), since UserRole is an access level,
+  // not a public-facing job title.
+  authorTitle String?
+
+  authorId String
+  author   User   @relation("BlogAuthor", fields: [authorId], references: [id])
+
+  reviewerId  String?
+  reviewer    User?     @relation("BlogReviewer", fields: [reviewerId], references: [id])
+  reviewNotes String?   @db.Text
+  reviewedAt  DateTime?
+
+  submittedAt DateTime?
+  publishedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([authorId])
+  @@index([reviewerId])
+  @@index([category])
+  @@index([publishedAt])
+}
+
 enum UserRole {
   CUSTOMER
   PRODUCER
   ADMIN
   CONSULTANT
+  WRITER
+  EDITOR
 }
 
 enum AccountStatus {
@@ -867,4 +917,12 @@ enum EvidenceLevel {
   MODERATE
   PRELIMINARY
   ANECDOTAL
+}
+
+enum BlogPostStatus {
+  DRAFT
+  PENDING_REVIEW
+  CHANGES_REQUESTED
+  PUBLISHED
+  ARCHIVED
 }
