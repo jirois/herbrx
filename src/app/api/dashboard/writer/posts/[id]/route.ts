@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth, ok, badRequest, notFound, forbidden, serverError, slugify } from '@/lib/api-helpers'
+import { estimateReadTime } from '@/lib/reading-time'
 
 type AuthUser = { id: string; role: string }
 type Params = { params: Promise<{ id: string }> }
@@ -56,18 +57,19 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
 
     const body = await req.json()
-    const { title, excerpt, content, category, tags, imageUrl, readTime, authorTitle } = body
+    const { title, excerpt, content, category, tags, imageUrl, authorTitle } = body
 
     const updated = await prisma.blogPost.update({
       where: { id },
       data: {
         ...(title !== undefined ? { title, slug: await generateUniqueSlug(title, id) } : {}),
         ...(excerpt !== undefined ? { excerpt } : {}),
-        ...(content !== undefined ? { content } : {}),
+        // Read time is re-derived from content on every edit that touches it —
+        // never a client-supplied number — so it can never drift out of sync.
+        ...(content !== undefined ? { content, readTime: estimateReadTime(content) } : {}),
         ...(category !== undefined ? { category } : {}),
         ...(tags !== undefined ? { tags: Array.isArray(tags) ? tags : [] } : {}),
         ...(imageUrl !== undefined ? { imageUrl } : {}),
-        ...(readTime !== undefined ? { readTime: Number(readTime) || 4 } : {}),
         ...(authorTitle !== undefined ? { authorTitle } : {}),
       },
       include: { author: authorSelect, reviewer: authorSelect },

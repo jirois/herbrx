@@ -57,7 +57,7 @@ interface CompressionResult {
 //      visible. If we still can't meet the ceiling at 0.30, report the
 //      best result achieved and let the caller decide.
 //
-async function compressImage(
+export async function compressImage(
   file: File,
   maxDimension = 800,
   targetMaxKb = 100,

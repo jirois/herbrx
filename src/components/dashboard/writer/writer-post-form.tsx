@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Save, Send, ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { ImageUploader } from "@/components/ui/image-uploader";
+import { ContentEditor } from "@/components/dashboard/writer/content-editor";
 import { blogCategories } from "@/data/blog";
 import { useWriterPost, apiPost, apiPatch } from "@/hooks/dashboard-hooks";
 
@@ -16,7 +17,6 @@ interface FormState {
   category: string;
   tags: string;
   authorTitle: string;
-  readTime: number;
   imageUrl: string | null;
 }
 
@@ -27,7 +27,6 @@ const EMPTY: FormState = {
   category: blogCategories.find((c) => c !== "All") ?? "",
   tags: "",
   authorTitle: "",
-  readTime: 4,
   imageUrl: null,
 };
 
@@ -41,38 +40,59 @@ interface Props {
 export function WriterPostForm({ postId }: Props) {
   const router = useRouter();
   const { data, loading: loadingPost } = useWriterPost(postId ?? null);
-  const [form, setForm] = useState<FormState>(EMPTY);
-  const [status, setStatus] = useState<string | null>(null);
-  const [reviewNotes, setReviewNotes] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const post = data?.post as
+    | (FormState & {
+        status: string;
+        reviewNotes: string | null;
+        tags: string[];
+      })
+    | undefined;
 
-  useEffect(() => {
-    const post = data?.post as
-      | (FormState & {
-          status: string;
-          reviewNotes: string | null;
-          tags: string[];
-        })
-      | undefined;
-    if (post) {
-      queueMicrotask(() => {
-        setForm({
+  return (
+    <WriterPostFormFields
+      key={post ? (postId ?? "loaded") : "empty"}
+      postId={postId}
+      post={post}
+      loadingPost={loadingPost}
+      router={router}
+    />
+  );
+}
+
+function WriterPostFormFields({
+  postId,
+  post,
+  loadingPost,
+  router,
+}: Props & {
+  post?: FormState & {
+    status: string;
+    reviewNotes: string | null;
+    tags: string[];
+  };
+  loadingPost: boolean;
+  router: ReturnType<typeof useRouter>;
+}) {
+  const [form, setForm] = useState<FormState>(() =>
+    post
+      ? {
           title: post.title,
           excerpt: post.excerpt,
           content: post.content,
           category: post.category,
           tags: Array.isArray(post.tags) ? post.tags.join(", ") : "",
           authorTitle: post.authorTitle ?? "",
-          readTime: post.readTime ?? 4,
           imageUrl: post.imageUrl ?? null,
-        });
-        setStatus(post.status);
-        setReviewNotes(post.reviewNotes ?? null);
-      });
-    }
-  }, [data]);
+        }
+      : EMPTY,
+  );
+  const [status] = useState<string | null>(() => post?.status ?? null);
+  const [reviewNotes] = useState<string | null>(
+    () => post?.reviewNotes ?? null,
+  );
+  const [saving, setSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   function field<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -89,7 +109,6 @@ export function WriterPostForm({ postId }: Props) {
         .map((t) => t.trim())
         .filter(Boolean),
       authorTitle: form.authorTitle || null,
-      readTime: Number(form.readTime) || 4,
       imageUrl: form.imageUrl,
     };
   }
@@ -188,13 +207,11 @@ export function WriterPostForm({ postId }: Props) {
               />
 
               <FieldLabel>Content</FieldLabel>
-              <textarea
+              <ContentEditor
                 value={form.content}
+                onChange={(v) => field("content", v)}
                 disabled={locked}
-                onChange={(e) => field("content", e.target.value)}
                 rows={16}
-                placeholder="Write your post. Separate paragraphs with a blank line."
-                className={`${inputCls} font-mono text-[13px] leading-relaxed`}
               />
             </div>
           </div>
@@ -240,17 +257,6 @@ export function WriterPostForm({ postId }: Props) {
                 disabled={locked}
                 onChange={(e) => field("authorTitle", e.target.value)}
                 placeholder="e.g. Herbal Pharmacist"
-                className={inputCls}
-              />
-
-              <FieldLabel>Read time (minutes)</FieldLabel>
-              <input
-                type="number"
-                min={1}
-                max={30}
-                value={form.readTime}
-                disabled={locked}
-                onChange={(e) => field("readTime", Number(e.target.value))}
                 className={inputCls}
               />
             </div>

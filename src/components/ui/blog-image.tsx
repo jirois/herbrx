@@ -29,14 +29,21 @@ export function BlogImage({
 }: Props) {
   if (src) {
     return (
-      <div className={`relative overflow-hidden ${className}`}>
+      // No "relative" here on purpose — every caller passes
+      // className="absolute inset-0" because the actual positioning
+      // context (the card thumbnail box, the post hero) is already
+      // `relative` one level up. Adding "relative" on top of that
+      // "absolute" put two conflicting position values on the same
+      // element, which is what made the image render unpositioned.
+      <div className={`overflow-hidden ${className}`}>
         <Image
           src={src}
           alt={alt}
           fill
           sizes="(max-width: 768px) 100vw, 480px"
-          className="object-cover"
+          className="object-cover object-center"
           priority={priority}
+          unoptimized={src.startsWith("data:") || src.endsWith(".svg")}
         />
       </div>
     );

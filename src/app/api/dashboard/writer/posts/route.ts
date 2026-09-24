@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth, ok, created, badRequest, serverError, slugify } from '@/lib/api-helpers'
+import { estimateReadTime } from '@/lib/reading-time'
 
 type AuthUser = { id: string; role: string }
 
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
   try {
     const user = session!.user as AuthUser
     const body = await req.json()
-    const { title, excerpt, content, category, tags, imageUrl, readTime, authorTitle } = body
+    const { title, excerpt, content, category, tags, imageUrl, authorTitle } = body
 
     if (!title || !excerpt || !content || !category) {
       return badRequest('title, excerpt, content, and category are required')
@@ -50,7 +51,9 @@ export async function POST(req: NextRequest) {
         category,
         tags: Array.isArray(tags) ? tags : [],
         imageUrl: imageUrl ?? null,
-        readTime: Number(readTime) || 4,
+        // Always derived from the actual content — never trusts a client-
+        // supplied number — so it can't drift from what's really on the page.
+        readTime: estimateReadTime(content),
         authorTitle: authorTitle ?? null,
         authorId: user.id,
         status: 'DRAFT',

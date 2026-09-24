@@ -5,57 +5,8 @@ import { motion } from "framer-motion";
 import { Clock, ChevronRight, ArrowLeft, Tag } from "lucide-react";
 import { BlogCard } from "./blog-card";
 import { BlogImage } from "@/components/ui/blog-image";
+import { renderMarkdownLite } from "@/lib/render-content";
 import type { BlogPost as BlogPostType } from "@/data/blog";
-
-// Simple markdown-to-JSX renderer for our subset of markdown
-function renderContent(content: string) {
-  return content.split("\n").map((line, i) => {
-    if (line.startsWith("## ")) {
-      return (
-        <h2
-          key={i}
-          className="font-serif text-[26px] font-semibold text-(--green-deep) mt-10 mb-4"
-        >
-          {line.slice(3)}
-        </h2>
-      );
-    }
-    if (line.startsWith("**") && line.endsWith("**")) {
-      return (
-        <p
-          key={i}
-          className="font-semibold text-(--text-dark) mt-4 mb-1 text-[15px]"
-        >
-          {line.slice(2, -2)}
-        </p>
-      );
-    }
-    if (line.startsWith("---")) {
-      return <hr key={i} className="border-(--cream-dark) my-8" />;
-    }
-    if (line.trim() === "") {
-      return <div key={i} className="h-3" />;
-    }
-    // Inline bold
-    const parts = line.split(/\*\*(.*?)\*\*/g);
-    return (
-      <p
-        key={i}
-        className="text-[15px] text-(--text-body) leading-relaxed font-light"
-      >
-        {parts.map((part, j) =>
-          j % 2 === 1 ? (
-            <strong key={j} className="font-semibold text-(--text-dark)">
-              {part}
-            </strong>
-          ) : (
-            part
-          ),
-        )}
-      </p>
-    );
-  });
-}
 
 interface Props {
   post: BlogPostType;
@@ -68,14 +19,32 @@ interface Props {
 export function BlogPost({ post, related = [] }: Props) {
   return (
     <div className="min-h-screen bg-(--cream)">
-      {/* Hero */}
-      <div
-        className="relative py-20 overflow-hidden"
-        style={{
-          background: `linear-gradient(135deg, ${post.gradientFrom}, ${post.gradientTo})`,
-        }}
-      >
-        <div className="max-w-(--max-width) mx-auto px-6 lg:px-10 relative z-10">
+      {/* Hero — cover image as a full-bleed background behind the title */}
+      <div className="relative min-h-110 lg:min-h-130 flex flex-col justify-end overflow-hidden">
+        {post.imageUrl ? (
+          <>
+            <BlogImage
+              src={post.imageUrl}
+              emoji={post.emoji}
+              alt={post.title}
+              className="absolute inset-0"
+              priority
+            />
+            {/* Scrim so white text stays legible over any photo */}
+            <div className="absolute inset-0 bg-linear-to-t from-black/85 via-black/45 to-black/10" />
+          </>
+        ) : (
+          <div
+            className="absolute inset-0"
+            style={{
+              background: `linear-gradient(135deg, ${post.gradientFrom}, ${post.gradientTo})`,
+            }}
+          >
+            <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent" />
+          </div>
+        )}
+
+        <div className="relative z-10 max-w-(--max-width) mx-auto px-6 lg:px-10 pb-10 pt-24 w-full">
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 text-[13px] text-white/60 mb-6">
             <Link href="/" className="hover:text-white transition-colors">
@@ -92,20 +61,20 @@ export function BlogPost({ post, related = [] }: Props) {
           </div>
 
           <div className="max-w-180">
-            <span className="inline-block bg-white/20 text-white text-[11px] px-3 py-1 rounded-full tracking-wide font-medium mb-5">
+            <span className="inline-block bg-white/20 backdrop-blur-sm text-white text-[11px] px-3 py-1 rounded-full tracking-wide font-medium mb-5">
               {post.category}
             </span>
-            <h1 className="font-serif text-[clamp(26px,4vw,44px)] font-medium text-white leading-[1.15] mb-5">
+            <h1 className="font-serif text-[clamp(26px,4vw,44px)] font-medium text-white leading-[1.15] mb-5 [text-shadow:0_2px_16px_rgba(0,0,0,0.35)]">
               {post.title}
             </h1>
-            <p className="text-white/70 text-[16px] font-light leading-relaxed mb-7 max-w-150">
+            <p className="text-white/80 text-[16px] font-light leading-relaxed mb-7 max-w-150">
               {post.excerpt}
             </p>
 
             {/* Author + meta */}
             <div className="flex flex-wrap items-center gap-4 text-[13px] text-white/70">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-[11px] font-bold text-white">
+                <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-[11px] font-bold text-white">
                   {post.authorInitials}
                 </div>
                 <div>
@@ -129,25 +98,6 @@ export function BlogPost({ post, related = [] }: Props) {
         </div>
       </div>
 
-      {/* Cover image */}
-      <div className="max-w-(--max-width) mx-auto px-6 lg:px-10 -mt-10 relative z-10">
-        <div
-          className="h-64 lg:h-90 rounded-3xl overflow-hidden relative shadow-[0_16px_40px_rgba(26,58,42,0.16)]"
-          style={{
-            background: `linear-gradient(135deg, ${post.gradientFrom}, ${post.gradientTo})`,
-          }}
-        >
-          <BlogImage
-            src={post.imageUrl}
-            emoji={post.emoji}
-            alt={post.title}
-            className="absolute inset-0"
-            fallbackIconSize={64}
-            priority
-          />
-        </div>
-      </div>
-
       {/* Article body */}
       <div className="max-w-(--max-width) mx-auto px-6 lg:px-10 py-12">
         <div className="grid lg:grid-cols-[1fr_280px] gap-12">
@@ -158,7 +108,7 @@ export function BlogPost({ post, related = [] }: Props) {
             transition={{ duration: 0.45 }}
           >
             <div className="bg-white rounded-2xl border border-(--cream-dark) p-8 lg:p-12 mb-8 prose-custom">
-              {renderContent(post.content)}
+              {renderMarkdownLite(post.content)}
             </div>
 
             {/* Tags */}
