@@ -483,3 +483,10 @@ export function useEditorPosts(status?: string) {
   const qs = status ? `?status=${status}` : ''
   return useFetch<{ posts: Record<string, unknown>[] }>(`/api/dashboard/editor/posts${qs}`)
 }
+
+// ── Admin: Writer/Editor staff accounts ─────────────────────────────────
+export function useStaffAccounts(role?: 'WRITER' | 'EDITOR') {
+  const qs = role ? `?role=${role}` : ''
+  return useFetch<{ staff: Record<string, unknown>[] }>(`/api/dashboard/admin/staff${qs}`)
+}
+

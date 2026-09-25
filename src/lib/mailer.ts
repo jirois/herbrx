@@ -536,3 +536,36 @@ export async function sendVerificationStatusEmail(opts: {
 // }
 
 
+export async function sendNewsletterWelcomeEmail(opts: { to: string }) {
+  const body = `
+    <h1 style="font-family:Georgia,serif;font-size:26px;font-weight:600;color:${BRAND_GREEN};margin-bottom:8px;">
+      You're on the list 🌿
+    </h1>
+    <p style="font-size:15px;color:#555;line-height:1.7;margin-bottom:24px;">
+      Thanks for subscribing to the HerbRx newsletter. You'll get verified herbal
+      wellness tips, safety alerts, and expert guidance straight to this inbox —
+      in plain language, no spam.
+    </p>
+
+    <div style="background:${BRAND_CREAM};border-radius:16px;padding:24px;margin:0 0 28px;">
+      <p style="font-size:13px;color:#666;line-height:1.7;margin:0;">
+        In the meantime, browse our latest guides on
+        <a href="https://herbrx.ng/blog" style="color:${BRAND_GREEN};font-weight:600;">herbrx.ng/blog</a>.
+      </p>
+    </div>
+
+    <div style="border-top:1px solid #f0f0f0;padding-top:20px;">
+      <p style="font-size:12px;color:#bbb;">
+        🌿 Trusted herbal health for Nigerians · NAFDAC-Compliant Reviews
+      </p>
+    </div>
+  `
+
+  return transporter.sendMail({
+    from: FROM,
+    to: opts.to,
+    subject: "Welcome to the HerbRx newsletter 🌿",
+    html: emailLayout('Welcome to HerbRx', body),
+    text: "Thanks for subscribing to the HerbRx newsletter — verified herbal wellness tips, safety alerts, and expert guidance, straight to your inbox.",
+  })
+}

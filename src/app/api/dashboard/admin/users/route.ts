@@ -10,8 +10,8 @@ export async function GET(req: NextRequest) {
   try {
     const url    = new URL(req.url)
     const roleParam = url.searchParams.get('role')
-    const role = ['CUSTOMER', 'PRODUCER', 'ADMIN'].includes(roleParam ?? '')
-      ? roleParam as 'CUSTOMER' | 'PRODUCER' | 'ADMIN'
+    const role = ['CUSTOMER', 'PRODUCER', 'ADMIN', 'CONSULTANT', 'WRITER', 'EDITOR'].includes(roleParam ?? '')
+      ? roleParam as 'CUSTOMER' | 'PRODUCER' | 'ADMIN' | 'CONSULTANT' | 'WRITER' | 'EDITOR'
       : null
     const search = url.searchParams.get('search')
     const { skip, limit } = parsePagination(url)

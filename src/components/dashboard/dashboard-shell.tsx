@@ -175,6 +175,11 @@ const adminNav: NavSection[] = [
         label: "Consultants",
       },
       {
+        href: "/dashboard/admin/staff",
+        icon: PenSquare,
+        label: "Writers & Editors",
+      },
+      {
         href: "/dashboard/transactions",
         icon: CreditCard,
         label: "Transactions",

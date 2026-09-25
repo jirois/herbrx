@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Clock, ChevronRight, ArrowLeft, Tag } from "lucide-react";
 import { BlogCard } from "./blog-card";
 import { BlogImage } from "@/components/ui/blog-image";
+import { NewsletterMini } from "./newsletter-mini";
 import { renderMarkdownLite } from "@/lib/render-content";
 import type { BlogPost as BlogPostType } from "@/data/blog";
 
@@ -169,16 +170,7 @@ export function BlogPost({ post, related = [] }: Props) {
                   Get new articles, safety alerts, and product reviews in your
                   inbox.
                 </p>
-                <div className="flex gap-2">
-                  <input
-                    type="email"
-                    placeholder="Your email"
-                    className="flex-1 bg-white/10 border border-white/20 rounded-full px-3 py-2 text-[13px] text-white placeholder:text-white/40 outline-none focus:border-white/50 min-w-0"
-                  />
-                  <button className="bg-(--gold) text-white text-[12px] font-medium px-4 py-2 rounded-full hover:bg-(--gold-light) transition-colors whitespace-nowrap shrink-0">
-                    Join
-                  </button>
-                </div>
+                <NewsletterMini source="blog_post_sidebar" />
               </div>
             </div>
           </aside>

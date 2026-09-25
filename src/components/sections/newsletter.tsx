@@ -49,7 +49,10 @@ export function Newsletter() {
   }
 
   return (
-    <section className="relative bg-(--green-deep) py-20 overflow-hidden">
+    <section
+      id="newsletter"
+      className="relative bg-(--green-deep) py-20 overflow-hidden scroll-mt-20"
+    >
       {/* Decorative ring */}
       <div className="absolute -left-24 -top-24 w-72 h-72 rounded-full border-50 border-white/4 pointer-events-none" />
       <div className="absolute -right-16 -bottom-16 w-52 h-52 rounded-full border-36 border-white/4 pointer-events-none" />
